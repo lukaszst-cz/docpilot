@@ -64,8 +64,59 @@ async function loadDeadlines(){const d=await api('/api/dashboard');$('#deadlineL
 async function loadDuplicates(){const groups=await api('/api/duplicates');$('#duplicateList').innerHTML=groups.length?groups.map((g,i)=>`<div class="listItem"><div class="listItemHead"><strong>${g.kind==='exact'?'Exact duplicates':'Near duplicates'}</strong><span>${g.documents.length} files</span></div>${g.documents.map(d=>`<div class="meta"><span>${esc(d.source_name)}</span><span>${esc(d.path)}</span></div>`).join('')}</div>`).join(''):'<p class="muted">No duplicate groups detected.</p>'}$('#scanDuplicatesBtn').addEventListener('click',loadDuplicates);
 async function loadCases(){const cs=await api('/api/cases');$('#caseList').innerHTML=cs.length?cs.map(c=>`<div class="listItem"><h3>${esc(c.name)}</h3>${c.timeline.map(t=>`<div class="meta"><strong>${esc(t.date||'')}</strong><span>${esc(t.name)}</span><span>${esc(t.action||'')}</span>${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div>`).join('')}</div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>'}
 
-$('#searchBtn').addEventListener('click',async()=>{const q=$('#searchInput').value.trim();if(!q)return;const r=await api(`/api/search?q=${encodeURIComponent(q)}`);$('#searchResults').innerHTML=r.length?r.map(d=>`<div class="listItem"><strong>${esc(d.source_name)}</strong><div class="meta"><span>score ${d.meaning_score}</span><span>${esc(d.category)}</span><span>${esc(d.case_name||'')}</span></div></div>`).join(''):'<p class="muted">No matches.</p>'});
-$('#qaBtn').addEventListener('click',async()=>{const question=$('#qaInput').value.trim();if(!question)return;const r=await api('/api/qa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});$('#qaAnswer').innerHTML=`<div class="listItem"><strong>${esc(r.answer)}</strong>${(r.sources||[]).map(s=>`<div class="meta"><span>${esc(s.name)}</span><span>score ${s.score}</span></div>`).join('')}</div>`});
+async function runSearch(){
+  const q=$('#searchInput').value.trim();
+  if(!q)return;
+  const out=$('#searchResults'), btn=$('#searchBtn');
+  btn.disabled=true;
+  out.innerHTML='<p class="muted">Searching local documents…</p>';
+  try{
+    const r=await api(`/api/search?q=${encodeURIComponent(q)}`);
+    out.innerHTML=r.length?r.map(d=>{
+      const text=String(d.extracted_text||'').replace(/\s+/g,' ').trim();
+      const snippet=text.slice(0,220);
+      return `<div class="listItem">
+        <div class="listItemHead"><strong>${esc(d.source_name)}</strong>${d.path?`<button class="secondary searchOpen" data-path="${esc(d.path)}">Show file</button>`:''}</div>
+        <div class="meta"><span>match ${Math.round((d.meaning_score||0)*100)}%</span><span>${esc(d.category||'')}</span><span>${esc(d.case_name||'')}</span></div>
+        ${snippet?`<p class="muted resultSnippet">${esc(snippet)}${text.length>220?'…':''}</p>`:''}
+      </div>`;
+    }).join(''):'<p class="muted">No matching documents found.</p>';
+    $$('.searchOpen').forEach(b=>b.addEventListener('click',()=>b.dataset.path&&reveal(b.dataset.path)));
+  }catch(e){
+    out.innerHTML=`<p class="dangerText">Search failed: ${esc(e.message)}</p>`;
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+async function runQa(){
+  const question=$('#qaInput').value.trim();
+  if(!question)return;
+  const out=$('#qaAnswer'), btn=$('#qaBtn');
+  btn.disabled=true;
+  out.innerHTML='<p class="muted">Checking your local index…</p>';
+  try{
+    const r=await api('/api/qa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});
+    const sources=(r.sources||[]).map(s=>`<div class="qaSource">
+      <div><strong>${esc(s.name)}</strong><span class="muted"> · match ${Math.round((s.score||0)*100)}%</span></div>
+      ${s.path?`<button class="secondary qaOpen" data-path="${esc(s.path)}">Show source</button>`:''}
+    </div>`).join('');
+    out.innerHTML=`<div class="listItem">
+      <strong class="qaAnswerText">${esc(r.answer)}</strong>
+      ${sources?`<div class="qaSources"><p class="muted">Source documents</p>${sources}</div>`:''}
+    </div>`;
+    $$('.qaOpen').forEach(b=>b.addEventListener('click',()=>b.dataset.path&&reveal(b.dataset.path)));
+  }catch(e){
+    out.innerHTML=`<p class="dangerText">Could not answer: ${esc(e.message)}</p>`;
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+$('#searchBtn').addEventListener('click',runSearch);
+$('#qaBtn').addEventListener('click',runQa);
+$('#searchInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runSearch()}});
+$('#qaInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runQa()}});
 
 $('#diffBtn').addEventListener('click',async()=>{try{const r=await api('/api/diff/select',{method:'POST'});if(r.cancelled)return;$('#diffOutput').textContent=`Similarity: ${(r.similarity*100).toFixed(1)}%\nAdded lines: ${r.added_lines}\nRemoved lines: ${r.removed_lines}\n\n${r.diff}`;}catch(e){alert(e.message)}});
 $('#scanCleanBtn')?.addEventListener('click',async()=>{try{$('#scanCleanOutput').innerHTML='<p class="muted">Cleaning scan…</p>';const r=await api('/api/scan/clean-select',{method:'POST'});if(r.cancelled){$('#scanCleanOutput').innerHTML='';return}$('#scanCleanOutput').innerHTML=`<p><strong>Clean copy created</strong></p><p class="muted">Quality ${r.quality.score}/100 · ${esc((r.notes||[]).join(' · '))}</p><button class="secondary" id="openCleanScan">Show in Explorer</button>`;$('#openCleanScan').addEventListener('click',()=>reveal(r.path));}catch(e){alert(e.message)}});

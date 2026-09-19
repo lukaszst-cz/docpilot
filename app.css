@@ -7,3 +7,11 @@
 #qaAnswer .listItem,#searchResults .listItem{max-width:100%;overflow-wrap:anywhere;word-break:break-word}
 #qaAnswer strong,#searchResults strong{overflow-wrap:anywhere;word-break:break-word}
 @media(max-width:560px){#view-search .inline{display:grid;grid-template-columns:minmax(0,1fr)}#view-search .inline button{width:100%}}
+
+.resultSnippet{margin:8px 0 0;line-height:1.45}
+.qaAnswerText{display:block;line-height:1.55}
+.qaSources{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.qaSources>p{margin:0 0 8px}
+.qaSource{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0}
+.qaSource+.qaSource{border-top:1px solid rgba(255,255,255,.05)}
+@media(max-width:560px){.qaSource{align-items:flex-start;flex-direction:column}.qaSource button{width:100%}}

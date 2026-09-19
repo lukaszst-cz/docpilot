@@ -56,3 +56,29 @@ def test_local_qa_lists_reply_actions():
     ]
     answer = answer_local("które pisma wymagają odpowiedzi urząd", docs)
     assert "reply.txt" in answer["answer"]
+
+
+def test_local_qa_answers_polish_sum_in_polish():
+    docs = [
+        _doc(1, "a.txt", "ubezpieczenie szkoda wypłata", amount=100.0),
+        _doc(2, "b.txt", "ubezpieczenie szkoda decyzja", amount=250.0),
+        _doc(3, "c.txt", "szkoła zebranie", amount=None),
+        _doc(4, "d.txt", "ubezpieczenie polisa", amount=None),
+    ]
+    answer = answer_local("ile łącznie ubezpieczenie szkoda", docs)
+    assert answer["mode"] == "structured-sum"
+    assert answer["answer"].startswith("Suma wykrytych kwot")
+    assert "350.00 PLN" in answer["answer"]
+
+
+def test_local_qa_polish_deadline_keeps_source():
+    docs = [
+        _doc(1, "termin.txt", "ubezpieczenie odpowiedź termin", deadline="2026-10-10"),
+        _doc(2, "inne.txt", "szkoła zebranie"),
+        _doc(3, "auto.txt", "samochód przegląd"),
+        _doc(4, "polisa.txt", "ubezpieczenie polisa"),
+    ]
+    answer = answer_local("jaki jest najbliższy termin ubezpieczenie", docs)
+    assert answer["mode"] == "structured-deadline"
+    assert "Najbliższy wykryty termin" in answer["answer"]
+    assert answer["sources"][0]["name"] == "termin.txt"

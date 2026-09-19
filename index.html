@@ -31,7 +31,7 @@
       </nav>
       <div class="sidebarBottom">
         <button id="installPwaBtn" class="ghost hidden">Install PWA</button>
-        <span class="version">v0.5.1</span>
+        <span class="version">v0.6.0</span>
       </div>
     </aside>
 
@@ -91,8 +91,8 @@
 
       <section id="view-search" class="view">
         <div class="twoCol">
-          <section class="card"><h2>Search by meaning</h2><p class="muted">Local dense-vector search (TF-IDF + latent semantic analysis). No cloud model and no document upload.</p><div class="inline"><input id="searchInput" placeholder="e.g. flooding insurance, school letter, Orange invoice"><button id="searchBtn">Search</button></div><div id="searchResults"></div></section>
-          <section class="card"><h2>Local Q&A</h2><div class="inline"><input id="qaInput" placeholder="What is the response deadline?"><button id="qaBtn">Ask</button></div><div id="qaAnswer"></div><p class="muted">Answers are extracted from your local DocPilot index. Review the source document for important decisions.</p></section>
+          <section class="card"><h2>Search by meaning</h2><p class="muted">Local dense-vector search (TF-IDF + latent semantic analysis). No cloud model and no document upload.</p><div class="inline"><input id="searchInput" placeholder="e.g. flooding insurance, school letter, Orange invoice"><button id="searchBtn">Search</button></div><div id="searchResults" aria-live="polite"></div></section>
+          <section class="card"><h2>Local Q&A</h2><div class="inline"><input id="qaInput" placeholder="What is the response deadline?"><button id="qaBtn">Ask</button></div><div id="qaAnswer" aria-live="polite"></div><p class="muted">Answers are extracted from your local DocPilot index. Review the source document for important decisions.</p></section>
         </div>
       </section>
 
