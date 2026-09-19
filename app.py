@@ -282,15 +282,35 @@ def select_local():
     return data
 
 
+def _save_upload_with_limit(upload: UploadFile, destination: Path, max_bytes: int) -> int:
+    written = 0
+    try:
+        with destination.open("wb") as output:
+            while True:
+                chunk = upload.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > max_bytes:
+                    raise HTTPException(413, "File exceeds the upload size limit")
+                output.write(chunk)
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+    return written
+
+
 @app.post("/api/analyze")
 def analyze(upload: UploadFile = File(...)):
     filename = safe_name(upload.filename or "document")
     destination = unique_destination(settings.inbox, filename)
-    with destination.open("wb") as output:
-        shutil.copyfileobj(upload.file, output)
-    if destination.stat().st_size > settings.max_upload_mb * 1024 * 1024:
-        destination.unlink(missing_ok=True)
-        raise HTTPException(413, f"File exceeds {settings.max_upload_mb} MB limit")
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    try:
+        _save_upload_with_limit(upload, destination, max_bytes)
+    except HTTPException as exc:
+        if exc.status_code == 413:
+            exc.detail = f"File exceeds {settings.max_upload_mb} MB limit"
+        raise
     data = _analyze_and_index(destination)
     data["source_mode"] = "copy"
     audit(settings, "imported-copy", {"path": str(destination), "id": data["id"]})
