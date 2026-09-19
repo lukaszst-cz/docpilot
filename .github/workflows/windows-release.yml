@@ -104,6 +104,34 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist-installer | Out-Null
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' packaging\installer\DocPilot.iss
 
+      - name: Upgrade smoke test from v0.5.1
+        shell: pwsh
+        run: |
+          $oldInstaller = Join-Path $env:TEMP 'DocPilot-Setup-v0.5.1.exe'
+          Invoke-WebRequest -Uri 'https://github.com/lukaszst-cz/docpilot/releases/download/v0.5.1/DocPilot-Setup-Windows-x64.exe' -OutFile $oldInstaller
+
+          $silentArgs = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-')
+          $old = Start-Process -FilePath $oldInstaller -ArgumentList $silentArgs -Wait -PassThru
+          if ($old.ExitCode -ne 0) { throw "v0.5.1 installer failed with exit code $($old.ExitCode)." }
+
+          $dataRoot = Join-Path $env:LOCALAPPDATA 'DocPilot\Data'
+          New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
+          $marker = Join-Path $dataRoot 'upgrade-smoke-test.txt'
+          'keep-me' | Set-Content -Path $marker -Encoding UTF8
+
+          $newInstaller = (Resolve-Path 'dist-installer\DocPilot-Setup-Windows-x64.exe').Path
+          $new = Start-Process -FilePath $newInstaller -ArgumentList $silentArgs -Wait -PassThru
+          if ($new.ExitCode -ne 0) { throw "Current installer failed with exit code $($new.ExitCode)." }
+
+          if (!(Test-Path $marker)) { throw 'Upgrade removed the existing DocPilot data folder.' }
+          $markerValue = (Get-Content $marker -Raw).Trim()
+          if ($markerValue -ne 'keep-me') { throw 'Upgrade changed existing user data.' }
+
+          $installedExe = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
+          if (!(Test-Path $installedExe)) { throw 'Upgraded DocPilot.exe was not installed.' }
+          $selfTest = Start-Process -FilePath $installedExe -ArgumentList '--self-test' -Wait -PassThru
+          if ($selfTest.ExitCode -ne 0) { throw "Upgraded DocPilot self-test failed with exit code $($selfTest.ExitCode)." }
+
       - name: Generate checksums
         shell: pwsh
         run: |
