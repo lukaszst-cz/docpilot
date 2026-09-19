@@ -1,27 +1,37 @@
-DOCPILOT v0.5.1 — WINDOWS
-=================================================
+DOCPILOT v0.5.1 — SZYBKI START
+====================================
 
-Easy start:
-    DocPilot.bat
+Jeżeli chcesz po prostu używać programu, pobierz gotowy instalator:
 
-For ordinary users, prefer a GitHub Release build:
-    DocPilot-Setup-Windows-x64.exe
-or
-    DocPilot-Portable-Windows-x64.zip
+https://github.com/lukaszst-cz/docpilot/releases/download/v0.5.1/DocPilot-Setup-Windows-x64.exe
 
-The release build does not require a separate Python installation.
+Nie musisz instalować Pythona ani uruchamiać niczego z terminala.
 
-Core idea:
-    Documents + Deadlines + Actions + Archive
+Po instalacji uruchom DocPilot i na początek wybierz "Try safe demo".
+Program wczyta przykładową fakturę z fikcyjnymi danymi, dzięki czemu możesz zobaczyć, jak działa bez używania własnych dokumentów.
 
-Highlights in v0.5.1:
-- Review Queue
-- local vector search + stronger Local Q&A
-- scanned-PDF OCR
-- scan auto-rotate / deskew / cleanup
-- background deadline notifications
-- optional Gmail/Outlook, Notion and Google Calendar connectors
-- full archive backup
-- PWA
+Co robi DocPilot?
 
-For important documents, review detected data and proposed file changes before applying them.
+- odczytuje PDF-y, obrazy i skany;
+- pomaga znaleźć terminy i ważne dane;
+- podpowiada nazwę i miejsce dla dokumentu;
+- pozwala wyszukiwać po treści;
+- wykrywa duplikaty;
+- grupuje dokumenty w sprawy;
+- zapisuje historię zmian;
+- nie przenosi ani nie zmienia pliku bez zatwierdzenia.
+
+Ważne:
+automatyczne odczytywanie dokumentów może się pomylić. Przy ważnych terminach, kwotach i danych zawsze sprawdź oryginalny dokument.
+
+Wersja bez instalacji:
+DocPilot-Portable-Windows-x64.zip
+
+Strona projektu:
+https://lukaszst-cz.github.io/operations-office-portfolio/docpilot/
+
+Kod i zgłaszanie problemów:
+https://github.com/lukaszst-cz/docpilot
+
+Dla osób rozwijających projekt:
+DocPilot.bat uruchamia wersję źródłową i w razie potrzeby przygotowuje lokalne środowisko Python.
