@@ -9,9 +9,14 @@ on:
     paths:
       - '.github/workflows/windows-release.yml'
       - 'packaging/**'
-      - 'docpilot/**'
+      - '*.py'
+      - '*.html'
+      - '*.js'
+      - '*.css'
+      - '*.webmanifest'
+      - '*.png'
       - 'pyproject.toml'
-      - 'tests/**'
+      - 'test_*.py'
 
 permissions:
   contents: write
@@ -57,13 +62,26 @@ jobs:
       - name: Build background notifier
         shell: pwsh
         run: |
-          pyinstaller --onefile --windowed --name DocPilotNotifier --distpath dist\notifier packaging\notifier_entry.py
+          $parent = (Resolve-Path '..').Path
+          pyinstaller --onefile --windowed --name DocPilotNotifier --paths $parent --distpath dist\notifier notifier_entry.py
           Copy-Item 'dist\notifier\DocPilotNotifier.exe' 'dist\DocPilot\DocPilotNotifier.exe'
 
       - name: Bundle OCR engine
         shell: pwsh
         run: |
           Copy-Item 'C:\Program Files\Tesseract-OCR' 'dist\DocPilot\tesseract' -Recurse
+
+      - name: Verify packaged files
+        shell: pwsh
+        run: |
+          $required = @(
+            'dist\DocPilot\DocPilot.exe',
+            'dist\DocPilot\DocPilotNotifier.exe',
+            'dist\DocPilot\tesseract\tesseract.exe'
+          )
+          foreach ($file in $required) {
+            if (!(Test-Path $file)) { throw "Missing packaged file: $file" }
+          }
 
       - name: Smoke test package imports
         shell: pwsh

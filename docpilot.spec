@@ -1,14 +1,27 @@
 # PyInstaller spec for DocPilot Desktop (Windows one-folder build)
+from pathlib import Path
+
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-datas = []
-datas += [("docpilot/templates", "docpilot/templates")]
-datas += [("docpilot/static", "docpilot/static")]
+_spec_path = Path(SPECPATH).resolve()
+if _spec_path.is_file():
+    _spec_path = _spec_path.parent
+ROOT = _spec_path.parent if _spec_path.name.lower() == "packaging" else _spec_path
 
-hiddenimports = []
+datas = [
+    (str(ROOT / "index.html"), "docpilot/templates"),
+    (str(ROOT / "app.css"), "docpilot/static"),
+    (str(ROOT / "app.js"), "docpilot/static"),
+    (str(ROOT / "manifest.webmanifest"), "docpilot/static"),
+    (str(ROOT / "service-worker.js"), "docpilot/static"),
+    (str(ROOT / "icon-192.png"), "docpilot/static"),
+    (str(ROOT / "icon-512.png"), "docpilot/static"),
+]
+
+hiddenimports = ["docpilot.app"]
 for package in [
     "uvicorn", "webview", "pytesseract", "pypdfium2", "sklearn", "keyring",
-    "googleapiclient", "google_auth_oauthlib", "google.oauth2", "winotify", "mcp",
+    "googleapiclient", "google_auth_oauthlib", "google.oauth2", "winotify",
 ]:
     try:
         hiddenimports += collect_submodules(package)
@@ -22,15 +35,15 @@ for package in ["keyring", "googleapiclient", "google_auth_oauthlib", "winotify"
         pass
 
 a = Analysis(
-    ["docpilot/desktop.py"],
-    pathex=["."],
+    [str(ROOT / "desktop.py")],
+    pathex=[str(ROOT.parent), str(ROOT)],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=["mcp"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
