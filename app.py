@@ -59,6 +59,10 @@ from .rules import apply_rules
 from .storage import apply_change, list_changes, safe_name, undo_change, unique_destination
 
 BASE_DIR = Path(__file__).parent
+TEMPLATE_DIR = BASE_DIR / "templates" if (BASE_DIR / "templates").exists() else BASE_DIR
+STATIC_DIR = BASE_DIR / "static" if (BASE_DIR / "static").exists() else BASE_DIR
+DEMO_DIR = BASE_DIR / "demo" if (BASE_DIR / "demo").exists() else BASE_DIR
+
 settings = get_settings()
 init_db(settings)
 
@@ -71,7 +75,7 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 app = FastAPI(title="DocPilot", version=__version__)
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 def _local_origin_allowed(origin: str) -> bool:
@@ -97,7 +101,7 @@ WATCHER_THREAD: threading.Thread | None = None
 @app.get("/")
 def index():
     return FileResponse(
-        BASE_DIR / "templates" / "index.html",
+        TEMPLATE_DIR / "index.html",
         media_type="text/html",
         headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
     )
@@ -105,13 +109,13 @@ def index():
 
 @app.get("/manifest.webmanifest")
 def manifest():
-    return FileResponse(BASE_DIR / "static" / "manifest.webmanifest", media_type="application/manifest+json")
+    return FileResponse(STATIC_DIR / "manifest.webmanifest", media_type="application/manifest+json")
 
 
 @app.get("/service-worker.js")
 def service_worker():
     return FileResponse(
-        BASE_DIR / "static" / "service-worker.js",
+        STATIC_DIR / "service-worker.js",
         media_type="application/javascript",
         headers={"Cache-Control": "no-cache"},
     )
@@ -124,7 +128,7 @@ def health():
 
 def _demo_source_path() -> Path:
     candidates = [
-        BASE_DIR / "demo" / "sample_invoice.txt",
+        DEMO_DIR / "sample_invoice.txt",
         BASE_DIR / "sample_invoice.txt",
     ]
     for candidate in candidates:

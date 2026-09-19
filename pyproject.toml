@@ -48,7 +48,7 @@ docpilot-notifier = "docpilot.notifier:main"
 packages = ["docpilot"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["."]
 pythonpath = ["."]
 
 [tool.ruff]

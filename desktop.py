@@ -51,14 +51,14 @@ def _show_startup_error() -> None:
 
 def _self_test() -> None:
     from docpilot import __version__
-    from docpilot.app import BASE_DIR, app, _demo_source_path
+    from docpilot.app import STATIC_DIR, TEMPLATE_DIR, app, _demo_source_path
 
     required = [
-        BASE_DIR / "templates" / "index.html",
-        BASE_DIR / "static" / "app.css",
-        BASE_DIR / "static" / "app.js",
-        BASE_DIR / "static" / "manifest.webmanifest",
-        BASE_DIR / "static" / "service-worker.js",
+        TEMPLATE_DIR / "index.html",
+        STATIC_DIR / "app.css",
+        STATIC_DIR / "app.js",
+        STATIC_DIR / "manifest.webmanifest",
+        STATIC_DIR / "service-worker.js",
     ]
     missing = [str(path) for path in required if not path.exists()]
     if missing:
