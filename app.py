@@ -60,7 +60,8 @@ from .storage import apply_change, list_changes, safe_name, undo_change, unique_
 
 BASE_DIR = Path(__file__).parent
 TEMPLATE_DIR = BASE_DIR / "templates" if (BASE_DIR / "templates").exists() else BASE_DIR
-STATIC_DIR = BASE_DIR / "static" if (BASE_DIR / "static").exists() else BASE_DIR
+PACKAGED_STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR = PACKAGED_STATIC_DIR if PACKAGED_STATIC_DIR.exists() else BASE_DIR
 DEMO_DIR = BASE_DIR / "demo" if (BASE_DIR / "demo").exists() else BASE_DIR
 
 settings = get_settings()
@@ -75,7 +76,17 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 app = FastAPI(title="DocPilot", version=__version__)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+if PACKAGED_STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+else:
+    _SOURCE_STATIC_FILES = {"app.css", "app.js", "icon-192.png", "icon-512.png"}
+
+    @app.get("/static/{filename}")
+    def source_static(filename: str):
+        if filename not in _SOURCE_STATIC_FILES:
+            raise HTTPException(404, "Static file not found")
+        return FileResponse(BASE_DIR / filename)
 
 
 def _local_origin_allowed(origin: str) -> bool:

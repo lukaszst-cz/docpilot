@@ -1,4 +1,6 @@
-from docpilot.app import STATIC_DIR, TEMPLATE_DIR, _local_origin_allowed
+from fastapi.testclient import TestClient
+
+from docpilot.app import STATIC_DIR, TEMPLATE_DIR, _local_origin_allowed, app
 
 
 def test_local_origins_are_allowed():
@@ -17,3 +19,10 @@ def test_source_ui_assets_are_resolved():
     assert (TEMPLATE_DIR / "index.html").exists()
     assert (STATIC_DIR / "app.css").exists()
     assert (STATIC_DIR / "app.js").exists()
+
+
+def test_source_static_route_does_not_expose_python_files():
+    client = TestClient(app)
+    assert client.get("/static/app.css").status_code == 200
+    assert client.get("/static/app.js").status_code == 200
+    assert client.get("/static/app.py").status_code == 404
