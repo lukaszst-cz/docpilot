@@ -8,6 +8,10 @@ on:
       - main
     paths:
       - '.github/workflows/windows-release.yml'
+      - 'packaging/**'
+      - 'docpilot/**'
+      - 'pyproject.toml'
+      - 'tests/**'
 
 permissions:
   contents: write
