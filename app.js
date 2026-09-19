@@ -17,6 +17,20 @@ function money(md){return md?.amount==null?'—':`${md.amount} ${md.currency||''
 $$('.navBtn').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 $('#quickImportBtn').addEventListener('click',()=>{go('inbox'); setTimeout(selectLocalFile,100)});
+$('#tryDemoBtn')?.addEventListener('click',async()=>{
+  const btn=$('#tryDemoBtn'), status=$('#demoStatus');
+  btn.disabled=true; btn.textContent='Loading demo…'; status.textContent='';
+  try{
+    const d=await api('/api/demo',{method:'POST'});
+    status.textContent='Demo loaded. Opening Documents…';
+    await loadDashboard();
+    setTimeout(()=>go('documents'),350);
+  }catch(e){
+    status.textContent=e.message;
+  }finally{
+    btn.disabled=false; btn.textContent='Try safe demo';
+  }
+});
 function go(name){$$('.navBtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$$('.view').forEach(v=>v.classList.remove('activeView'));$(`#view-${name}`).classList.add('activeView');$('#viewTitle').textContent=titles[name][0];$('#viewSubtitle').textContent=titles[name][1];if(name==='dashboard')loadDashboard();if(name==='review')loadReview();if(name==='documents')loadDocuments();if(name==='deadlines')loadDeadlines();if(name==='duplicates')loadDuplicates();if(name==='cases')loadCases();if(name==='automation'){loadRules();loadTypes();loadWatch();}if(name==='settings'){loadIntegrationStatus();loadNotificationStatus();}}
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('#installPwaBtn').classList.remove('hidden')});
@@ -26,7 +40,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('/service-work
 
 async function api(url,opts={}){const r=await fetch(url,{cache:'no-store',...opts});if(!r.ok){let msg=`${r.status} ${r.statusText}`;try{const j=await r.json();msg=j.detail||msg}catch{}throw new Error(msg)}return r.headers.get('content-type')?.includes('application/json')?r.json():r.text()}
 
-async function loadDashboard(){const d=await api('/api/dashboard');$('#stats').innerHTML=[['Documents',d.documents],['Deadlines',d.deadline_count],['Actions',d.actions],['Duplicate groups',d.duplicate_groups],['Cases',d.cases],['Health alerts',d.unhealthy]].map(([a,b])=>`<div class="stat"><strong>${b}</strong><span>${a}</span></div>`).join('');$('#dashboardDeadlines').innerHTML=d.deadlines.length?d.deadlines.slice(0,8).map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No detected deadlines yet.</p>';$('#dashboardActions').innerHTML=d.actions?`<div class="stat"><strong>${d.actions}</strong><span>documents require an action</span></div><p class="muted">Use Documents and Deadline Radar to review them.</p>`:'<p class="muted">Nothing marked as action-required.</p>';$('#featureGrid').innerHTML=[['OCR','PL/EN local OCR'],['Smart Inbox','classify + rename'],['Deadline Radar','dates + actions'],['Duplicates','SHA-256 + near match'],['Cases','timeline'],['Search','local vector + Q&A'],['Review Queue','human-in-the-loop'],['Redaction','text + scanned PDF'],['PWA','installable UI']].map(([a,b])=>`<div class="feature"><strong>${a}</strong><small>${b}</small></div>`).join('')}
+async function loadDashboard(){const d=await api('/api/dashboard');const welcome=$('#welcomeCard');if(welcome)welcome.classList.toggle('hidden',d.documents>0);$('#stats').innerHTML=[['Documents',d.documents],['Deadlines',d.deadline_count],['Actions',d.actions],['Duplicate groups',d.duplicate_groups],['Cases',d.cases],['Health alerts',d.unhealthy]].map(([a,b])=>`<div class="stat"><strong>${b}</strong><span>${a}</span></div>`).join('');$('#dashboardDeadlines').innerHTML=d.deadlines.length?d.deadlines.slice(0,8).map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No detected deadlines yet.</p>';$('#dashboardActions').innerHTML=d.actions?`<div class="stat"><strong>${d.actions}</strong><span>documents require an action</span></div><p class="muted">Use Documents and Deadline Radar to review them.</p>`:'<p class="muted">Nothing marked as action-required.</p>';$('#featureGrid').innerHTML=[['OCR','PL/EN local OCR'],['Smart Inbox','classify + rename'],['Deadline Radar','dates + actions'],['Duplicates','SHA-256 + near match'],['Cases','timeline'],['Search','local vector + Q&A'],['Review Queue','human-in-the-loop'],['Redaction','text + scanned PDF'],['PWA','installable UI']].map(([a,b])=>`<div class="feature"><strong>${a}</strong><small>${b}</small></div>`).join('')}
 
 const drop=$('#dropZone'), browse=$('#browseBtn');browse.addEventListener('click',selectLocalFile);['dragenter','dragover'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)analyzeCopy(f)});
 async function selectLocalFile(){if(pickerBusy)return;pickerBusy=true;browse.disabled=true;browse.textContent='Opening Windows picker…';try{const d=await api('/api/select-local',{method:'POST'});if(!d.cancelled){current=d;showAnalysis(d)}}catch(e){alert(e.message)}finally{pickerBusy=false;browse.disabled=false;browse.textContent='Select file on this PC'}}

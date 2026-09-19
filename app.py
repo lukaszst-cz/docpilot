@@ -103,6 +103,28 @@ def health():
     return {"status": "ok", "mode": "local-first", "version": "0.4.0", "pwa": True, "review_queue": True, "background_notifications": True}
 
 
+def _demo_source_path() -> Path:
+    candidates = [
+        BASE_DIR / "demo" / "sample_invoice.txt",
+        BASE_DIR / "sample_invoice.txt",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError("Bundled demo document is missing.")
+
+
+@app.post("/api/demo")
+def load_safe_demo():
+    source = _demo_source_path()
+    destination = unique_destination(settings.inbox, "DocPilot-demo-invoice.txt")
+    shutil.copy2(source, destination)
+    data = _analyze_and_index(destination, profile="Home")
+    data["source_mode"] = "demo"
+    audit(settings, "demo-loaded", {"path": str(destination), "id": data["id"]})
+    return data
+
+
 def _pick_file_windows(title: str = "Select a document for DocPilot") -> str | None:
     safe_title = title.replace("'", "''")
     script = rf"""

@@ -10,7 +10,11 @@ DocPilot turns mixed folders of scans, PDFs, receipts, invoices, contracts and l
 
 ## Download for Windows
 
-For non-technical users, use the repository **Releases** page:
+**Product page for testers:** https://lukaszst-cz.github.io/operations-office-portfolio/docpilot/
+
+**Direct Windows installer:** https://github.com/lukaszst-cz/docpilot/releases/download/v0.4.0/DocPilot-Setup-Windows-x64.exe
+
+For non-technical users, use the product page or the repository **Releases** page:
 
 - `DocPilot-Setup-Windows-x64.exe` — normal Windows installer;
 - `DocPilot-Portable-Windows-x64.zip` — unpack and run `DocPilot.exe`;
@@ -24,6 +28,12 @@ Developers/testers can run the source version with `DocPilot.bat`.
 ## Repository layout
 
 The public repository intentionally keeps documentation simple. `README.md` is the only Markdown documentation file because GitHub renders it automatically on the project home page. Release notes live in GitHub Releases rather than as extra files in the repository.
+
+## One-click safe demo
+
+On a fresh installation the Dashboard offers **Try safe demo**. It loads a bundled synthetic invoice into DocPilot so a tester can see classification, deadline detection, indexing and search without selecting a private file.
+
+The demo never reads or modifies the tester's own documents.
 
 ## Core principles
 

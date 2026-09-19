@@ -9,6 +9,7 @@ if _spec_path.is_file():
 ROOT = _spec_path.parent if _spec_path.name.lower() == "packaging" else _spec_path
 
 datas = [
+    (str(ROOT / "sample_invoice.txt"), "docpilot/demo"),
     (str(ROOT / "index.html"), "docpilot/templates"),
     (str(ROOT / "app.css"), "docpilot/static"),
     (str(ROOT / "app.js"), "docpilot/static"),

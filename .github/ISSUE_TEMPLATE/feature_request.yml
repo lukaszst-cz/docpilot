@@ -1,0 +1,19 @@
+name: Feature request
+description: Suggest an improvement grounded in a real document workflow
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What user problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed behavior
+  - type: textarea
+    id: local_first
+    attributes:
+      label: Local-first and privacy considerations

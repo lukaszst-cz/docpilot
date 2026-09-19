@@ -38,10 +38,28 @@
     <main class="main">
       <header class="topbar">
         <div><h1 id="viewTitle">Dashboard</h1><p id="viewSubtitle">Documents + Deadlines + Actions + Archive</p></div>
-        <div class="topActions"><button id="quickImportBtn">+ Add document</button></div>
+        <div class="topActions"><a class="buttonLink secondary" href="https://github.com/lukaszst-cz/docpilot/issues/new/choose" target="_blank" rel="noopener">Feedback</a><button id="quickImportBtn">+ Add document</button></div>
       </header>
 
       <section id="view-dashboard" class="view activeView">
+        <section class="card welcomeCard" id="welcomeCard">
+          <div>
+            <span class="badge">START HERE</span>
+            <h2>See DocPilot work in under a minute</h2>
+            <p>Start with a safe built-in example or use your own document. The demo contains synthetic data only and does not touch your files.</p>
+          </div>
+          <div class="stepGrid">
+            <div class="step"><b>1</b><span>Add a document</span></div>
+            <div class="step"><b>2</b><span>Review detected data and deadlines</span></div>
+            <div class="step"><b>3</b><span>Approve the suggested action</span></div>
+            <div class="step"><b>4</b><span>Search, track or undo later</span></div>
+          </div>
+          <div class="welcomeActions">
+            <button id="tryDemoBtn">Try safe demo</button>
+            <button class="secondary" data-go="inbox">Use my document</button>
+            <span id="demoStatus" class="muted"></span>
+          </div>
+        </section>
         <div class="stats" id="stats"></div>
         <div class="twoCol">
           <section class="card"><div class="cardHead"><h2>Deadline Radar</h2><button class="linkBtn" data-go="deadlines">View all</button></div><div id="dashboardDeadlines"></div></section>
@@ -123,6 +141,7 @@
           <section class="card"><h2>Email connector</h2><p>Optional Gmail/Outlook IMAP import. Use an app password; credentials are stored through the operating-system keyring.</p><select id="emailProvider"><option value="gmail">Gmail</option><option value="outlook">Outlook</option></select><input id="emailAddress" placeholder="Email address"><input id="emailPassword" type="password" placeholder="App password"><input id="emailFolder" value="INBOX" placeholder="Folder"><div class="inline"><button id="emailConfigureBtn">Save connector</button><button id="emailImapImportBtn" class="secondary">Import attachments</button></div><div id="emailConnectorStatus" class="muted"></div></section>
           <section class="card"><h2>Notion direct sync</h2><p>Optional. Provide a Notion integration token and destination database ID.</p><input id="notionToken" type="password" placeholder="Internal integration token"><input id="notionDatabase" placeholder="Database ID"><div class="inline"><button id="notionConfigureBtn">Save</button><button id="notionSyncBtn" class="secondary">Sync</button></div><div id="notionStatus" class="muted"></div></section>
           <section class="card"><h2>Google Calendar direct sync</h2><p>Optional OAuth integration. Select your desktop OAuth <code>client_secret.json</code>; authorization stays local.</p><div class="inline"><button id="googleClientBtn">Select OAuth client</button><button id="googleSyncBtn" class="secondary">Sync deadlines</button></div><div id="googleStatus" class="muted"></div></section>
+          <section class="card"><h2>Beta feedback</h2><p>Found a bug or have an idea that would make DocPilot more useful? Send feedback without attaching private documents.</p><div class="inline"><a class="buttonLink" href="https://github.com/lukaszst-cz/docpilot/issues/new?template=bug_report.yml" target="_blank" rel="noopener">Report a bug</a><a class="buttonLink secondary" href="https://github.com/lukaszst-cz/docpilot/issues/new?template=feature_request.yml" target="_blank" rel="noopener">Suggest a feature</a></div></section>
           <section class="card"><h2>Privacy</h2><p>Core indexing, OCR, vector search and Q&A are local. Cloud integrations are optional and only send the records you explicitly sync.</p></section>
           <section class="card"><h2>Audit log</h2><button id="auditBtn" class="secondary">Load audit log</button><div id="auditList"></div></section>
           <section class="card"><h2>Full Undo History</h2><button id="changesBtn" class="secondary">Load reversible changes</button><div id="changesList"></div></section>
