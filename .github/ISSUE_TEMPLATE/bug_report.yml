@@ -1,28 +1,48 @@
-name: Bug report
-description: Report a reproducible DocPilot problem
-title: "[Bug]: "
+name: Zgłoś błąd
+description: Coś nie działa tak, jak powinno? Opisz to tutaj.
+title: "[Błąd] "
 labels: ["bug"]
 body:
   - type: textarea
     id: description
     attributes:
-      label: What happened?
+      label: Co się stało?
+      description: Napisz własnymi słowami, co nie zadziałało.
+      placeholder: "Np. po wybraniu pliku PDF aplikacja nie pokazała analizy."
     validations:
       required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Co miało się wydarzyć?
+      placeholder: "Np. oczekiwałem, że dokument zostanie odczytany i pojawi się podgląd danych."
+
   - type: textarea
     id: steps
     attributes:
-      label: Steps to reproduce
+      label: Jak to powtórzyć?
+      description: Wystarczy kilka prostych kroków.
+      placeholder: "1. Uruchamiam DocPilot\n2. Wybieram Smart Inbox\n3. Dodaję PDF..."
     validations:
       required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Wersja DocPilot
+      placeholder: "np. v0.5.1"
+
   - type: input
     id: platform
     attributes:
-      label: Platform and Python version
+      label: Windows
+      placeholder: "np. Windows 11 24H2"
+
   - type: checkboxes
     id: privacy
     attributes:
-      label: Privacy check
+      label: Prywatność
       options:
-        - label: I removed personal or confidential document data from this report.
+        - label: Sprawdziłem, że zgłoszenie nie zawiera prywatnych dokumentów, danych osobowych ani danych logowania.
           required: true

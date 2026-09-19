@@ -1,19 +1,34 @@
-name: Feature request
-description: Suggest an improvement grounded in a real document workflow
-title: "[Feature]: "
+name: Pomysł na zmianę
+description: Masz funkcję lub poprawkę, która realnie ułatwiłaby pracę z dokumentami?
+title: "[Pomysł] "
 labels: ["enhancement"]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: What user problem would this solve?
+      label: Co dziś jest niewygodne?
+      description: Najbardziej pomaga opis konkretnej sytuacji, a nie sama nazwa funkcji.
+      placeholder: "Np. przy kilkudziesięciu dokumentach z jednej sprawy trudno szybko znaleźć najnowszą wersję."
     validations:
       required: true
+
   - type: textarea
     id: solution
     attributes:
-      label: Proposed behavior
+      label: Jak widzisz rozwiązanie?
+      description: Nie musi być techniczne. Napisz, jak chciałbyś, żeby to działało.
+      placeholder: "Np. przydałby się widok pokazujący ostatni dokument w każdej sprawie."
+
   - type: textarea
-    id: local_first
+    id: context
     attributes:
-      label: Local-first and privacy considerations
+      label: Gdzie by Ci się to przydało?
+      placeholder: "Np. faktury, pisma urzędowe, dokumenty samochodu, reklamacje."
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Prywatność
+      options:
+        - label: Nie dodaję do zgłoszenia prywatnych dokumentów ani danych osobowych.
+          required: true
