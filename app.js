@@ -47,7 +47,33 @@ async function selectLocalFile(){if(pickerBusy)return;pickerBusy=true;browse.dis
 async function analyzeCopy(file){const fd=new FormData();fd.append('upload',file);try{const d=await api('/api/analyze',{method:'POST',body:fd});current=d;showAnalysis(d)}catch(e){alert(e.message)}}
 function showAnalysis(d){drop.classList.add('hidden');$('#successPanel').classList.add('hidden');const md=d.metadata||{};const sensitive=(d.sensitive||[]).map(x=>`${x.type}: ${x.value}`).join(' · ');$('#analysisPanel').classList.remove('hidden');$('#analysisPanel').innerHTML=`<div class="cardHead"><div><span class="badge">ANALYZED</span><h2>${esc(d.source_name)}</h2></div><span>${Math.round((md.confidence||0)*100)}% confidence</span></div><div class="modeNotice ${d.source_mode==='original'?'original':'copy'}">${d.source_mode==='original'?'REAL FILE MODE — Apply can rename or move the original.':'COPY MODE — drag & drop imported a safe copy.'}</div><div class="sourcePath">${esc(d.source_path)}</div><div class="grid"><label>Type<input id="docType" value="${esc(md.document_type||'')}" disabled></label><label>Issuer<input value="${esc(md.issuer||'')}" disabled></label><label>Amount<input value="${esc(money(md))}" disabled></label><label>Deadline<input value="${esc(md.deadline||md.warranty_until||'')}" disabled></label><label>Language<input value="${esc(md.language||'unknown')}" disabled></label><label>Health<input value="${d.health_score}/100" disabled></label><label class="wide">Category<input id="category" value="${esc(d.suggested_category)}"></label><label class="wide">Suggested filename<input id="suggestedFilename" value="${esc(d.suggested_filename)}"></label><label>Profile<select id="profile"><option>Home</option><option>Company</option><option>Child</option><option>Vehicle</option><option>Legal Cases</option></select></label><label>Action<select id="actionRequired"><option value="">None</option><option value="to-pay">To pay</option><option value="to-reply">To reply</option><option value="to-sign">To sign</option><option value="to-review">To review</option><option value="to-archive">To archive</option></select></label><label class="wide">Case<input id="caseName" value="${esc(d.suggested_case||'')}"></label><label class="wide">Apply action<select id="applyMode"><option value="rename">Rename original in the same folder</option><option value="organize">Move + rename into DocPilot archive</option></select></label><label class="wide"><input id="smartStructure" type="checkbox" checked style="width:auto;margin-right:8px"> Smart folder structure (category / year / issuer) when organizing</label></div>${sensitive?`<p class="badge warn">Sensitive data detected</p><p class="muted">${esc(sensitive)}</p>`:''}${(d.health_notes||[]).length?`<p class="muted">Health: ${esc(d.health_notes.join(' · '))}</p>`:''}<div class="actions"><button class="secondary" id="cancelAnalyze">Analyze another</button><button id="applyBtn">Apply</button></div>`;$('#profile').value=d.profile||'Home';$('#actionRequired').value=d.action_required||'';if(d.source_mode!=='original'){$('#applyMode').value='organize';$('#applyMode').disabled=true}$('#cancelAnalyze').addEventListener('click',resetInbox);$('#applyBtn').addEventListener('click',applyCurrent)}
 function resetInbox(){current=null;currentChange=null;$('#analysisPanel').classList.add('hidden');$('#successPanel').classList.add('hidden');drop.classList.remove('hidden')}
-async function applyCurrent(){const p={source_path:current.source_path,category:$('#category').value,filename:$('#suggestedFilename').value,mode:$('#applyMode').value,profile:$('#profile').value,case_name:$('#caseName').value||null,action_required:$('#actionRequired').value||null,smart_structure:$('#smartStructure')?.checked!==false};try{currentChange=await api('/api/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});$('#analysisPanel').classList.add('hidden');$('#successPanel').classList.remove('hidden');$('#successPanel').innerHTML=`<div class="check">✓</div><h2>Change applied and verified</h2><p class="sourcePath">${esc(currentChange.destination)}</p><div class="successActions"><button class="secondary" id="undoBtn">Undo</button><button class="secondary" id="revealBtn">Show in Explorer</button><button id="anotherBtn">Process another file</button></div>`;$('#undoBtn').addEventListener('click',undoCurrent);$('#revealBtn').addEventListener('click',()=>reveal(currentChange.destination));$('#anotherBtn').addEventListener('click',async()=>{resetInbox();await new Promise(r=>setTimeout(r,100));selectLocalFile()});}catch(e){alert(e.message)}}
+async function applyCurrent(){
+  const mode=$('#applyMode').value;
+  const p={source_path:current.source_path,category:$('#category').value,filename:$('#suggestedFilename').value,mode,profile:$('#profile').value,case_name:$('#caseName').value||null,action_required:$('#actionRequired').value||null,smart_structure:$('#smartStructure')?.checked!==false};
+
+  if(current.source_mode==='original'){
+    const action=mode==='rename'?'rename the original file':'move the original file into the DocPilot archive';
+    const ok=confirm(`DocPilot is about to ${action}.\n\nReview the proposed name and category first. This operation will be recorded in Undo History.\n\nContinue?`);
+    if(!ok)return;
+  }
+
+  const btn=$('#applyBtn');
+  btn.disabled=true;
+  btn.textContent='Applying…';
+  try{
+    currentChange=await api('/api/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+    $('#analysisPanel').classList.add('hidden');
+    $('#successPanel').classList.remove('hidden');
+    $('#successPanel').innerHTML=`<div class="check">✓</div><h2>Change applied and verified</h2><p class="sourcePath">${esc(currentChange.destination)}</p><div class="successActions"><button class="secondary" id="undoBtn">Undo</button><button class="secondary" id="revealBtn">Show in Explorer</button><button id="anotherBtn">Process another file</button></div>`;
+    $('#undoBtn').addEventListener('click',undoCurrent);
+    $('#revealBtn').addEventListener('click',()=>reveal(currentChange.destination));
+    $('#anotherBtn').addEventListener('click',async()=>{resetInbox();await new Promise(r=>setTimeout(r,100));selectLocalFile()});
+  }catch(e){
+    alert(e.message);
+    btn.disabled=false;
+    btn.textContent='Apply';
+  }
+}
 async function undoCurrent(){try{const r=await api(`/api/undo/${currentChange.id}`,{method:'POST'});alert(`Restored to:\n${r.restored_to}`);resetInbox()}catch(e){alert(e.message)}}
 async function reveal(path){try{await api('/api/open-folder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})})}catch(e){alert(e.message)}}
 

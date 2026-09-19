@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+import docpilot.storage as storage
+
 from docpilot.config import get_settings
 from docpilot.storage import apply_change, apply_move, undo_change
 
@@ -67,3 +70,18 @@ def test_rename_verification_and_action(tmp_path: Path):
     assert change.verified is True
     assert not source.exists()
     assert Path(change.destination).exists()
+
+
+def test_failed_verification_attempts_rollback(tmp_path: Path, monkeypatch):
+    settings = get_settings(tmp_path / "state")
+    source = tmp_path / "original.txt"
+    source.write_text("important", encoding="utf-8")
+
+    monkeypatch.setattr(storage, "_same_file_identity", lambda *args, **kwargs: False)
+
+    with pytest.raises(RuntimeError, match="restored"):
+        storage.apply_change(settings, source, "Documents", "renamed.txt", mode="rename")
+
+    assert source.exists()
+    assert source.read_text(encoding="utf-8") == "important"
+    assert not (tmp_path / "renamed.txt").exists()

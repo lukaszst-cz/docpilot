@@ -124,9 +124,10 @@ def apply_change(
     # Never report success unless the filesystem confirms it.
     verified = (not source.exists()) and _same_file_identity(destination, expected_size=original_size)
     if not verified:
+        rollback_message = _rollback_failed_change(source, destination)
         raise RuntimeError(
             "DocPilot could not verify the file operation. "
-            f"Expected new file: {destination}"
+            f"Expected new file: {destination}. {rollback_message}"
         )
 
     change = AppliedChange(
@@ -140,6 +141,32 @@ def apply_change(
     _write_change(settings, change)
     return change
 
+
+def _rollback_failed_change(source: Path, destination: Path) -> str:
+    """Best-effort recovery when a file operation cannot be verified."""
+    try:
+        if not destination.exists():
+            return "No destination file was found to roll back."
+
+        if source.exists():
+            recovered = unique_destination(
+                source.parent,
+                f"{source.stem}-DocPilot-recovered{source.suffix}",
+            )
+        else:
+            recovered = source
+
+        recovered.parent.mkdir(parents=True, exist_ok=True)
+        if destination.parent.resolve() == recovered.parent.resolve():
+            destination.rename(recovered)
+        else:
+            shutil.move(str(destination), str(recovered))
+
+        if recovered.exists():
+            return f"The file was restored to: {recovered}"
+        return "Rollback was attempted, but the restored file could not be verified."
+    except Exception as exc:
+        return f"Automatic rollback also failed: {exc}"
 
 def apply_move(settings: Settings, source: Path, category: str, filename: str) -> AppliedChange:
     return apply_change(settings, source, category, filename, mode="organize")
