@@ -9,7 +9,7 @@
   <link rel="icon" href="/static/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icon-192.png">
   <title>DocPilot</title>
-  <link rel="stylesheet" href="/static/app.css?v=0.6.0">
+  <link rel="stylesheet" href="/static/app.css?v=0.7.0">
 </head>
 <body>
   <div class="appShell">
@@ -31,7 +31,7 @@
       </nav>
       <div class="sidebarBottom">
         <button id="installPwaBtn" class="ghost hidden">Install PWA</button>
-        <span class="version">v0.6.0</span>
+        <span class="version">v0.7.0</span>
       </div>
     </aside>
 
@@ -135,6 +135,7 @@
 
       <section id="view-settings" class="view">
         <div class="twoCol">
+          <section class="card"><h2>Data & diagnostics</h2><p>DocPilot stores its working data locally. This panel shows where it lives and basic health information without exposing document contents.</p><div id="diagnosticsStatus" class="muted">Loading diagnostics…</div><div class="inline"><button id="diagRefreshBtn" class="secondary">Refresh</button><button id="openDataBtn" class="secondary">Open data folder</button><button id="openLogBtn" class="secondary">Open log</button><button id="copyDiagBtn" class="secondary">Copy safe report</button></div></section>
           <section class="card"><h2>Profiles</h2><p>Use profiles such as Home, Company, Child, Vehicle or Legal Cases. Edit a document profile directly in the Documents view.</p></section>
           <section class="card"><h2>PWA</h2><p>Install the DocPilot interface from a compatible browser. The local DocPilot service must be running for document operations.</p><button id="installPwaBtn2" class="secondary">Install PWA</button></section>
           <section class="card"><h2>Background deadline notifications</h2><p>Windows can start a lightweight DocPilot notifier at sign-in, even when the main window is closed.</p><div class="inline"><input id="notifyDays" type="number" min="0" max="30" value="3"><button id="notifyEnableBtn">Enable</button><button id="notifyDisableBtn" class="secondary">Disable</button></div><div id="notifyStatus" class="muted"></div></section>
@@ -149,6 +150,6 @@
       </section>
     </main>
   </div>
-  <script src="/static/app.js?v=0.6.0"></script>
+  <script src="/static/app.js?v=0.7.0"></script>
 </body>
 </html>

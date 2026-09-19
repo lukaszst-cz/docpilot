@@ -67,7 +67,7 @@ DEMO_DIR = BASE_DIR / "demo" if (BASE_DIR / "demo").exists() else BASE_DIR
 settings = get_settings()
 init_db(settings)
 
-LOG_PATH = Path.cwd() / "docpilot.log"
+LOG_PATH = settings.state / "docpilot.log"
 logger = logging.getLogger("docpilot")
 logger.setLevel(logging.INFO)
 if not logger.handlers:
@@ -135,6 +135,30 @@ def service_worker():
 @app.get("/api/health")
 def health():
     return {"status": "ok", "mode": "local-first", "version": __version__, "pwa": True, "review_queue": True, "background_notifications": True}
+
+
+@app.get("/api/diagnostics")
+def diagnostics():
+    usage = shutil.disk_usage(settings.root)
+    db_path = settings.state / "docpilot.sqlite3"
+    docs = list_documents(settings, limit=5000)
+    safe_report = {
+        "version": __version__,
+        "packaged": bool(getattr(sys, "frozen", False)),
+        "platform": platform.platform(),
+        "python": platform.python_version(),
+        "documents": len(docs),
+        "database": "ok" if db_path.exists() else "missing",
+        "free_space_gb": round(usage.free / (1024 ** 3), 2),
+        "max_upload_mb": settings.max_upload_mb,
+    }
+    return {
+        **safe_report,
+        "data_root": str(settings.root),
+        "database_path": str(db_path),
+        "log_path": str(LOG_PATH),
+        "safe_report": safe_report,
+    }
 
 
 def _demo_source_path() -> Path:

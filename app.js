@@ -7,7 +7,7 @@ const titles = {
   duplicates:['Duplicates','Exact and near-duplicate detection'], cases:['Cases & Timeline','Group related documents into one story'],
   search:['Search & Q&A','Search locally by meaning and ask factual questions'], tools:['Tools','Diff, batch import, redaction and document health'],
   automation:['Automation','Watch folders, rules, profiles and custom types'], exports:['Exports','Calendar, Obsidian, Notion and backup'],
-  settings:['Settings','PWA, privacy and audit log']
+  settings:['Settings','Data, diagnostics, privacy and integrations']
 };
 
 function esc(v=''){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
@@ -31,7 +31,7 @@ $('#tryDemoBtn')?.addEventListener('click',async()=>{
     btn.disabled=false; btn.textContent='Try safe demo';
   }
 });
-function go(name){$$('.navBtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$$('.view').forEach(v=>v.classList.remove('activeView'));$(`#view-${name}`).classList.add('activeView');$('#viewTitle').textContent=titles[name][0];$('#viewSubtitle').textContent=titles[name][1];if(name==='dashboard')loadDashboard();if(name==='review')loadReview();if(name==='documents')loadDocuments();if(name==='deadlines')loadDeadlines();if(name==='duplicates')loadDuplicates();if(name==='cases')loadCases();if(name==='automation'){loadRules();loadTypes();loadWatch();}if(name==='settings'){loadIntegrationStatus();loadNotificationStatus();}}
+function go(name){$$('.navBtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$$('.view').forEach(v=>v.classList.remove('activeView'));$(`#view-${name}`).classList.add('activeView');$('#viewTitle').textContent=titles[name][0];$('#viewSubtitle').textContent=titles[name][1];if(name==='dashboard')loadDashboard();if(name==='review')loadReview();if(name==='documents')loadDocuments();if(name==='deadlines')loadDeadlines();if(name==='duplicates')loadDuplicates();if(name==='cases')loadCases();if(name==='automation'){loadRules();loadTypes();loadWatch();}if(name==='settings'){loadIntegrationStatus();loadNotificationStatus();loadDiagnostics();}}
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('#installPwaBtn').classList.remove('hidden')});
 async function installPwa(){if(!deferredInstallPrompt){alert('Use your browser menu and choose Install app / Install DocPilot if the install option is available.');return}deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;}
@@ -155,6 +155,22 @@ $('#addRuleBtn').addEventListener('click',async()=>{const p={name:$('#ruleName')
 async function loadTypes(){const r=await api('/api/custom-types');$('#typesList').innerHTML=r.length?r.map(x=>`<div class="listItem"><strong>${esc(x.name)}</strong><div class="meta"><span>${esc(x.keywords.join(', '))}</span><span>→ ${esc(x.category)}</span></div></div>`).join(''):'<p class="muted">No custom types.</p>'}
 $('#addTypeBtn').addEventListener('click',async()=>{const p={name:$('#typeName').value.trim(),keywords:$('#typeKeywords').value.split(',').map(x=>x.trim()).filter(Boolean),category:$('#typeCategory').value||'Documents'};try{await api('/api/custom-types',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});loadTypes()}catch(e){alert(e.message)}});
 $('#auditBtn').addEventListener('click',async()=>{const r=await api('/api/audit?limit=100');$('#auditList').innerHTML=r.map(x=>`<div class="listItem"><strong>${esc(x.event)}</strong><div class="meta"><span>${esc(x.created_at)}</span><span>${esc(JSON.stringify(x.payload))}</span></div></div>`).join('')});
+
+let diagnosticsCache=null;
+async function loadDiagnostics(){
+  const out=$('#diagnosticsStatus');
+  if(!out)return;
+  out.textContent='Loading diagnostics…';
+  try{
+    const d=await api('/api/diagnostics');
+    diagnosticsCache=d;
+    out.innerHTML=`<div class="diagGrid"><span><b>Version</b> ${esc(d.version)}</span><span><b>Mode</b> ${d.packaged?'installed/portable':'source'}</span><span><b>Documents</b> ${d.documents}</span><span><b>Database</b> ${esc(d.database)}</span><span><b>Free space</b> ${d.free_space_gb} GB</span><span><b>Data folder</b> ${esc(d.data_root)}</span></div>`;
+  }catch(e){out.textContent=e.message}
+}
+$('#diagRefreshBtn')?.addEventListener('click',loadDiagnostics);
+$('#openDataBtn')?.addEventListener('click',async()=>{try{const d=diagnosticsCache||await api('/api/diagnostics');await reveal(d.data_root)}catch(e){alert(e.message)}});
+$('#openLogBtn')?.addEventListener('click',async()=>{try{const d=diagnosticsCache||await api('/api/diagnostics');await reveal(d.log_path)}catch(e){alert(e.message)}});
+$('#copyDiagBtn')?.addEventListener('click',async()=>{try{const d=diagnosticsCache||await api('/api/diagnostics');await navigator.clipboard.writeText(JSON.stringify(d.safe_report,null,2));alert('Safe diagnostic report copied. It does not include document contents or local paths.')}catch(e){alert(e.message)}});
 
 
 async function loadNotificationStatus(){
