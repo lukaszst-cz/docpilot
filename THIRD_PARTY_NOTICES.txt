@@ -1,0 +1,28 @@
+# Third-party notices
+
+DocPilot is MIT-licensed. Release builds may bundle or depend on third-party open-source components under their own licenses. This file is a practical summary; the authoritative license text for each component is distributed by its upstream project/package.
+
+Key components include:
+
+- FastAPI — MIT
+- Uvicorn — BSD-3-Clause
+- Pydantic — MIT
+- Jinja2 — BSD-3-Clause
+- pypdf — BSD-3-Clause
+- Pillow — HPND
+- python-dateutil — Apache-2.0 / BSD-3-Clause
+- Tesseract OCR — Apache-2.0
+- pytesseract — Apache-2.0
+- OpenCV — Apache-2.0
+- NumPy — BSD-3-Clause
+- scikit-learn — BSD-3-Clause
+- pypdfium2 / PDFium — Apache-2.0 and upstream PDFium/BSD-style notices
+- pywebview — BSD-3-Clause
+- keyring — MIT
+- Requests — Apache-2.0
+- Google API Python Client / Google Auth libraries — Apache-2.0
+- winotify — MIT
+- MCP Python SDK — MIT
+- pyzbar (optional) — MIT; system zbar library has its own license
+
+GitHub Actions release builds should retain package/upstream license files where required. Before redistributing a modified binary bundle commercially, review all upstream notices and licenses for the exact dependency versions used in that release.

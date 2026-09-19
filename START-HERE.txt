@@ -1,0 +1,27 @@
+DOCPILOT v0.4.0 BETA — WINDOWS SOURCE/TEST BUILD
+=================================================
+
+Easy start:
+    DocPilot.bat
+
+For ordinary users, prefer a GitHub Release build:
+    DocPilot-Setup-Windows-x64.exe
+or
+    DocPilot-Portable-Windows-x64.zip
+
+The release build does not require a separate Python installation.
+
+Core idea:
+    Documents + Deadlines + Actions + Archive
+
+New in v0.4:
+- Review Queue
+- local vector search + stronger Local Q&A
+- scanned-PDF OCR
+- scan auto-rotate / deskew / cleanup
+- background deadline notifications
+- optional Gmail/Outlook, Notion and Google Calendar connectors
+- full archive backup
+- PWA
+
+For early testing, use copies of non-critical documents.

@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "docpilot-local"
+version = "0.4.0"
+description = "Local-first document intelligence: documents, deadlines, actions and archive."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Łukasz Staniewicz"}]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
+  "python-multipart>=0.0.9,<1",
+  "jinja2>=3.1,<4",
+  "pypdf>=5,<7",
+  "pillow>=10,<12",
+  "python-dateutil>=2.9,<3",
+  "pydantic>=2.9,<3"
+]
+
+[project.optional-dependencies]
+ocr = ["pytesseract>=0.3.13,<1"]
+scan = ["pytesseract>=0.3.13,<1", "pypdfium2>=4.30,<5", "opencv-python-headless>=4.10,<5", "numpy>=1.26,<3"]
+redact = ["pypdfium2>=4.30,<5"]
+vision = ["pyzbar>=0.1.9,<1"]
+semantic = ["scikit-learn>=1.5,<2"]
+desktop = ["pywebview>=5,<7"]
+mcp = ["mcp>=1,<2"]
+integrations = ["keyring>=25,<27", "requests>=2.32,<3", "google-api-python-client>=2.140,<3", "google-auth-oauthlib>=1.2,<2"]
+notifications = ["winotify>=1.1,<2"]
+full = [
+  "pytesseract>=0.3.13,<1", "pypdfium2>=4.30,<5", "opencv-python-headless>=4.10,<5", "numpy>=1.26,<3",
+  "scikit-learn>=1.5,<2", "pywebview>=5,<7", "mcp>=1,<2", "keyring>=25,<27", "requests>=2.32,<3",
+  "google-api-python-client>=2.140,<3", "google-auth-oauthlib>=1.2,<2", "winotify>=1.1,<2"
+]
+dev = ["pytest>=8,<9", "httpx>=0.27,<1", "ruff>=0.6,<1"]
+
+[project.scripts]
+docpilot = "docpilot.cli:main"
+docpilot-desktop = "docpilot.desktop:main"
+docpilot-mcp = "docpilot.mcp_server:main"
+docpilot-notifier = "docpilot.notifier:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["docpilot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 110

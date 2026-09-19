@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b0e12">
+  <meta name="description" content="DocPilot — local-first document organizer, deadline radar and archive.">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <title>DocPilot</title>
+  <link rel="stylesheet" href="/static/app.css?v=0.4.0">
+</head>
+<body>
+  <div class="appShell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brandIcon">DP</div><div><strong>DocPilot</strong><small>Local-first</small></div></div>
+      <nav id="nav">
+        <button data-view="dashboard" class="navBtn active">Dashboard</button>
+        <button data-view="inbox" class="navBtn">Smart Inbox</button>
+        <button data-view="review" class="navBtn">Review Queue</button>
+        <button data-view="documents" class="navBtn">Documents</button>
+        <button data-view="deadlines" class="navBtn">Deadline Radar</button>
+        <button data-view="duplicates" class="navBtn">Duplicates</button>
+        <button data-view="cases" class="navBtn">Cases & Timeline</button>
+        <button data-view="search" class="navBtn">Search & Q&A</button>
+        <button data-view="tools" class="navBtn">Tools</button>
+        <button data-view="automation" class="navBtn">Automation</button>
+        <button data-view="exports" class="navBtn">Exports</button>
+        <button data-view="settings" class="navBtn">Settings</button>
+      </nav>
+      <div class="sidebarBottom">
+        <button id="installPwaBtn" class="ghost hidden">Install PWA</button>
+        <span class="version">v0.4.0 beta</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><h1 id="viewTitle">Dashboard</h1><p id="viewSubtitle">Documents + Deadlines + Actions + Archive</p></div>
+        <div class="topActions"><button id="quickImportBtn">+ Add document</button></div>
+      </header>
+
+      <section id="view-dashboard" class="view activeView">
+        <div class="stats" id="stats"></div>
+        <div class="twoCol">
+          <section class="card"><div class="cardHead"><h2>Deadline Radar</h2><button class="linkBtn" data-go="deadlines">View all</button></div><div id="dashboardDeadlines"></div></section>
+          <section class="card"><div class="cardHead"><h2>Action Required</h2></div><div id="dashboardActions"></div></section>
+        </div>
+        <section class="card"><div class="cardHead"><h2>System status</h2></div><div class="featureGrid" id="featureGrid"></div></section>
+      </section>
+
+      <section id="view-inbox" class="view">
+        <section class="card drop" id="dropZone">
+          <div class="dropIcon">📂</div>
+          <h2>Smart Inbox</h2>
+          <p>Select a real file to analyze and rename/move it, or drag & drop to import a safe copy.</p>
+          <button id="browseBtn">Select file on this PC</button>
+          <div class="or">or drag & drop a copy here</div>
+        </section>
+        <section id="analysisPanel" class="card hidden"></section>
+        <section id="successPanel" class="card success hidden"></section>
+      </section>
+
+      <section id="view-review" class="view">
+        <section class="card"><div class="cardHead"><div><h2>Review Queue</h2><p class="muted">Only documents that need a human decision: low confidence, uncertain deadlines, weak scans or possible duplicates.</p></div><button id="refreshReviewBtn" class="secondary">Refresh</button></div><div id="reviewList"></div></section>
+      </section>
+
+      <section id="view-documents" class="view"><section class="card"><div class="cardHead"><h2>Local document index</h2><button id="refreshDocsBtn" class="secondary">Refresh</button></div><div id="documentsTable"></div></section></section>
+      <section id="view-deadlines" class="view"><section class="card"><div class="cardHead"><h2>Deadline Radar</h2><a class="buttonLink" href="/api/export/calendar">Export .ics</a></div><div id="deadlineList"></div></section></section>
+      <section id="view-duplicates" class="view"><section class="card"><div class="cardHead"><h2>Duplicate Finder</h2><button id="scanDuplicatesBtn" class="secondary">Refresh</button></div><p class="muted">Exact duplicates use SHA-256. Near duplicates use a local text fingerprint.</p><div id="duplicateList"></div></section></section>
+      <section id="view-cases" class="view"><section class="card"><div class="cardHead"><h2>Cases & timelines</h2></div><div id="caseList"></div></section></section>
+
+      <section id="view-search" class="view">
+        <div class="twoCol">
+          <section class="card"><h2>Search by meaning</h2><p class="muted">Local dense-vector search (TF-IDF + latent semantic analysis). No cloud model and no document upload.</p><div class="inline"><input id="searchInput" placeholder="e.g. flooding insurance, school letter, Orange invoice"><button id="searchBtn">Search</button></div><div id="searchResults"></div></section>
+          <section class="card"><h2>Local Q&A</h2><div class="inline"><input id="qaInput" placeholder="What is the response deadline?"><button id="qaBtn">Ask</button></div><div id="qaAnswer"></div><p class="muted">Answers are extracted from your local DocPilot index. Review the source document for important decisions.</p></section>
+        </div>
+      </section>
+
+      <section id="view-tools" class="view">
+        <div class="toolGrid">
+          <section class="card tool"><h2>Document Diff</h2><p>Compare two documents and inspect added/removed lines.</p><button id="diffBtn">Compare two files</button><pre id="diffOutput" class="codeBox"></pre></section>
+          <section class="card tool"><h2>Batch Mode</h2><p>Index up to 100 documents from a selected folder.</p><button id="batchBtn">Select folder</button><div id="batchOutput"></div></section>
+          <section class="card tool"><h2>Email Attachments</h2><p>Import attachments from an exported .eml message and classify them locally.</p><button id="emailImportBtn">Import .eml</button><div id="emailOutput"></div></section>
+          <section class="card tool"><h2>PII / Sensitive Data</h2><p>DocPilot flags PESEL, NIP, IBAN, email, phone and likely addresses during analysis.</p><p class="muted">Redaction creates a separate copy. Always review it before sharing.</p></section>
+          <section class="card tool"><h2>Scan Cleaner</h2><p>Auto-rotate, deskew, denoise and improve contrast before OCR.</p><button id="scanCleanBtn">Clean a scan</button><div id="scanCleanOutput"></div></section>
+          <section class="card tool"><h2>Document Health</h2><p>Detects unreadable scans, low OCR text and low-resolution images.</p><p class="muted">Scanned PDFs are OCRed page-by-page when no useful text layer exists.</p></section>
+        </div>
+      </section>
+
+      <section id="view-automation" class="view">
+        <div class="twoCol">
+          <section class="card"><h2>Watch / Scanner Folder</h2><p>DocPilot can rescan a selected folder every 30 seconds and index new files.</p><button id="watchBtn">Choose watched folder</button><div id="watchStatus" class="muted"></div></section>
+          <section class="card"><h2>Rules Engine</h2><p>Example: if issuer contains Orange → Finance/Telecom.</p>
+            <input id="ruleName" placeholder="Rule name">
+            <input id="ruleIssuer" placeholder="Issuer contains (optional)">
+            <input id="ruleText" placeholder="Text contains (optional)">
+            <input id="ruleCategory" placeholder="Target category, e.g. Finance/Telecom">
+            <input id="ruleProfile" placeholder="Target profile, e.g. Home">
+            <button id="addRuleBtn">Add rule</button><div id="rulesList"></div>
+          </section>
+          <section class="card"><h2>Custom Document Types</h2><input id="typeName" placeholder="Type name"><input id="typeKeywords" placeholder="Keywords separated by commas"><input id="typeCategory" placeholder="Category"><button id="addTypeBtn">Add type</button><div id="typesList"></div></section>
+          <section class="card"><h2>MCP Server</h2><p>Optional local MCP server exposes search and Q&A tools to compatible clients.</p><code>python -m docpilot.mcp_server</code><p class="muted">Requires the optional <code>mcp</code> extra.</p></section>
+        </div>
+      </section>
+
+      <section id="view-exports" class="view">
+        <div class="toolGrid">
+          <a class="card exportCard" href="/api/export/calendar"><h2>Calendar</h2><p>Export detected deadlines as .ics</p></a>
+          <a class="card exportCard" href="/api/export/obsidian"><h2>Obsidian</h2><p>Markdown vault-ready ZIP</p></a>
+          <a class="card exportCard" href="/api/export/notion"><h2>Notion</h2><p>Import-ready CSV with metadata</p></a>
+          <a class="card exportCard" href="/api/export/backup"><h2>Index Backup</h2><p>Portable database + metadata only</p></a>
+          <a class="card exportCard" href="/api/export/backup-full"><h2>Full Archive Backup</h2><p>Metadata + accessible source document copies</p></a>
+        </div>
+      </section>
+
+      <section id="view-settings" class="view">
+        <div class="twoCol">
+          <section class="card"><h2>Profiles</h2><p>Use profiles such as Home, Company, Child, Vehicle or Legal Cases. Edit a document profile directly in the Documents view.</p></section>
+          <section class="card"><h2>PWA</h2><p>Install the DocPilot interface from a compatible browser. The local DocPilot service must be running for document operations.</p><button id="installPwaBtn2" class="secondary">Install PWA</button></section>
+          <section class="card"><h2>Background deadline notifications</h2><p>Windows can start a lightweight DocPilot notifier at sign-in, even when the main window is closed.</p><div class="inline"><input id="notifyDays" type="number" min="0" max="30" value="3"><button id="notifyEnableBtn">Enable</button><button id="notifyDisableBtn" class="secondary">Disable</button></div><div id="notifyStatus" class="muted"></div></section>
+          <section class="card"><h2>Email connector</h2><p>Optional Gmail/Outlook IMAP import. Use an app password; credentials are stored through the operating-system keyring.</p><select id="emailProvider"><option value="gmail">Gmail</option><option value="outlook">Outlook</option></select><input id="emailAddress" placeholder="Email address"><input id="emailPassword" type="password" placeholder="App password"><input id="emailFolder" value="INBOX" placeholder="Folder"><div class="inline"><button id="emailConfigureBtn">Save connector</button><button id="emailImapImportBtn" class="secondary">Import attachments</button></div><div id="emailConnectorStatus" class="muted"></div></section>
+          <section class="card"><h2>Notion direct sync</h2><p>Optional. Provide a Notion integration token and destination database ID.</p><input id="notionToken" type="password" placeholder="Internal integration token"><input id="notionDatabase" placeholder="Database ID"><div class="inline"><button id="notionConfigureBtn">Save</button><button id="notionSyncBtn" class="secondary">Sync</button></div><div id="notionStatus" class="muted"></div></section>
+          <section class="card"><h2>Google Calendar direct sync</h2><p>Optional OAuth integration. Select your desktop OAuth <code>client_secret.json</code>; authorization stays local.</p><div class="inline"><button id="googleClientBtn">Select OAuth client</button><button id="googleSyncBtn" class="secondary">Sync deadlines</button></div><div id="googleStatus" class="muted"></div></section>
+          <section class="card"><h2>Privacy</h2><p>Core indexing, OCR, vector search and Q&A are local. Cloud integrations are optional and only send the records you explicitly sync.</p></section>
+          <section class="card"><h2>Audit log</h2><button id="auditBtn" class="secondary">Load audit log</button><div id="auditList"></div></section>
+          <section class="card"><h2>Full Undo History</h2><button id="changesBtn" class="secondary">Load reversible changes</button><div id="changesList"></div></section>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/static/app.js?v=0.4.0"></script>
+</body>
+</html>
