@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import ctypes
+import json
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -11,6 +15,38 @@ import uvicorn
 
 def _serve() -> None:
     uvicorn.run("docpilot.app:app", host="127.0.0.1", port=8765, log_level="warning")
+
+
+def _wait_until_ready(timeout: float = 20.0) -> bool:
+    from docpilot import __version__
+
+    deadline = time.monotonic() + timeout
+    url = "http://127.0.0.1:8765/api/health"
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=1.0) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            if payload.get("status") == "ok" and payload.get("version") == __version__:
+                return True
+        except (OSError, ValueError, urllib.error.URLError):
+            pass
+        time.sleep(0.2)
+    return False
+
+
+def _show_startup_error() -> None:
+    message = (
+        "DocPilot could not start its local service.\n\n"
+        "Try closing any other DocPilot window and start the application again. "
+        "If the problem repeats, check docpilot.log."
+    )
+    if sys.platform == "win32":
+        try:
+            ctypes.windll.user32.MessageBoxW(0, message, "DocPilot", 0x10)
+            return
+        except Exception:
+            pass
+    print(message, file=sys.stderr)
 
 
 def _self_test() -> None:
@@ -44,7 +80,9 @@ def main() -> None:
 
     thread = threading.Thread(target=_serve, daemon=True)
     thread.start()
-    time.sleep(1.0)
+    if not _wait_until_ready():
+        _show_startup_error()
+        return
     try:
         import webview
         webview.create_window("DocPilot", "http://127.0.0.1:8765", width=1280, height=820, min_size=(900, 620))
