@@ -15,8 +15,9 @@ from email import policy
 from email.parser import BytesParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
-from fastapi import Body, FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -71,6 +72,23 @@ if not logger.handlers:
 
 app = FastAPI(title="DocPilot", version=__version__)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+
+def _local_origin_allowed(origin: str) -> bool:
+    try:
+        parsed = urlparse(origin)
+    except ValueError:
+        return False
+    return parsed.scheme in {"http", "https"} and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+
+
+@app.middleware("http")
+async def local_browser_guard(request: Request, call_next):
+    origin = request.headers.get("origin")
+    if request.method not in {"GET", "HEAD", "OPTIONS"} and origin and not _local_origin_allowed(origin):
+        return JSONResponse(status_code=403, content={"detail": "Cross-origin request blocked."})
+    return await call_next(request)
+
 
 WATCHER_STOP = threading.Event()
 WATCHER_THREAD: threading.Thread | None = None
