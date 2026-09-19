@@ -6,7 +6,7 @@ Program pomaga uporządkować skany, PDF-y, faktury, umowy i pisma. Odczytuje do
 
 Najważniejsza zasada jest prosta: **DocPilot najpierw pokazuje propozycję, a dopiero później wykonuje zmianę.**
 
-![DocPilot demo](assets/demo.gif)
+![DocPilot demo](demo.gif)
 
 ## Pobierz
 
