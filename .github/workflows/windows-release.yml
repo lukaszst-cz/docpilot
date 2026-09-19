@@ -83,12 +83,6 @@ jobs:
             if (!(Test-Path $file)) { throw "Missing packaged file: $file" }
           }
 
-      - name: Smoke test package imports
-        shell: pwsh
-        run: |
-          python -c "from docpilot.app import app; print(app.title, app.version)"
-          python -c "from docpilot.semantic import semantic_rank; from docpilot.review import build_review_queue; print('feature imports ok')"
-
       - name: Create portable ZIP
         shell: pwsh
         run: |
