@@ -83,6 +83,12 @@ jobs:
             if (!(Test-Path $file)) { throw "Missing packaged file: $file" }
           }
 
+      - name: Self-test packaged DocPilot
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath 'dist\DocPilot\DocPilot.exe' -ArgumentList '--self-test' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Packaged DocPilot self-test failed with exit code $($p.ExitCode)." }
+
       - name: Create portable ZIP
         shell: pwsh
         run: |
@@ -116,7 +122,10 @@ jobs:
       - name: Publish or refresh GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v0.4.0' }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v0.5.1' }}
+          name: DocPilot v0.5.1
+          prerelease: false
+          generate_release_notes: true
           overwrite_files: true
           files: |
             DocPilot-Portable-Windows-x64.zip

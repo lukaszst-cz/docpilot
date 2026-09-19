@@ -20,6 +20,7 @@ from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import __version__
 from .analyze import analyze_file
 from .config import get_settings
 from .db import (
@@ -68,7 +69,7 @@ if not logger.handlers:
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logger.addHandler(handler)
 
-app = FastAPI(title="DocPilot", version="0.4.0")
+app = FastAPI(title="DocPilot", version=__version__)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 WATCHER_STOP = threading.Event()
@@ -100,7 +101,7 @@ def service_worker():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "mode": "local-first", "version": "0.4.0", "pwa": True, "review_queue": True, "background_notifications": True}
+    return {"status": "ok", "mode": "local-first", "version": __version__, "pwa": True, "review_queue": True, "background_notifications": True}
 
 
 def _demo_source_path() -> Path:

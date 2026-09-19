@@ -1,4 +1,4 @@
-DOCPILOT v0.4.0 BETA — WINDOWS SOURCE/TEST BUILD
+DOCPILOT v0.5.1 — WINDOWS
 =================================================
 
 Easy start:
@@ -14,7 +14,7 @@ The release build does not require a separate Python installation.
 Core idea:
     Documents + Deadlines + Actions + Archive
 
-New in v0.4:
+Highlights in v0.5.1:
 - Review Queue
 - local vector search + stronger Local Q&A
 - scanned-PDF OCR
@@ -24,4 +24,4 @@ New in v0.4:
 - full archive backup
 - PWA
 
-For early testing, use copies of non-critical documents.
+For important documents, review detected data and proposed file changes before applying them.

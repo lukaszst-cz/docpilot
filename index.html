@@ -9,7 +9,7 @@
   <link rel="icon" href="/static/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icon-192.png">
   <title>DocPilot</title>
-  <link rel="stylesheet" href="/static/app.css?v=0.4.0">
+  <link rel="stylesheet" href="/static/app.css?v=0.5.1">
 </head>
 <body>
   <div class="appShell">
@@ -31,7 +31,7 @@
       </nav>
       <div class="sidebarBottom">
         <button id="installPwaBtn" class="ghost hidden">Install PWA</button>
-        <span class="version">v0.4.0 beta</span>
+        <span class="version">v0.5.1</span>
       </div>
     </aside>
 
@@ -141,7 +141,7 @@
           <section class="card"><h2>Email connector</h2><p>Optional Gmail/Outlook IMAP import. Use an app password; credentials are stored through the operating-system keyring.</p><select id="emailProvider"><option value="gmail">Gmail</option><option value="outlook">Outlook</option></select><input id="emailAddress" placeholder="Email address"><input id="emailPassword" type="password" placeholder="App password"><input id="emailFolder" value="INBOX" placeholder="Folder"><div class="inline"><button id="emailConfigureBtn">Save connector</button><button id="emailImapImportBtn" class="secondary">Import attachments</button></div><div id="emailConnectorStatus" class="muted"></div></section>
           <section class="card"><h2>Notion direct sync</h2><p>Optional. Provide a Notion integration token and destination database ID.</p><input id="notionToken" type="password" placeholder="Internal integration token"><input id="notionDatabase" placeholder="Database ID"><div class="inline"><button id="notionConfigureBtn">Save</button><button id="notionSyncBtn" class="secondary">Sync</button></div><div id="notionStatus" class="muted"></div></section>
           <section class="card"><h2>Google Calendar direct sync</h2><p>Optional OAuth integration. Select your desktop OAuth <code>client_secret.json</code>; authorization stays local.</p><div class="inline"><button id="googleClientBtn">Select OAuth client</button><button id="googleSyncBtn" class="secondary">Sync deadlines</button></div><div id="googleStatus" class="muted"></div></section>
-          <section class="card"><h2>Beta feedback</h2><p>Found a bug or have an idea that would make DocPilot more useful? Send feedback without attaching private documents.</p><div class="inline"><a class="buttonLink" href="https://github.com/lukaszst-cz/docpilot/issues/new?template=bug_report.yml" target="_blank" rel="noopener">Report a bug</a><a class="buttonLink secondary" href="https://github.com/lukaszst-cz/docpilot/issues/new?template=feature_request.yml" target="_blank" rel="noopener">Suggest a feature</a></div></section>
+          <section class="card"><h2>Feedback</h2><p>Found a bug or have an idea that would make DocPilot more useful? Send feedback without attaching private documents.</p><div class="inline"><a class="buttonLink" href="https://github.com/lukaszst-cz/docpilot/issues/new?template=bug_report.yml" target="_blank" rel="noopener">Report a bug</a><a class="buttonLink secondary" href="https://github.com/lukaszst-cz/docpilot/issues/new?template=feature_request.yml" target="_blank" rel="noopener">Suggest a feature</a></div></section>
           <section class="card"><h2>Privacy</h2><p>Core indexing, OCR, vector search and Q&A are local. Cloud integrations are optional and only send the records you explicitly sync.</p></section>
           <section class="card"><h2>Audit log</h2><button id="auditBtn" class="secondary">Load audit log</button><div id="auditList"></div></section>
           <section class="card"><h2>Full Undo History</h2><button id="changesBtn" class="secondary">Load reversible changes</button><div id="changesList"></div></section>
@@ -149,6 +149,6 @@
       </section>
     </main>
   </div>
-  <script src="/static/app.js?v=0.4.0"></script>
+  <script src="/static/app.js?v=0.5.1"></script>
 </body>
 </html>

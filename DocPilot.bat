@@ -48,11 +48,11 @@ if not exist ".venv\Scripts\python.exe" (
 
 set "VENV_PY=%CD%\.venv\Scripts\python.exe"
 
-if not exist ".venv\.docpilot-ready-v040" (
+if not exist ".venv\.docpilot-ready-v051" (
     echo [3/4] Installing/updating DocPilot components...
     "%VENV_PY%" -m pip install --disable-pip-version-check -e ".[full]"
     if errorlevel 1 goto :FAILED
-    type nul > ".venv\.docpilot-ready-v040"
+    type nul > ".venv\.docpilot-ready-v051"
 ) else (
     echo [3/4] DocPilot components are ready.
 )

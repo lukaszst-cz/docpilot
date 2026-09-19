@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "docpilot-local"
-version = "0.4.0"
+version = "0.5.1"
 description = "Local-first document intelligence: documents, deadlines, actions and archive."
 readme = "README.md"
 requires-python = ">=3.11"

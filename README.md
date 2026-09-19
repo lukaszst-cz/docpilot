@@ -12,7 +12,7 @@ DocPilot turns mixed folders of scans, PDFs, receipts, invoices, contracts and l
 
 **Product page for testers:** https://lukaszst-cz.github.io/operations-office-portfolio/docpilot/
 
-**Direct Windows installer:** https://github.com/lukaszst-cz/docpilot/releases/download/v0.4.0/DocPilot-Setup-Windows-x64.exe
+**Direct Windows installer:** https://github.com/lukaszst-cz/docpilot/releases/download/v0.5.1/DocPilot-Setup-Windows-x64.exe
 
 For non-technical users, use the product page or the repository **Releases** page:
 
@@ -295,7 +295,7 @@ Local FastAPI service
         └── Optional email / Notion / Google Calendar / MCP
 ```
 
-## Feature status — v0.4.0 Beta
+## Feature status — v0.5.1
 
 | Feature | Status |
 |---|---|
@@ -303,25 +303,25 @@ Local FastAPI service
 | Undo history | ✅ tested core |
 | PDF/text extraction | ✅ |
 | Image OCR | ✅ with Tesseract |
-| Scanned-PDF OCR | ✅ beta |
-| Auto rotate / deskew / cleanup | ✅ beta |
-| Deadline Radar | ✅ beta |
-| Review Queue | ✅ beta |
-| Smart Inbox / batch / watch folder | ✅ beta |
-| Exact + near duplicates | ✅ beta |
-| Receipt/invoice fields | ✅ beta |
-| Warranty / contract tracking | ✅ beta |
-| Cases / Timeline | ✅ beta |
+| Scanned-PDF OCR | ✅ available |
+| Auto rotate / deskew / cleanup | ✅ available |
+| Deadline Radar | ✅ available |
+| Review Queue | ✅ available |
+| Smart Inbox / batch / watch folder | ✅ available |
+| Exact + near duplicates | ✅ available |
+| Receipt/invoice fields | ✅ available |
+| Warranty / contract tracking | ✅ available |
+| Cases / Timeline | ✅ available |
 | Local vector search | ✅ tested local LSA |
-| Local structured/extractive Q&A | ✅ beta |
-| Calendar / Obsidian / Notion exports | ✅ beta |
-| Full source-document backup | ✅ beta |
-| Sensitive-data detection | ✅ beta |
+| Local structured/extractive Q&A | ✅ available |
+| Calendar / Obsidian / Notion exports | ✅ available |
+| Full source-document backup | ✅ available |
+| Sensitive-data detection | ✅ available |
 | PDF raster/OCR redaction | 🧪 experimental; manual review required |
 | Image/scanned-PDF OCR redaction | 🧪 experimental; manual review required |
-| Rules / profiles / custom types | ✅ beta |
+| Rules / profiles / custom types | ✅ available |
 | PWA | ✅ installable UI |
-| Background Windows notifications | ✅ beta |
+| Background Windows notifications | ✅ available |
 | Gmail/Outlook IMAP import | 🧪 optional connector |
 | Direct Notion sync | 🧪 optional connector |
 | Direct Google Calendar sync | 🧪 optional OAuth connector |
@@ -350,10 +350,10 @@ Current test suite: **17 tests** covering core file operations, extraction, inde
 
 ## Releases
 
-Pushing a tag such as:
+Pushing the stable tag:
 
 ```text
-v0.4.0
+v0.5.1
 ```
 
 runs the Windows release workflow, tests the project, builds the desktop app and notifier, bundles OCR, creates Portable ZIP + Setup EXE, computes SHA-256 checksums and publishes the artifacts to GitHub Releases.
