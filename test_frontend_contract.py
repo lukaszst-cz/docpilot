@@ -25,3 +25,9 @@ def test_core_navigation_exposes_accessibility_hooks():
     assert 'aria-label="Ask a question about local documents"' in html
     assert "b.setAttribute('aria-current','page')" in script
     assert "$('#nav')?.addEventListener('keydown'" in script
+
+
+def test_frontend_uses_in_app_notices_instead_of_alerts():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+    assert "alert(" not in script
+    assert "showAppNotice(" in script
