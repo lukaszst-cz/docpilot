@@ -29,3 +29,8 @@ def test_public_version_markers_are_in_sync():
         match = re.search(r'#define MyAppVersion "([^"]+)"', content)
         assert match
         assert match.group(1) == version
+
+
+    launcher = (ROOT / "DocPilot.bat").read_text(encoding="utf-8")
+    marker_version = version.replace(".", "")
+    assert f".docpilot-ready-v{marker_version}" in launcher
