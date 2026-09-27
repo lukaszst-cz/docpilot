@@ -32,5 +32,6 @@ def test_public_version_markers_are_in_sync():
 
 
     launcher = (ROOT / "DocPilot.bat").read_text(encoding="utf-8")
-    marker_version = version.replace(".", "")
-    assert f".docpilot-ready-v{marker_version}" in launcher
+    major, minor, _patch = version.split(".", 2)
+    dependency_series = f"{major}{minor}0"
+    assert f".docpilot-ready-v{dependency_series}" in launcher
