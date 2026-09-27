@@ -18,11 +18,19 @@ https://lukaszst-cz.github.io/operations-office-portfolio/docpilot/
 
 Instalator Windows:
 
-https://github.com/lukaszst-cz/docpilot/releases/download/v0.5.1/DocPilot-Setup-Windows-x64.exe
+https://github.com/lukaszst-cz/docpilot/releases/latest/download/DocPilot-Setup-Windows-x64.exe
 
-Pełne wydanie v0.5.1:
+Portable ZIP:
 
-https://github.com/lukaszst-cz/docpilot/releases/tag/v0.5.1
+https://github.com/lukaszst-cz/docpilot/releases/latest/download/DocPilot-Portable-Windows-x64.zip
+
+Sumy SHA-256:
+
+https://github.com/lukaszst-cz/docpilot/releases/latest/download/SHA256SUMS.txt
+
+Najnowsze pełne wydanie:
+
+https://github.com/lukaszst-cz/docpilot/releases/latest
 
 Do wyboru są:
 - **Setup EXE** — zwykły instalator dla Windows;
@@ -106,11 +114,9 @@ pytest -q
 
 ## Status wydania
 
-Ostatnie publiczne wydanie: **v0.5.1**
+Kod gałęzi `main` jest przygotowany jako **v1.0.0**. Publiczne pliki są publikowane z oznaczonego wydania, a linki w sekcji „Pobierz” zawsze prowadzą do najnowszego opublikowanego release.
 
-Gałąź `main` jest obecnie rozwijana jako **v0.9.1 RC**. Ta runda utwardza przepływ przed 1.0: synchronizuje indeks po Undo i rozszerza smoke testy o pełny przepływ API, PDF z warstwą tekstową oraz rzeczywisty OCR obrazu w środowisku z Tesseract. Linki do pobierania powyżej celowo prowadzą do ostatniego stabilnego wydania, dopóki nowa wersja nie przejdzie pełnego buildu Windows.
-
-Wydanie Windows przechodzi automatyczne testy, kontrolę składni frontendu, budowę aplikacji, budowę modułu powiadomień, dołączenie OCR, self-test gotowego pakietu, utworzenie instalatora i ZIP-a oraz wygenerowanie sum SHA-256.
+Wydanie Windows przechodzi automatyczne testy, kontrolę składni frontendu, smoke testy typowych dokumentów i codziennego workflow, budowę aplikacji i modułu powiadomień, OCR obrazu i skanowanego PDF-u, self-test gotowego EXE, czystą instalację i uninstall z zachowaniem danych, upgrade z v0.5.1 na istniejącej bazie SQLite, budowę instalatora i Portable ZIP oraz wygenerowanie sum SHA-256.
 
 Pełna checklista przed 1.0 znajduje się w [`RELEASE-CHECKLIST.md`](RELEASE-CHECKLIST.md).
 
