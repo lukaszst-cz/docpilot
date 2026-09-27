@@ -106,7 +106,7 @@ def infer_metadata(text: str, filename: str = "", custom_types: list[dict] | Non
             pass
 
     reference = None
-    ref_match = _REFERENCE_RE.search(haystack)
+    ref_match = _REFERENCE_RE.search(text)
     if ref_match:
         reference = ref_match.group(1)
 

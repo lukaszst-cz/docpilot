@@ -102,9 +102,11 @@ pytest -q
 
 Ostatnie publiczne wydanie: **v0.5.1**
 
-Gałąź `main` jest obecnie rozwijana jako **v0.8.2**. Seria 0.8 dodaje first-run checklist, kontrolę gotowości OCR i miejsca na dysku, czytelniejsze komunikaty błędów, bezpieczniejszy przegląd duplikatów oraz końcowe poprawki nawigacji, dostępności i obsługi błędów. Linki do pobierania powyżej celowo prowadzą do ostatniego stabilnego wydania, dopóki nowa wersja nie przejdzie pełnego buildu Windows.
+Gałąź `main` jest obecnie rozwijana jako **v0.9.0 RC**. To kandydat przed 1.0: bez dokładania dużych modułów, z naciskiem na testy typowych dokumentów, build Windows, upgrade, Undo, duplikaty, UX i dostępność. Linki do pobierania powyżej celowo prowadzą do ostatniego stabilnego wydania, dopóki nowa wersja nie przejdzie pełnego buildu Windows.
 
-Wydanie Windows przechodzi automatyczne testy, budowę aplikacji, budowę modułu powiadomień, dołączenie OCR, self-test gotowego pakietu, utworzenie instalatora i ZIP-a oraz wygenerowanie sum SHA-256.
+Wydanie Windows przechodzi automatyczne testy, kontrolę składni frontendu, budowę aplikacji, budowę modułu powiadomień, dołączenie OCR, self-test gotowego pakietu, utworzenie instalatora i ZIP-a oraz wygenerowanie sum SHA-256.
+
+Pełna checklista przed 1.0 znajduje się w [`RELEASE-CHECKLIST.md`](RELEASE-CHECKLIST.md).
 
 ## Zgłaszanie problemów
 
