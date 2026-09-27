@@ -553,9 +553,15 @@ def compare_duplicate_documents(payload: dict = Body(...)):
     if not left_path.is_file() or not right_path.is_file():
         raise HTTPException(404, "One of the source files is no longer available")
 
-    result = compare_documents(left_path, right_path)
+    exact_hash_match = bool(left.get("sha256")) and left.get("sha256") == right.get("sha256")
+    result = (
+        {"similarity": 1.0, "added_lines": 0, "removed_lines": 0, "diff": "", "warnings": []}
+        if exact_hash_match
+        else compare_documents(left_path, right_path)
+    )
     return {
         **result,
+        "exact_hash_match": exact_hash_match,
         "left": {"id": left_id, "name": left["source_name"], "path": str(left_path)},
         "right": {"id": right_id, "name": right["source_name"], "path": str(right_path)},
     }
