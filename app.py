@@ -161,6 +161,50 @@ def diagnostics():
     }
 
 
+def _ocr_runtime_status() -> dict[str, Any]:
+    try:
+        import pytesseract
+        from .extract import _configure_tesseract
+
+        _configure_tesseract(pytesseract)
+        version = str(pytesseract.get_tesseract_version()).splitlines()[0]
+        return {"ready": True, "version": version}
+    except Exception as exc:
+        logger.warning("OCR readiness check failed: %s", exc)
+        return {"ready": False, "version": None}
+
+
+def _setup_status_payload() -> dict[str, Any]:
+    usage = shutil.disk_usage(settings.root)
+    try:
+        demo_ready = _demo_source_path().exists()
+    except FileNotFoundError:
+        demo_ready = False
+    return {
+        "complete": get_setting(settings, "onboarding_complete", "0") == "1",
+        "has_documents": bool(list_documents(settings, limit=1)),
+        "ocr": _ocr_runtime_status(),
+        "demo_ready": demo_ready,
+        "packaged": bool(getattr(sys, "frozen", False)),
+        "data_root": str(settings.root),
+        "free_space_gb": round(usage.free / (1024 ** 3), 2),
+        "recommended_free_space_gb": 2,
+    }
+
+
+@app.get("/api/setup/status")
+def setup_status():
+    return _setup_status_payload()
+
+
+@app.post("/api/setup")
+def update_setup(payload: dict = Body(default={})):
+    complete = bool(payload.get("complete", True))
+    set_setting(settings, "onboarding_complete", "1" if complete else "0")
+    audit(settings, "setup-state", {"complete": complete})
+    return _setup_status_payload()
+
+
 def _demo_source_path() -> Path:
     candidates = [
         DEMO_DIR / "sample_invoice.txt",
