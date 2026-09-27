@@ -36,6 +36,12 @@ from docpilot.analyze import analyze_file
             "school",
             "School",
         ),
+        (
+            "paragon.txt",
+            "Sklep Testowy\nParagon fiskalny nr 1234\nData: 22.09.2026\nRazem 49,90 PLN",
+            "receipt",
+            "Finance/Receipts",
+        ),
     ],
 )
 def test_representative_text_documents(name, text, expected_type, expected_category, tmp_path):
@@ -80,24 +86,24 @@ def test_unsupported_file_is_reported_without_modifying_source(tmp_path):
     assert any("Unsupported file type" in warning for warning in result.warnings)
 
 
-def _write_text_pdf(path: Path, text: str) -> None:
+def _write_text_pdf(path: Path, *page_texts: str) -> None:
     writer = PdfWriter()
-    page = writer.add_blank_page(width=612, height=792)
-
     font = DictionaryObject({
         NameObject("/Type"): NameObject("/Font"),
         NameObject("/Subtype"): NameObject("/Type1"),
         NameObject("/BaseFont"): NameObject("/Helvetica"),
     })
     font_ref = writer._add_object(font)
-    page[NameObject("/Resources")] = DictionaryObject({
-        NameObject("/Font"): DictionaryObject({NameObject("/F1"): font_ref}),
-    })
 
-    safe = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-    stream = DecodedStreamObject()
-    stream.set_data(f"BT /F1 12 Tf 72 720 Td ({safe}) Tj ET".encode("latin-1"))
-    page[NameObject("/Contents")] = writer._add_object(stream)
+    for text in page_texts:
+        page = writer.add_blank_page(width=612, height=792)
+        page[NameObject("/Resources")] = DictionaryObject({
+            NameObject("/Font"): DictionaryObject({NameObject("/F1"): font_ref}),
+        })
+        safe = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        stream = DecodedStreamObject()
+        stream.set_data(f"BT /F1 12 Tf 72 720 Td ({safe}) Tj ET".encode("latin-1"))
+        page[NameObject("/Contents")] = writer._add_object(stream)
 
     with path.open("wb") as fh:
         writer.write(fh)
@@ -118,3 +124,46 @@ def test_text_pdf_is_read_and_classified(tmp_path):
     assert result.metadata.currency == "PLN"
     assert "INV/2026/77" in result.extracted_text
     assert result.warnings == []
+
+
+def test_multpage_text_pdf_is_fully_read(tmp_path):
+    path = tmp_path / "multi-page-contract.pdf"
+    _write_text_pdf(
+        path,
+        "Contract ACME Services dated 20.09.2026",
+        "Payment due 05.10.2026 amount 399.99 PLN",
+    )
+
+    result = analyze_file(path)
+
+    assert "Contract ACME Services" in result.extracted_text
+    assert "Payment due 05.10.2026" in result.extracted_text
+    assert result.metadata.document_type == "contract"
+    assert result.metadata.deadline.isoformat() == "2026-10-05"
+    assert result.metadata.amount == 399.99
+
+
+def test_document_without_dates_or_amount_stays_safe(tmp_path):
+    path = tmp_path / "notatka.txt"
+    path.write_text("Notatka robocza bez terminu i bez kwoty.", encoding="utf-8")
+
+    result = analyze_file(path)
+
+    assert result.metadata.document_type == "document"
+    assert result.metadata.document_date is None
+    assert result.metadata.deadline is None
+    assert result.metadata.amount is None
+    assert result.suggested_filename.endswith(".txt")
+
+
+def test_polish_characters_survive_suggested_filename(tmp_path):
+    path = tmp_path / "źródło-faktury.txt"
+    path.write_text(
+        "Żółta Łódź Sp. z o.o.\nFaktura VAT nr PL/2026/9\nData: 23.09.2026\nDo zapłaty 88,50 PLN",
+        encoding="utf-8",
+    )
+
+    result = analyze_file(path)
+
+    assert "Żółta-Łódź" in result.suggested_filename
+    assert result.metadata.reference == "PL/2026/9"
