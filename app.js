@@ -154,7 +154,7 @@ async function compareDuplicatePair(leftId,rightId){
   out.textContent='Comparing documents…';
   try{
     const r=await api('/api/duplicates/compare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({left_id:leftId,right_id:rightId})});
-    out.textContent=`Similarity: ${(r.similarity*100).toFixed(1)}%\nAdded lines: ${r.added_lines}\nRemoved lines: ${r.removed_lines}\n\n${r.diff||'No text differences detected.'}`;
+    out.textContent=r.exact_hash_match?'SHA-256 match: these files are byte-for-byte identical.':`Similarity: ${(r.similarity*100).toFixed(1)}%\nAdded lines: ${r.added_lines}\nRemoved lines: ${r.removed_lines}\n\n${r.diff||'No text differences detected.'}`;
   }catch(e){out.textContent=e.message}
 }
 async function loadDuplicates(){
