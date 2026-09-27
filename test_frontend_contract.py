@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).parent
@@ -6,10 +7,10 @@ ROOT = Path(__file__).parent
 
 def test_dynamic_button_collections_use_query_selector_all():
     script = (ROOT / "app.js").read_text(encoding="utf-8")
-    assert "$$('.duplicateOpen').forEach" in script
-    assert "$$('.duplicateCompare').forEach" in script
-    assert "$('.duplicateOpen').forEach" not in script
-    assert "$('.duplicateCompare').forEach" not in script
+    assert "$('.duplicateOpen').forEach" in script
+    assert "$('.duplicateCompare').forEach" in script
+    assert re.search(r"(?<!\$)\$\('\.duplicateOpen'\)\.forEach", script) is None
+    assert re.search(r"(?<!\$)\$\('\.duplicateCompare'\)\.forEach", script) is None
 
 
 def test_core_navigation_exposes_accessibility_hooks():
