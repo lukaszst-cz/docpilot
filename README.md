@@ -1,5 +1,7 @@
 # DocPilot
 
+[![Test](https://github.com/lukaszst-cz/docpilot/actions/workflows/test.yml/badge.svg)](https://github.com/lukaszst-cz/docpilot/actions/workflows/test.yml) [![Windows Release](https://github.com/lukaszst-cz/docpilot/actions/workflows/windows-release.yml/badge.svg)](https://github.com/lukaszst-cz/docpilot/actions/workflows/windows-release.yml)
+
 DocPilot powstał z prostego problemu: po pewnym czasie folder z dokumentami przestaje być archiwum, a zaczyna być miejscem, w którym trzeba wszystkiego szukać ręcznie.
 
 Program pomaga uporządkować skany, PDF-y, faktury, umowy i pisma. Odczytuje dokument, wyciąga z niego najważniejsze informacje, potrafi znaleźć termin, zaproponować nazwę i miejsce w archiwum, a później pozwala wrócić do dokumentu przez wyszukiwarkę.
