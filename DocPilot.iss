@@ -1,5 +1,5 @@
 #define MyAppName "DocPilot"
-#define MyAppVersion "0.8.1"
+#define MyAppVersion "0.8.2"
 #define MyAppPublisher "Łukasz Staniewicz"
 #define MyAppExeName "DocPilot.exe"
 

@@ -9,14 +9,15 @@
   <link rel="icon" href="/static/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icon-192.png">
   <title>DocPilot</title>
-  <link rel="stylesheet" href="/static/app.css?v=0.8.1">
+  <link rel="stylesheet" href="/static/app.css?v=0.8.2">
 </head>
 <body>
+  <a class="skipLink" href="#mainContent">Skip to content</a>
   <div class="appShell">
-    <aside class="sidebar">
+    <aside class="sidebar" aria-label="DocPilot navigation">
       <div class="brand"><div class="brandIcon">DP</div><div><strong>DocPilot</strong><small>Local-first</small></div></div>
-      <nav id="nav">
-        <button data-view="dashboard" class="navBtn active">Dashboard</button>
+      <nav id="nav" aria-label="Primary">
+        <button data-view="dashboard" class="navBtn active" aria-current="page">Dashboard</button>
         <button data-view="inbox" class="navBtn">Smart Inbox</button>
         <button data-view="review" class="navBtn">Review Queue</button>
         <button data-view="documents" class="navBtn">Documents</button>
@@ -31,13 +32,13 @@
       </nav>
       <div class="sidebarBottom">
         <button id="installPwaBtn" class="ghost hidden">Install PWA</button>
-        <span class="version">v0.8.1</span>
+        <span class="version">v0.8.2</span>
       </div>
     </aside>
 
-    <main class="main">
+    <main class="main" id="mainContent" tabindex="-1">
       <header class="topbar">
-        <div><h1 id="viewTitle">Dashboard</h1><p id="viewSubtitle">Documents + Deadlines + Actions + Archive</p></div>
+        <div><h1 id="viewTitle" tabindex="-1">Dashboard</h1><p id="viewSubtitle">Documents + Deadlines + Actions + Archive</p></div>
         <div class="topActions"><a class="buttonLink secondary" href="https://github.com/lukaszst-cz/docpilot/issues/new/choose" target="_blank" rel="noopener">Feedback</a><button id="quickImportBtn">+ Add document</button></div>
       </header>
       <div id="appNotice" class="appNotice hidden" role="status" aria-live="polite"></div>
@@ -103,19 +104,19 @@
 
       <section id="view-documents" class="view"><section class="card"><div class="cardHead"><h2>Local document index</h2><button id="refreshDocsBtn" class="secondary">Refresh</button></div><div id="documentsTable"></div></section></section>
       <section id="view-deadlines" class="view"><section class="card"><div class="cardHead"><h2>Deadline Radar</h2><a class="buttonLink" href="/api/export/calendar">Export .ics</a></div><div id="deadlineList"></div></section></section>
-      <section id="view-duplicates" class="view"><section class="card"><div class="cardHead"><h2>Duplicate Finder</h2><button id="scanDuplicatesBtn" class="secondary">Refresh</button></div><p class="muted">Exact duplicates use SHA-256. Near duplicates use a local text fingerprint. DocPilot does not delete duplicates automatically.</p><div id="duplicateList"></div><pre id="duplicateCompareOutput" class="codeBox hidden"></pre></section></section>
+      <section id="view-duplicates" class="view"><section class="card"><div class="cardHead"><h2>Duplicate Finder</h2><button id="scanDuplicatesBtn" class="secondary">Refresh</button></div><p class="muted">Exact duplicates use SHA-256. Near duplicates use a local text fingerprint. DocPilot does not delete duplicates automatically.</p><div id="duplicateList"></div><pre id="duplicateCompareOutput" class="codeBox hidden" aria-live="polite"></pre></section></section>
       <section id="view-cases" class="view"><section class="card"><div class="cardHead"><h2>Cases & timelines</h2></div><div id="caseList"></div></section></section>
 
       <section id="view-search" class="view">
         <div class="twoCol">
-          <section class="card"><h2>Search by meaning</h2><p class="muted">Local dense-vector search (TF-IDF + latent semantic analysis). No cloud model and no document upload.</p><div class="inline"><input id="searchInput" placeholder="e.g. flooding insurance, school letter, Orange invoice"><button id="searchBtn">Search</button></div><div id="searchResults" aria-live="polite"></div></section>
-          <section class="card"><h2>Local Q&A</h2><div class="inline"><input id="qaInput" placeholder="What is the response deadline?"><button id="qaBtn">Ask</button></div><div id="qaAnswer" aria-live="polite"></div><p class="muted">Answers are extracted from your local DocPilot index. Review the source document for important decisions.</p></section>
+          <section class="card"><h2>Search by meaning</h2><p class="muted">Local dense-vector search (TF-IDF + latent semantic analysis). No cloud model and no document upload.</p><div class="inline"><input id="searchInput" aria-label="Search local documents" placeholder="e.g. flooding insurance, school letter, Orange invoice"><button id="searchBtn">Search</button></div><div id="searchResults" aria-live="polite"></div></section>
+          <section class="card"><h2>Local Q&A</h2><div class="inline"><input id="qaInput" aria-label="Ask a question about local documents" placeholder="What is the response deadline?"><button id="qaBtn">Ask</button></div><div id="qaAnswer" aria-live="polite"></div><p class="muted">Answers are extracted from your local DocPilot index. Review the source document for important decisions.</p></section>
         </div>
       </section>
 
       <section id="view-tools" class="view">
         <div class="toolGrid">
-          <section class="card tool"><h2>Document Diff</h2><p>Compare two documents and inspect added/removed lines.</p><button id="diffBtn">Compare two files</button><pre id="diffOutput" class="codeBox"></pre></section>
+          <section class="card tool"><h2>Document Diff</h2><p>Compare two documents and inspect added/removed lines.</p><button id="diffBtn">Compare two files</button><pre id="diffOutput" class="codeBox" aria-live="polite"></pre></section>
           <section class="card tool"><h2>Batch Mode</h2><p>Index up to 100 documents from a selected folder.</p><button id="batchBtn">Select folder</button><div id="batchOutput"></div></section>
           <section class="card tool"><h2>Email Attachments</h2><p>Import attachments from an exported .eml message and classify them locally.</p><button id="emailImportBtn">Import .eml</button><div id="emailOutput"></div></section>
           <section class="card tool"><h2>PII / Sensitive Data</h2><p>DocPilot flags PESEL, NIP, IBAN, email, phone and likely addresses during analysis.</p><p class="muted">Redaction creates a separate copy. Always review it before sharing.</p></section>
@@ -167,6 +168,6 @@
       </section>
     </main>
   </div>
-  <script src="/static/app.js?v=0.8.1"></script>
+  <script src="/static/app.js?v=0.8.2"></script>
 </body>
 </html>

@@ -29,3 +29,11 @@
 @media(max-width:700px){.setupChecklist{grid-template-columns:1fr}}
 
 .duplicateRow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0}.duplicateRow+.duplicateRow{border-top:1px solid rgba(255,255,255,.05)}.duplicateRow>div{min-width:0}.duplicateRow .muted{overflow-wrap:anywhere}@media(max-width:620px){.duplicateRow{align-items:flex-start;flex-direction:column}.duplicateRow button{width:100%}}
+
+
+.skipLink{position:fixed;left:16px;top:10px;z-index:1000;transform:translateY(-160%);background:#eef3fb;color:#111821;padding:10px 14px;border-radius:9px;font-weight:800;text-decoration:none}
+.skipLink:focus{transform:translateY(0)}
+button:focus-visible,.buttonLink:focus-visible,.navBtn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+button:disabled{cursor:not-allowed;opacity:.62;transform:none}
+.main:focus,#viewTitle:focus{outline:none}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}button:hover,.buttonLink:hover,.exportCard:hover{transform:none}}
