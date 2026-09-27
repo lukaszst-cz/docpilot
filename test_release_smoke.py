@@ -1,6 +1,8 @@
 from pathlib import Path
 
 import pytest
+from pypdf import PdfWriter
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 from docpilot.analyze import analyze_file
 
@@ -76,3 +78,43 @@ def test_unsupported_file_is_reported_without_modifying_source(tmp_path):
     assert path.read_bytes() == original
     assert result.metadata.document_type == "document"
     assert any("Unsupported file type" in warning for warning in result.warnings)
+
+
+def _write_text_pdf(path: Path, text: str) -> None:
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=612, height=792)
+
+    font = DictionaryObject({
+        NameObject("/Type"): NameObject("/Font"),
+        NameObject("/Subtype"): NameObject("/Type1"),
+        NameObject("/BaseFont"): NameObject("/Helvetica"),
+    })
+    font_ref = writer._add_object(font)
+    page[NameObject("/Resources")] = DictionaryObject({
+        NameObject("/Font"): DictionaryObject({NameObject("/F1"): font_ref}),
+    })
+
+    safe = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+    stream = DecodedStreamObject()
+    stream.set_data(f"BT /F1 12 Tf 72 720 Td ({safe}) Tj ET".encode("latin-1"))
+    page[NameObject("/Contents")] = writer._add_object(stream)
+
+    with path.open("wb") as fh:
+        writer.write(fh)
+
+
+def test_text_pdf_is_read_and_classified(tmp_path):
+    path = tmp_path / "invoice.pdf"
+    _write_text_pdf(
+        path,
+        "Invoice number INV/2026/77 payment due 30.09.2026 amount 249.99 PLN",
+    )
+
+    result = analyze_file(path)
+
+    assert result.metadata.document_type == "invoice"
+    assert result.metadata.deadline.isoformat() == "2026-09-30"
+    assert result.metadata.amount == 249.99
+    assert result.metadata.currency == "PLN"
+    assert "INV/2026/77" in result.extracted_text
+    assert result.warnings == []
