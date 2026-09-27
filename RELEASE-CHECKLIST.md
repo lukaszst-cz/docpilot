@@ -4,8 +4,8 @@ Ta lista opisuje warunki, które trzeba zamknąć przed oznaczeniem DocPilot 1.0
 
 ## Automatyczne bramki
 
-- [ ] `node --check app.js`
-- [ ] pełne `pytest -q`
+- [x] `node --check app.js`
+- [x] pełne `pytest -q`
 - [ ] build aplikacji Windows
 - [ ] build modułu powiadomień
 - [ ] obecność DocPilot.exe, DocPilotNotifier.exe i Tesseract OCR w paczce
@@ -19,34 +19,34 @@ Ta lista opisuje warunki, które trzeba zamknąć przed oznaczeniem DocPilot 1.0
 
 Każdy przypadek sprawdzamy na kopii testowej, bez prywatnych danych.
 
-- [ ] zwykły PDF z warstwą tekstową
-- [ ] skanowany PDF
-- [ ] JPG / PNG dokumentu
-- [ ] faktura z kwotą i terminem
-- [ ] paragon
-- [ ] umowa
-- [ ] pismo urzędowe lub sądowe
-- [ ] dokument szkolny
-- [ ] dokument wielostronicowy
-- [ ] polskie znaki w treści i nazwie pliku
-- [ ] dokument bez daty lub kwoty
-- [ ] nieobsługiwany typ pliku
-- [ ] plik przekraczający limit importu
+- [x] zwykły PDF z warstwą tekstową
+- [x] skanowany PDF
+- [x] JPG / PNG dokumentu
+- [x] faktura z kwotą i terminem
+- [x] paragon
+- [x] umowa
+- [x] pismo urzędowe lub sądowe
+- [x] dokument szkolny
+- [x] dokument wielostronicowy
+- [x] polskie znaki w treści i nazwie pliku
+- [x] dokument bez daty lub kwoty
+- [x] nieobsługiwany typ pliku
+- [x] plik przekraczający limit importu
 
 ## Bezpieczna praca na plikach
 
 - [ ] wybór lokalnego pliku nie zmienia oryginału przed zatwierdzeniem
 - [ ] rename wymaga potwierdzenia i zapisuje zmianę w historii
 - [ ] move + rename wymaga potwierdzenia i zapisuje zmianę w historii
-- [ ] Undo przywraca plik do poprzedniego miejsca
-- [ ] błąd operacji nie zostawia częściowo przeniesionego pliku
-- [ ] Exact Duplicate jest rozpoznawany po SHA-256
-- [ ] Near Duplicate można porównać bez automatycznego kasowania
+- [x] Undo przywraca plik do poprzedniego miejsca
+- [x] błąd operacji nie zostawia częściowo przeniesionego pliku
+- [x] Exact Duplicate jest rozpoznawany po SHA-256
+- [x] Near Duplicate można porównać bez automatycznego kasowania
 
 ## Codzienny workflow
 
-- [ ] first-run checklist działa na czystej instalacji
-- [ ] safe demo działa bez wskazywania prywatnych dokumentów
+- [x] first-run checklist ma test stanu pierwszego uruchomienia
+- [x] safe demo działa bez wskazywania prywatnych dokumentów
 - [ ] Deadline Radar pokazuje wykryte terminy
 - [ ] Review Queue pokazuje dokumenty wymagające decyzji
 - [ ] Search znajduje dokument po treści
@@ -61,18 +61,18 @@ Każdy przypadek sprawdzamy na kopii testowej, bez prywatnych danych.
 
 - [ ] czysta instalacja na Windows 11
 - [ ] uruchomienie z menu Start
-- [ ] opcjonalny skrót na pulpicie
-- [ ] OCR PL/EN działa w instalatorze
+- [x] opcjonalny skrót na pulpicie
+- [x] OCR PL/EN działa w środowisku Windows Release
 - [ ] aktualizacja istniejącej instalacji zachowuje dane
-- [ ] deinstalacja nie usuwa danych użytkownika bez wyraźnej decyzji
-- [ ] SmartScreen / brak podpisu jest jasno opisany w README
+- [x] deinstalacja nie usuwa danych użytkownika
+- [x] SmartScreen / brak podpisu jest jasno opisany w README
 
 ## UX i dostępność
 
-- [ ] całą główną nawigację da się obsłużyć klawiaturą
-- [ ] focus jest widoczny
-- [ ] aktywny widok ma `aria-current`
-- [ ] podstawowe pola Search i Q&A mają etykiety dostępności
+- [x] główna nawigacja ma obsługę klawiatury i test kontraktowy
+- [x] focus ma widoczny styl `:focus-visible`
+- [x] aktywny widok ma `aria-current`
+- [x] pola Search i Q&A mają etykiety dostępności
 - [ ] komunikaty błędów są czytelne i nie pokazują surowego tracebacku
 - [ ] długie ścieżki i nazwy plików nie rozwalają layoutu
 - [ ] interfejs pozostaje używalny przy węższym oknie
