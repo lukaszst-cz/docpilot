@@ -102,7 +102,7 @@ pytest -q
 
 Ostatnie publiczne wydanie: **v0.5.1**
 
-Gałąź `main` jest obecnie rozwijana jako **v0.9.0 RC**. To kandydat przed 1.0: bez dokładania dużych modułów, z naciskiem na testy typowych dokumentów, build Windows, upgrade, Undo, duplikaty, UX i dostępność. Linki do pobierania powyżej celowo prowadzą do ostatniego stabilnego wydania, dopóki nowa wersja nie przejdzie pełnego buildu Windows.
+Gałąź `main` jest obecnie rozwijana jako **v0.9.1 RC**. Ta runda utwardza przepływ przed 1.0: synchronizuje indeks po Undo i rozszerza smoke testy o pełny przepływ API, PDF z warstwą tekstową oraz rzeczywisty OCR obrazu w środowisku z Tesseract. Linki do pobierania powyżej celowo prowadzą do ostatniego stabilnego wydania, dopóki nowa wersja nie przejdzie pełnego buildu Windows.
 
 Wydanie Windows przechodzi automatyczne testy, kontrolę składni frontendu, budowę aplikacji, budowę modułu powiadomień, dołączenie OCR, self-test gotowego pakietu, utworzenie instalatora i ZIP-a oraz wygenerowanie sum SHA-256.
 

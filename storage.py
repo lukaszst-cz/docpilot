@@ -172,12 +172,16 @@ def apply_move(settings: Settings, source: Path, category: str, filename: str) -
     return apply_change(settings, source, category, filename, mode="organize")
 
 
-def undo_change(settings: Settings, change_id: str) -> Path:
+def get_change(settings: Settings, change_id: str) -> AppliedChange:
     path = settings.state / "changes" / f"{change_id}.json"
     if not path.exists():
         raise FileNotFoundError(change_id)
+    return AppliedChange.model_validate_json(path.read_text(encoding="utf-8"))
 
-    change = AppliedChange.model_validate_json(path.read_text(encoding="utf-8"))
+
+def undo_change(settings: Settings, change_id: str) -> Path:
+    path = settings.state / "changes" / f"{change_id}.json"
+    change = get_change(settings, change_id)
     destination = Path(change.destination).resolve()
     source = Path(change.source)
 

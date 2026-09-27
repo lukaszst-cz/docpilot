@@ -57,7 +57,7 @@ from .notifier import install_startup as install_notifier_startup, remove_startu
 from .models import ApplyRequest
 from .redaction import redact_file
 from .rules import apply_rules
-from .storage import apply_change, list_changes, safe_name, undo_change, unique_destination
+from .storage import apply_change, get_change, list_changes, safe_name, undo_change, unique_destination
 
 BASE_DIR = Path(__file__).parent
 TEMPLATE_DIR = BASE_DIR / "templates" if (BASE_DIR / "templates").exists() else BASE_DIR
@@ -454,12 +454,14 @@ def open_folder(payload: dict = Body(...)):
 @app.post("/api/undo/{change_id}")
 def undo(change_id: str):
     try:
+        change = get_change(settings, change_id)
         restored = undo_change(settings, change_id)
-        _analyze_and_index(restored)
+        delete_document_by_path(settings, change.destination)
+        indexed = _analyze_and_index(restored)
         audit(settings, "undo", {"id": change_id, "restored_to": str(restored)})
     except FileNotFoundError:
         raise HTTPException(404, "Change not found or file no longer exists")
-    return {"id": change_id, "restored_to": str(restored)}
+    return {"id": change_id, "restored_to": str(restored), "document_id": indexed["id"]}
 
 
 @app.get("/api/changes")
