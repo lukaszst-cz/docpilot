@@ -102,7 +102,7 @@ pytest -q
 
 Ostatnie publiczne wydanie: **v0.5.1**
 
-Gałąź `main` jest obecnie rozwijana jako **v0.7.0**. Linki do pobierania powyżej celowo prowadzą do ostatniego stabilnego wydania, dopóki nowa wersja nie przejdzie pełnego buildu Windows.
+Gałąź `main` jest obecnie rozwijana jako **v0.8.0**. W tej wersji dochodzi first-run checklist, kontrola gotowości OCR i miejsca na dysku oraz czytelniejsze komunikaty błędów. Linki do pobierania powyżej celowo prowadzą do ostatniego stabilnego wydania, dopóki nowa wersja nie przejdzie pełnego buildu Windows.
 
 Wydanie Windows przechodzi automatyczne testy, budowę aplikacji, budowę modułu powiadomień, dołączenie OCR, self-test gotowego pakietu, utworzenie instalatora i ZIP-a oraz wygenerowanie sum SHA-256.
 

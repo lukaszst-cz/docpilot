@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null;
+let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null;
 const titles = {
   dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
   documents:['Documents','Your local document index'], deadlines:['Deadline Radar','Payments, replies, expirations and warranties'],
@@ -13,6 +13,46 @@ const titles = {
 function esc(v=''){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function fmtDate(v){if(!v)return '—'; try{return new Date(v+'T00:00:00').toLocaleDateString();}catch{return v}}
 function money(md){return md?.amount==null?'—':`${md.amount} ${md.currency||''}`.trim()}
+
+function friendlyApiMessage(status, detail=''){
+  if(status===413)return detail || 'This file is larger than DocPilot allows. Choose a smaller file or split the document first.';
+  if(status===403)return 'DocPilot blocked a request that did not come from this local app.';
+  if(status===404)return detail || 'The selected file or resource is no longer available. Choose it again.';
+  if(status>=500)return 'DocPilot hit a local error. Open Settings → Data & diagnostics, then check the log if the problem repeats.';
+  return detail || `DocPilot could not complete this action (HTTP ${status}).`;
+}
+function showAppNotice(message,type='error'){
+  const box=$('#appNotice');
+  if(!box)return;
+  box.textContent=message;
+  box.className=`appNotice ${type}`;
+  window.clearTimeout(showAppNotice.timer);
+  showAppNotice.timer=window.setTimeout(()=>box.classList.add('hidden'),7000);
+}
+function renderSetupStatus(s){
+  setupState=s;
+  const card=$('#setupCard'), list=$('#setupChecklist'), welcome=$('#welcomeCard');
+  if(!card||!list)return;
+  const diskOk=Number(s.free_space_gb||0)>=Number(s.recommended_free_space_gb||2);
+  const visible=!s.complete&&!s.has_documents;
+  card.classList.toggle('hidden',!visible);
+  if(visible&&welcome)welcome.classList.add('hidden');
+  list.innerHTML=[
+    ['Local storage','Ready',s.data_root,'ok'],
+    ['OCR',s.ocr?.ready?'Ready':'Needs attention',s.ocr?.ready?`Tesseract ${s.ocr.version||''}`:'Scanned images may not be readable until OCR is available.',s.ocr?.ready?'ok':'warn'],
+    ['Disk space',diskOk?'Ready':'Low space',`${s.free_space_gb} GB free · ${s.recommended_free_space_gb} GB recommended`,diskOk?'ok':'warn'],
+    ['Safe demo',s.demo_ready?'Ready':'Missing',s.demo_ready?'Synthetic sample is available.':'Bundled demo file could not be found.',s.demo_ready?'ok':'warn']
+  ].map(([name,state,detail,kind])=>`<div class="setupItem"><div><strong>${esc(name)}</strong><small>${esc(detail)}</small></div><span class="setupState ${kind}">${esc(state)}</span></div>`).join('');
+}
+async function loadSetupStatus(){
+  try{renderSetupStatus(await api('/api/setup/status'))}
+  catch(e){showAppNotice(e.message)}
+}
+async function setSetupComplete(complete){
+  const s=await api('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({complete})});
+  renderSetupStatus(s);
+  return s;
+}
 
 $$('.navBtn').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
@@ -31,6 +71,27 @@ $('#tryDemoBtn')?.addEventListener('click',async()=>{
     btn.disabled=false; btn.textContent='Try safe demo';
   }
 });
+$('#setupDemoBtn')?.addEventListener('click',async()=>{
+  const btn=$('#setupDemoBtn'), msg=$('#setupMessage');
+  btn.disabled=true; msg.textContent='Loading the safe demo…';
+  try{
+    await api('/api/demo',{method:'POST'});
+    await setSetupComplete(true);
+    msg.textContent='Demo loaded. You can explore Documents now.';
+    await loadDashboard();
+    go('documents');
+  }catch(e){msg.textContent=e.message;showAppNotice(e.message)}
+  finally{btn.disabled=false}
+});
+$('#setupDocumentBtn')?.addEventListener('click',()=>{go('inbox');setTimeout(selectLocalFile,100)});
+$('#setupDoneBtn')?.addEventListener('click',async()=>{
+  try{await setSetupComplete(true);await loadDashboard()}
+  catch(e){showAppNotice(e.message)}
+});
+$('#setupResetBtn')?.addEventListener('click',async()=>{
+  try{await setSetupComplete(false);go('dashboard');await loadDashboard()}
+  catch(e){showAppNotice(e.message)}
+});
 function go(name){$$('.navBtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$$('.view').forEach(v=>v.classList.remove('activeView'));$(`#view-${name}`).classList.add('activeView');$('#viewTitle').textContent=titles[name][0];$('#viewSubtitle').textContent=titles[name][1];if(name==='dashboard')loadDashboard();if(name==='review')loadReview();if(name==='documents')loadDocuments();if(name==='deadlines')loadDeadlines();if(name==='duplicates')loadDuplicates();if(name==='cases')loadCases();if(name==='automation'){loadRules();loadTypes();loadWatch();}if(name==='settings'){loadIntegrationStatus();loadNotificationStatus();loadDiagnostics();}}
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('#installPwaBtn').classList.remove('hidden')});
@@ -38,9 +99,9 @@ async function installPwa(){if(!deferredInstallPrompt){alert('Use your browser m
 $('#installPwaBtn').addEventListener('click',installPwa);$('#installPwaBtn2').addEventListener('click',installPwa);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
 
-async function api(url,opts={}){const r=await fetch(url,{cache:'no-store',...opts});if(!r.ok){let msg=`${r.status} ${r.statusText}`;try{const j=await r.json();msg=j.detail||msg}catch{}throw new Error(msg)}return r.headers.get('content-type')?.includes('application/json')?r.json():r.text()}
+async function api(url,opts={}){const r=await fetch(url,{cache:'no-store',...opts});if(!r.ok){let detail='';try{const j=await r.json();detail=j.detail||''}catch{}const err=new Error(friendlyApiMessage(r.status,detail));err.status=r.status;throw err}return r.headers.get('content-type')?.includes('application/json')?r.json():r.text()}
 
-async function loadDashboard(){const d=await api('/api/dashboard');const welcome=$('#welcomeCard');if(welcome)welcome.classList.toggle('hidden',d.documents>0);$('#stats').innerHTML=[['Documents',d.documents],['Deadlines',d.deadline_count],['Actions',d.actions],['Duplicate groups',d.duplicate_groups],['Cases',d.cases],['Health alerts',d.unhealthy]].map(([a,b])=>`<div class="stat"><strong>${b}</strong><span>${a}</span></div>`).join('');$('#dashboardDeadlines').innerHTML=d.deadlines.length?d.deadlines.slice(0,8).map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No detected deadlines yet.</p>';$('#dashboardActions').innerHTML=d.actions?`<div class="stat"><strong>${d.actions}</strong><span>documents require an action</span></div><p class="muted">Use Documents and Deadline Radar to review them.</p>`:'<p class="muted">Nothing marked as action-required.</p>';$('#featureGrid').innerHTML=[['OCR','PL/EN local OCR'],['Smart Inbox','classify + rename'],['Deadline Radar','dates + actions'],['Duplicates','SHA-256 + near match'],['Cases','timeline'],['Search','local vector + Q&A'],['Review Queue','human-in-the-loop'],['Redaction','text + scanned PDF'],['PWA','installable UI']].map(([a,b])=>`<div class="feature"><strong>${a}</strong><small>${b}</small></div>`).join('')}
+async function loadDashboard(){const d=await api('/api/dashboard');const welcome=$('#welcomeCard');const setupActive=setupState&&!setupState.complete&&!setupState.has_documents;if(welcome)welcome.classList.toggle('hidden',d.documents>0||setupActive);$('#stats').innerHTML=[['Documents',d.documents],['Deadlines',d.deadline_count],['Actions',d.actions],['Duplicate groups',d.duplicate_groups],['Cases',d.cases],['Health alerts',d.unhealthy]].map(([a,b])=>`<div class="stat"><strong>${b}</strong><span>${a}</span></div>`).join('');$('#dashboardDeadlines').innerHTML=d.deadlines.length?d.deadlines.slice(0,8).map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No detected deadlines yet.</p>';$('#dashboardActions').innerHTML=d.actions?`<div class="stat"><strong>${d.actions}</strong><span>documents require an action</span></div><p class="muted">Use Documents and Deadline Radar to review them.</p>`:'<p class="muted">Nothing marked as action-required.</p>';$('#featureGrid').innerHTML=[['OCR','PL/EN local OCR'],['Smart Inbox','classify + rename'],['Deadline Radar','dates + actions'],['Duplicates','SHA-256 + near match'],['Cases','timeline'],['Search','local vector + Q&A'],['Review Queue','human-in-the-loop'],['Redaction','text + scanned PDF'],['PWA','installable UI']].map(([a,b])=>`<div class="feature"><strong>${a}</strong><small>${b}</small></div>`).join('')}
 
 const drop=$('#dropZone'), browse=$('#browseBtn');browse.addEventListener('click',selectLocalFile);['dragenter','dragover'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)analyzeCopy(f)});
 async function selectLocalFile(){if(pickerBusy)return;pickerBusy=true;browse.disabled=true;browse.textContent='Opening Windows picker…';try{const d=await api('/api/select-local',{method:'POST'});if(!d.cancelled){current=d;showAnalysis(d)}}catch(e){alert(e.message)}finally{pickerBusy=false;browse.disabled=false;browse.textContent='Select file on this PC'}}
@@ -199,4 +260,4 @@ $('#changesBtn').addEventListener('click',async()=>{
   $$('.historyUndo').forEach(b=>b.addEventListener('click',async()=>{try{const u=await api(`/api/undo/${b.dataset.id}`,{method:'POST'});alert(`Restored to:\n${u.restored_to}`);$('#changesBtn').click()}catch(e){alert(e.message)}}));
 });
 
-loadDashboard();
+loadSetupStatus().finally(loadDashboard);

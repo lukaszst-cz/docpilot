@@ -17,3 +17,13 @@
 @media(max-width:560px){.qaSource{align-items:flex-start;flex-direction:column}.qaSource button{width:100%}}
 
 .diagGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin:10px 0 14px}.diagGrid span{min-width:0;overflow-wrap:anywhere}@media(max-width:620px){.diagGrid{grid-template-columns:1fr}}
+
+
+.appNotice{position:sticky;top:10px;z-index:20;margin-bottom:14px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:#161d26;box-shadow:0 8px 24px rgba(0,0,0,.24)}
+.appNotice.error{border-color:#70404a}.appNotice.ok{border-color:#39634d}
+.setupCard{margin-bottom:16px;border-color:#38506d}
+.setupChecklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
+.setupItem{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;background:#11161d}
+.setupItem div{min-width:0}.setupItem strong,.setupItem small{display:block}.setupItem small{margin-top:4px;color:var(--muted);overflow-wrap:anywhere}
+.setupState{flex:0 0 auto;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:800;background:#1d2732}.setupState.ok{background:#173327}.setupState.warn{background:#3a2d16}
+@media(max-width:700px){.setupChecklist{grid-template-columns:1fr}}
