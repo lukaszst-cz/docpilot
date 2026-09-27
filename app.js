@@ -204,8 +204,8 @@ async function loadDuplicates(){
     ${g.documents.map(d=>`<div class="duplicateRow"><div><strong>${esc(d.source_name)}</strong><div class="muted">${esc(d.path)}</div></div><button class="secondary duplicateOpen" data-path="${esc(d.path)}">Show file</button></div>`).join('')}
     ${g.documents.length>=2?`<div class="actions"><button class="secondary duplicateCompare" data-left="${g.documents[0].id}" data-right="${g.documents[1].id}">${g.kind==='exact'?'Verify first two':'Compare first two'}</button></div>`:''}
   </div>`).join(''):'<p class="muted">No duplicate groups detected.</p>';
-  $('.duplicateOpen').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));
-  $('.duplicateCompare').forEach(b=>b.addEventListener('click',()=>compareDuplicatePair(Number(b.dataset.left),Number(b.dataset.right))));
+  $$('.duplicateOpen').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));
+  $$('.duplicateCompare').forEach(b=>b.addEventListener('click',()=>compareDuplicatePair(Number(b.dataset.left),Number(b.dataset.right))));
 }
 $('#scanDuplicatesBtn').addEventListener('click',()=>runLoad(loadDuplicates));
 async function loadCases(){const cs=await api('/api/cases');$('#caseList').innerHTML=cs.length?cs.map(c=>`<div class="listItem"><h3>${esc(c.name)}</h3>${c.timeline.map(t=>`<div class="meta"><strong>${esc(t.date||'')}</strong><span>${esc(t.name)}</span><span>${esc(t.action||'')}</span>${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div>`).join('')}</div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>'}
