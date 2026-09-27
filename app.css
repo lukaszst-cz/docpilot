@@ -27,3 +27,5 @@
 .setupItem div{min-width:0}.setupItem strong,.setupItem small{display:block}.setupItem small{margin-top:4px;color:var(--muted);overflow-wrap:anywhere}
 .setupState{flex:0 0 auto;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:800;background:#1d2732}.setupState.ok{background:#173327}.setupState.warn{background:#3a2d16}
 @media(max-width:700px){.setupChecklist{grid-template-columns:1fr}}
+
+.duplicateRow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0}.duplicateRow+.duplicateRow{border-top:1px solid rgba(255,255,255,.05)}.duplicateRow>div{min-width:0}.duplicateRow .muted{overflow-wrap:anywhere}@media(max-width:620px){.duplicateRow{align-items:flex-start;flex-direction:column}.duplicateRow button{width:100%}}
