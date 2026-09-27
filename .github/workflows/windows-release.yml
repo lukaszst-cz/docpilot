@@ -107,6 +107,41 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist-installer | Out-Null
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' packaging\installer\DocPilot.iss
 
+      - name: Clean install and uninstall smoke test
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path 'dist-installer\DocPilot-Setup-Windows-x64.exe').Path
+          $silentArgs = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-')
+          $install = Start-Process -FilePath $installer -ArgumentList $silentArgs -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Clean install failed with exit code $($install.ExitCode)." }
+
+          $programDir = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot'
+          $installedExe = Join-Path $programDir 'DocPilot.exe'
+          $uninstaller = Join-Path $programDir 'unins000.exe'
+          if (!(Test-Path $installedExe)) { throw 'Clean install did not create DocPilot.exe.' }
+          if (!(Test-Path $uninstaller)) { throw 'Clean install did not create the uninstaller.' }
+
+          $startMenuRoot = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+          $shortcut = Get-ChildItem -Path $startMenuRoot -Filter 'DocPilot.lnk' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (!$shortcut) { throw 'Clean install did not create the Start menu shortcut.' }
+
+          $selfTest = Start-Process -FilePath $installedExe -ArgumentList '--self-test' -Wait -PassThru
+          if ($selfTest.ExitCode -ne 0) { throw "Clean-installed DocPilot self-test failed with exit code $($selfTest.ExitCode)." }
+
+          $dataRoot = Join-Path $env:LOCALAPPDATA 'DocPilot\Data'
+          New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
+          $marker = Join-Path $dataRoot 'uninstall-preserves-data.txt'
+          'keep-after-uninstall' | Set-Content -Path $marker -Encoding UTF8
+
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $silentArgs -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstall failed with exit code $($uninstall.ExitCode)." }
+          if (Test-Path $installedExe) { throw 'Uninstall left DocPilot.exe installed.' }
+          if (!(Test-Path $marker)) { throw 'Uninstall removed the DocPilot data folder.' }
+          if ((Get-Content $marker -Raw).Trim() -ne 'keep-after-uninstall') { throw 'Uninstall changed existing user data.' }
+
+          # Keep the following upgrade test independent from the clean-install test.
+          Remove-Item -Path $dataRoot -Recurse -Force
+
       - name: Upgrade smoke test from v0.5.1
         shell: pwsh
         run: |
@@ -117,8 +152,15 @@ jobs:
           $old = Start-Process -FilePath $oldInstaller -ArgumentList $silentArgs -Wait -PassThru
           if ($old.ExitCode -ne 0) { throw "v0.5.1 installer failed with exit code $($old.ExitCode)." }
 
+          $oldExe = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
+          if (!(Test-Path $oldExe)) { throw 'v0.5.1 DocPilot.exe was not installed.' }
+          $oldSelfTest = Start-Process -FilePath $oldExe -ArgumentList '--self-test' -Wait -PassThru
+          if ($oldSelfTest.ExitCode -ne 0) { throw "v0.5.1 self-test failed with exit code $($oldSelfTest.ExitCode)." }
+
           $dataRoot = Join-Path $env:LOCALAPPDATA 'DocPilot\Data'
-          New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
+          $legacyDb = Join-Path $dataRoot 'state\docpilot.sqlite3'
+          if (!(Test-Path $legacyDb)) { throw 'v0.5.1 did not initialize its SQLite database.' }
+
           $marker = Join-Path $dataRoot 'upgrade-smoke-test.txt'
           'keep-me' | Set-Content -Path $marker -Encoding UTF8
 
