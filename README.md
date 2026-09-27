@@ -29,6 +29,10 @@ Do wyboru są:
 
 Instalator nie jest jeszcze podpisany komercyjnym certyfikatem code-signing, dlatego Windows może wyświetlić ostrzeżenie SmartScreen.
 
+### Dane po odinstalowaniu
+
+Wersja Windows przechowuje dane użytkownika poza katalogiem programu, w lokalnym katalogu danych DocPilot. Standardowe odinstalowanie usuwa aplikację i wpis autostartu powiadomień, ale **nie usuwa archiwum, indeksu ani ustawień użytkownika**. Dzięki temu ponowna instalacja lub aktualizacja może korzystać z dotychczasowych danych.
+
 ## Jak zacząć
 
 Po uruchomieniu możesz od razu użyć **Try safe demo**. Program wczyta przykładową, sztuczną fakturę. Dzięki temu można zobaczyć sposób działania bez wskazywania własnych dokumentów.
