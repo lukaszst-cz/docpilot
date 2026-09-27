@@ -139,6 +139,9 @@ jobs:
           if (!(Test-Path $marker)) { throw 'Uninstall removed the DocPilot data folder.' }
           if ((Get-Content $marker -Raw).Trim() -ne 'keep-after-uninstall') { throw 'Uninstall changed existing user data.' }
 
+          # Keep the following upgrade test independent from the clean-install test.
+          Remove-Item -Path $dataRoot -Recurse -Force
+
       - name: Upgrade smoke test from v0.5.1
         shell: pwsh
         run: |
