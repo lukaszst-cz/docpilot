@@ -10,6 +10,7 @@ import sys
 import tempfile
 import threading
 import time
+from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
 from email import policy
 from email.parser import BytesParser
@@ -75,7 +76,17 @@ if not logger.handlers:
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logger.addHandler(handler)
 
-app = FastAPI(title="DocPilot", version=__version__)
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if get_setting(settings, "watch_folder"):
+        _ensure_watcher()
+    try:
+        yield
+    finally:
+        WATCHER_STOP.set()
+
+
+app = FastAPI(title="DocPilot", version=__version__, lifespan=lifespan)
 
 if PACKAGED_STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -937,9 +948,3 @@ def integration_google_sync(payload: dict = Body(default={})):
         return result
     except Exception as exc:
         raise HTTPException(400, str(exc))
-
-
-@app.on_event("startup")
-def startup_event():
-    if get_setting(settings, "watch_folder"):
-        _ensure_watcher()
