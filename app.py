@@ -533,6 +533,40 @@ def duplicates():
     return duplicate_groups(settings)
 
 
+@app.post("/api/duplicates/compare")
+def compare_duplicate_documents(payload: dict = Body(...)):
+    try:
+        left_id = int(payload.get("left_id"))
+        right_id = int(payload.get("right_id"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Two document IDs are required")
+    if left_id == right_id:
+        raise HTTPException(400, "Choose two different documents")
+
+    left = get_document(settings, left_id)
+    right = get_document(settings, right_id)
+    if not left or not right:
+        raise HTTPException(404, "One of the indexed documents no longer exists")
+
+    left_path = Path(left["path"])
+    right_path = Path(right["path"])
+    if not left_path.is_file() or not right_path.is_file():
+        raise HTTPException(404, "One of the source files is no longer available")
+
+    exact_hash_match = bool(left.get("sha256")) and left.get("sha256") == right.get("sha256")
+    result = (
+        {"similarity": 1.0, "added_lines": 0, "removed_lines": 0, "diff": "", "warnings": []}
+        if exact_hash_match
+        else compare_documents(left_path, right_path)
+    )
+    return {
+        **result,
+        "exact_hash_match": exact_hash_match,
+        "left": {"id": left_id, "name": left["source_name"], "path": str(left_path)},
+        "right": {"id": right_id, "name": right["source_name"], "path": str(right_path)},
+    }
+
+
 @app.get("/api/cases")
 def cases():
     docs = list_documents(settings, limit=5000)

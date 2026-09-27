@@ -9,7 +9,7 @@
   <link rel="icon" href="/static/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icon-192.png">
   <title>DocPilot</title>
-  <link rel="stylesheet" href="/static/app.css?v=0.8.0">
+  <link rel="stylesheet" href="/static/app.css?v=0.8.1">
 </head>
 <body>
   <div class="appShell">
@@ -31,7 +31,7 @@
       </nav>
       <div class="sidebarBottom">
         <button id="installPwaBtn" class="ghost hidden">Install PWA</button>
-        <span class="version">v0.8.0</span>
+        <span class="version">v0.8.1</span>
       </div>
     </aside>
 
@@ -103,7 +103,7 @@
 
       <section id="view-documents" class="view"><section class="card"><div class="cardHead"><h2>Local document index</h2><button id="refreshDocsBtn" class="secondary">Refresh</button></div><div id="documentsTable"></div></section></section>
       <section id="view-deadlines" class="view"><section class="card"><div class="cardHead"><h2>Deadline Radar</h2><a class="buttonLink" href="/api/export/calendar">Export .ics</a></div><div id="deadlineList"></div></section></section>
-      <section id="view-duplicates" class="view"><section class="card"><div class="cardHead"><h2>Duplicate Finder</h2><button id="scanDuplicatesBtn" class="secondary">Refresh</button></div><p class="muted">Exact duplicates use SHA-256. Near duplicates use a local text fingerprint.</p><div id="duplicateList"></div></section></section>
+      <section id="view-duplicates" class="view"><section class="card"><div class="cardHead"><h2>Duplicate Finder</h2><button id="scanDuplicatesBtn" class="secondary">Refresh</button></div><p class="muted">Exact duplicates use SHA-256. Near duplicates use a local text fingerprint. DocPilot does not delete duplicates automatically.</p><div id="duplicateList"></div><pre id="duplicateCompareOutput" class="codeBox hidden"></pre></section></section>
       <section id="view-cases" class="view"><section class="card"><div class="cardHead"><h2>Cases & timelines</h2></div><div id="caseList"></div></section></section>
 
       <section id="view-search" class="view">
@@ -167,6 +167,6 @@
       </section>
     </main>
   </div>
-  <script src="/static/app.js?v=0.8.0"></script>
+  <script src="/static/app.js?v=0.8.1"></script>
 </body>
 </html>

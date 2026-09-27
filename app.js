@@ -148,7 +148,28 @@ $('#refreshReviewBtn')?.addEventListener('click',loadReview);
 async function loadDocuments(){const docs=await api('/api/documents?limit=1000');$('#documentsTable').innerHTML=docs.length?`<div class="tableWrap"><table><thead><tr><th>Name</th><th>Type</th><th>Deadline</th><th>Profile</th><th>Case</th><th>Action</th><th>Health</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td><strong>${esc(d.source_name)}</strong><div class="muted">${esc(d.category)}</div></td><td>${esc(d.metadata?.document_type||'')}</td><td>${fmtDate(d.metadata?.deadline||d.metadata?.warranty_until)}</td><td>${esc(d.profile||'Home')}</td><td>${esc(d.case_name||'—')}</td><td>${esc(d.action_required||'—')}</td><td>${d.health_score}/100</td><td><button class="secondary revealDoc" data-path="${esc(d.path)}">Open</button> <button class="secondary redactDoc" data-id="${d.id}">Redact copy</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No indexed documents yet.</p>';$$('.revealDoc').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));$$('.redactDoc').forEach(b=>b.addEventListener('click',async()=>{try{const r=await api(`/api/redact/${b.dataset.id}`,{method:'POST'});alert(`Redacted copy created:\n${r.path}\n\nReview it before sharing.`);reveal(r.path)}catch(e){alert(e.message)}}))}
 $('#refreshDocsBtn').addEventListener('click',loadDocuments);
 async function loadDeadlines(){const d=await api('/api/dashboard');$('#deadlineList').innerHTML=d.deadlines.length?d.deadlines.map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No deadlines detected.</p>'}
-async function loadDuplicates(){const groups=await api('/api/duplicates');$('#duplicateList').innerHTML=groups.length?groups.map((g,i)=>`<div class="listItem"><div class="listItemHead"><strong>${g.kind==='exact'?'Exact duplicates':'Near duplicates'}</strong><span>${g.documents.length} files</span></div>${g.documents.map(d=>`<div class="meta"><span>${esc(d.source_name)}</span><span>${esc(d.path)}</span></div>`).join('')}</div>`).join(''):'<p class="muted">No duplicate groups detected.</p>'}$('#scanDuplicatesBtn').addEventListener('click',loadDuplicates);
+async function compareDuplicatePair(leftId,rightId){
+  const out=$('#duplicateCompareOutput');
+  out.classList.remove('hidden');
+  out.textContent='Comparing documents…';
+  try{
+    const r=await api('/api/duplicates/compare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({left_id:leftId,right_id:rightId})});
+    out.textContent=r.exact_hash_match?'SHA-256 match: these files are byte-for-byte identical.':`Similarity: ${(r.similarity*100).toFixed(1)}%\nAdded lines: ${r.added_lines}\nRemoved lines: ${r.removed_lines}\n\n${r.diff||'No text differences detected.'}`;
+  }catch(e){out.textContent=e.message}
+}
+async function loadDuplicates(){
+  const groups=await api('/api/duplicates');
+  const out=$('#duplicateCompareOutput');
+  out.classList.add('hidden');out.textContent='';
+  $('#duplicateList').innerHTML=groups.length?groups.map((g,i)=>`<div class="listItem">
+    <div class="listItemHead"><strong>${g.kind==='exact'?'Exact duplicates':'Near duplicates'}</strong><span>${g.documents.length} files</span></div>
+    ${g.documents.map(d=>`<div class="duplicateRow"><div><strong>${esc(d.source_name)}</strong><div class="muted">${esc(d.path)}</div></div><button class="secondary duplicateOpen" data-path="${esc(d.path)}">Show file</button></div>`).join('')}
+    ${g.documents.length>=2?`<div class="actions"><button class="secondary duplicateCompare" data-left="${g.documents[0].id}" data-right="${g.documents[1].id}">${g.kind==='exact'?'Verify first two':'Compare first two'}</button></div>`:''}
+  </div>`).join(''):'<p class="muted">No duplicate groups detected.</p>';
+  $('.duplicateOpen').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));
+  $('.duplicateCompare').forEach(b=>b.addEventListener('click',()=>compareDuplicatePair(Number(b.dataset.left),Number(b.dataset.right))));
+}
+$('#scanDuplicatesBtn').addEventListener('click',loadDuplicates);
 async function loadCases(){const cs=await api('/api/cases');$('#caseList').innerHTML=cs.length?cs.map(c=>`<div class="listItem"><h3>${esc(c.name)}</h3>${c.timeline.map(t=>`<div class="meta"><strong>${esc(t.date||'')}</strong><span>${esc(t.name)}</span><span>${esc(t.action||'')}</span>${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div>`).join('')}</div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>'}
 
 async function runSearch(){
