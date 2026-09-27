@@ -26,8 +26,13 @@ function showAppNotice(message,type='error'){
   if(!box)return;
   box.textContent=message;
   box.className=`appNotice ${type}`;
+  box.setAttribute('role',type==='error'?'alert':'status');
+  box.setAttribute('aria-live',type==='error'?'assertive':'polite');
   window.clearTimeout(showAppNotice.timer);
   showAppNotice.timer=window.setTimeout(()=>box.classList.add('hidden'),7000);
+}
+function runLoad(task){
+  return Promise.resolve().then(task).catch(e=>{showAppNotice(e.message);return null});
 }
 function renderSetupStatus(s){
   setupState=s;
@@ -54,9 +59,21 @@ async function setSetupComplete(complete){
   return s;
 }
 
-$$('.navBtn').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
-$$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
-$('#quickImportBtn').addEventListener('click',()=>{go('inbox'); setTimeout(selectLocalFile,100)});
+$('.navBtn').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
+$('#nav')?.addEventListener('keydown',e=>{
+  if(!['ArrowDown','ArrowUp','ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;
+  const items=$('.navBtn');
+  const currentIndex=Math.max(0,items.indexOf(document.activeElement));
+  let next=currentIndex;
+  if(e.key==='Home')next=0;
+  else if(e.key==='End')next=items.length-1;
+  else if(e.key==='ArrowDown'||e.key==='ArrowRight')next=(currentIndex+1)%items.length;
+  else next=(currentIndex-1+items.length)%items.length;
+  e.preventDefault();
+  items[next]?.focus();
+});
+$('#quickImportBtn').addEventListener('click',()=>{go('inbox',{focus:false}); setTimeout(selectLocalFile,100)});
 $('#tryDemoBtn')?.addEventListener('click',async()=>{
   const btn=$('#tryDemoBtn'), status=$('#demoStatus');
   btn.disabled=true; btn.textContent='Loading demo…'; status.textContent='';
@@ -83,7 +100,7 @@ $('#setupDemoBtn')?.addEventListener('click',async()=>{
   }catch(e){msg.textContent=e.message;showAppNotice(e.message)}
   finally{btn.disabled=false}
 });
-$('#setupDocumentBtn')?.addEventListener('click',()=>{go('inbox');setTimeout(selectLocalFile,100)});
+$('#setupDocumentBtn')?.addEventListener('click',()=>{go('inbox',{focus:false});setTimeout(selectLocalFile,100)});
 $('#setupDoneBtn')?.addEventListener('click',async()=>{
   try{await setSetupComplete(true);await loadDashboard()}
   catch(e){showAppNotice(e.message)}
@@ -92,10 +109,31 @@ $('#setupResetBtn')?.addEventListener('click',async()=>{
   try{await setSetupComplete(false);go('dashboard');await loadDashboard()}
   catch(e){showAppNotice(e.message)}
 });
-function go(name){$$('.navBtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$$('.view').forEach(v=>v.classList.remove('activeView'));$(`#view-${name}`).classList.add('activeView');$('#viewTitle').textContent=titles[name][0];$('#viewSubtitle').textContent=titles[name][1];if(name==='dashboard')loadDashboard();if(name==='review')loadReview();if(name==='documents')loadDocuments();if(name==='deadlines')loadDeadlines();if(name==='duplicates')loadDuplicates();if(name==='cases')loadCases();if(name==='automation'){loadRules();loadTypes();loadWatch();}if(name==='settings'){loadIntegrationStatus();loadNotificationStatus();loadDiagnostics();}}
+function go(name,{focus=true}={}){
+  const target=$(`#view-${name}`);
+  if(!target||!titles[name])return;
+  $('.navBtn').forEach(b=>{
+    const active=b.dataset.view===name;
+    b.classList.toggle('active',active);
+    if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
+  });
+  $('.view').forEach(v=>v.classList.remove('activeView'));
+  target.classList.add('activeView');
+  $('#viewTitle').textContent=titles[name][0];
+  $('#viewSubtitle').textContent=titles[name][1];
+  if(focus)requestAnimationFrame(()=>$('#viewTitle')?.focus({preventScroll:true}));
+  if(name==='dashboard')runLoad(loadDashboard);
+  if(name==='review')runLoad(loadReview);
+  if(name==='documents')runLoad(loadDocuments);
+  if(name==='deadlines')runLoad(loadDeadlines);
+  if(name==='duplicates')runLoad(loadDuplicates);
+  if(name==='cases')runLoad(loadCases);
+  if(name==='automation'){runLoad(loadRules);runLoad(loadTypes);runLoad(loadWatch)}
+  if(name==='settings'){runLoad(loadIntegrationStatus);runLoad(loadNotificationStatus);runLoad(loadDiagnostics)}
+}
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('#installPwaBtn').classList.remove('hidden')});
-async function installPwa(){if(!deferredInstallPrompt){alert('Use your browser menu and choose Install app / Install DocPilot if the install option is available.');return}deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;}
+async function installPwa(){if(!deferredInstallPrompt){showAppNotice('Use your browser menu and choose Install app / Install DocPilot if the install option is available.','ok');return}deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;}
 $('#installPwaBtn').addEventListener('click',installPwa);$('#installPwaBtn2').addEventListener('click',installPwa);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
 
@@ -104,8 +142,8 @@ async function api(url,opts={}){const r=await fetch(url,{cache:'no-store',...opt
 async function loadDashboard(){const d=await api('/api/dashboard');const welcome=$('#welcomeCard');const setupActive=setupState&&!setupState.complete&&!setupState.has_documents;if(welcome)welcome.classList.toggle('hidden',d.documents>0||setupActive);$('#stats').innerHTML=[['Documents',d.documents],['Deadlines',d.deadline_count],['Actions',d.actions],['Duplicate groups',d.duplicate_groups],['Cases',d.cases],['Health alerts',d.unhealthy]].map(([a,b])=>`<div class="stat"><strong>${b}</strong><span>${a}</span></div>`).join('');$('#dashboardDeadlines').innerHTML=d.deadlines.length?d.deadlines.slice(0,8).map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No detected deadlines yet.</p>';$('#dashboardActions').innerHTML=d.actions?`<div class="stat"><strong>${d.actions}</strong><span>documents require an action</span></div><p class="muted">Use Documents and Deadline Radar to review them.</p>`:'<p class="muted">Nothing marked as action-required.</p>';$('#featureGrid').innerHTML=[['OCR','PL/EN local OCR'],['Smart Inbox','classify + rename'],['Deadline Radar','dates + actions'],['Duplicates','SHA-256 + near match'],['Cases','timeline'],['Search','local vector + Q&A'],['Review Queue','human-in-the-loop'],['Redaction','text + scanned PDF'],['PWA','installable UI']].map(([a,b])=>`<div class="feature"><strong>${a}</strong><small>${b}</small></div>`).join('')}
 
 const drop=$('#dropZone'), browse=$('#browseBtn');browse.addEventListener('click',selectLocalFile);['dragenter','dragover'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)analyzeCopy(f)});
-async function selectLocalFile(){if(pickerBusy)return;pickerBusy=true;browse.disabled=true;browse.textContent='Opening Windows picker…';try{const d=await api('/api/select-local',{method:'POST'});if(!d.cancelled){current=d;showAnalysis(d)}}catch(e){alert(e.message)}finally{pickerBusy=false;browse.disabled=false;browse.textContent='Select file on this PC'}}
-async function analyzeCopy(file){const fd=new FormData();fd.append('upload',file);try{const d=await api('/api/analyze',{method:'POST',body:fd});current=d;showAnalysis(d)}catch(e){alert(e.message)}}
+async function selectLocalFile(){if(pickerBusy)return;pickerBusy=true;browse.disabled=true;browse.textContent='Opening Windows picker…';try{const d=await api('/api/select-local',{method:'POST'});if(!d.cancelled){current=d;showAnalysis(d)}}catch(e){showAppNotice(e.message)}finally{pickerBusy=false;browse.disabled=false;browse.textContent='Select file on this PC'}}
+async function analyzeCopy(file){const fd=new FormData();fd.append('upload',file);try{const d=await api('/api/analyze',{method:'POST',body:fd});current=d;showAnalysis(d)}catch(e){showAppNotice(e.message)}}
 function showAnalysis(d){drop.classList.add('hidden');$('#successPanel').classList.add('hidden');const md=d.metadata||{};const sensitive=(d.sensitive||[]).map(x=>`${x.type}: ${x.value}`).join(' · ');$('#analysisPanel').classList.remove('hidden');$('#analysisPanel').innerHTML=`<div class="cardHead"><div><span class="badge">ANALYZED</span><h2>${esc(d.source_name)}</h2></div><span>${Math.round((md.confidence||0)*100)}% confidence</span></div><div class="modeNotice ${d.source_mode==='original'?'original':'copy'}">${d.source_mode==='original'?'REAL FILE MODE — Apply can rename or move the original.':'COPY MODE — drag & drop imported a safe copy.'}</div><div class="sourcePath">${esc(d.source_path)}</div><div class="grid"><label>Type<input id="docType" value="${esc(md.document_type||'')}" disabled></label><label>Issuer<input value="${esc(md.issuer||'')}" disabled></label><label>Amount<input value="${esc(money(md))}" disabled></label><label>Deadline<input value="${esc(md.deadline||md.warranty_until||'')}" disabled></label><label>Language<input value="${esc(md.language||'unknown')}" disabled></label><label>Health<input value="${d.health_score}/100" disabled></label><label class="wide">Category<input id="category" value="${esc(d.suggested_category)}"></label><label class="wide">Suggested filename<input id="suggestedFilename" value="${esc(d.suggested_filename)}"></label><label>Profile<select id="profile"><option>Home</option><option>Company</option><option>Child</option><option>Vehicle</option><option>Legal Cases</option></select></label><label>Action<select id="actionRequired"><option value="">None</option><option value="to-pay">To pay</option><option value="to-reply">To reply</option><option value="to-sign">To sign</option><option value="to-review">To review</option><option value="to-archive">To archive</option></select></label><label class="wide">Case<input id="caseName" value="${esc(d.suggested_case||'')}"></label><label class="wide">Apply action<select id="applyMode"><option value="rename">Rename original in the same folder</option><option value="organize">Move + rename into DocPilot archive</option></select></label><label class="wide"><input id="smartStructure" type="checkbox" checked style="width:auto;margin-right:8px"> Smart folder structure (category / year / issuer) when organizing</label></div>${sensitive?`<p class="badge warn">Sensitive data detected</p><p class="muted">${esc(sensitive)}</p>`:''}${(d.health_notes||[]).length?`<p class="muted">Health: ${esc(d.health_notes.join(' · '))}</p>`:''}<div class="actions"><button class="secondary" id="cancelAnalyze">Analyze another</button><button id="applyBtn">Apply</button></div>`;$('#profile').value=d.profile||'Home';$('#actionRequired').value=d.action_required||'';if(d.source_mode!=='original'){$('#applyMode').value='organize';$('#applyMode').disabled=true}$('#cancelAnalyze').addEventListener('click',resetInbox);$('#applyBtn').addEventListener('click',applyCurrent)}
 function resetInbox(){current=null;currentChange=null;$('#analysisPanel').classList.add('hidden');$('#successPanel').classList.add('hidden');drop.classList.remove('hidden')}
 async function applyCurrent(){
@@ -130,23 +168,23 @@ async function applyCurrent(){
     $('#revealBtn').addEventListener('click',()=>reveal(currentChange.destination));
     $('#anotherBtn').addEventListener('click',async()=>{resetInbox();await new Promise(r=>setTimeout(r,100));selectLocalFile()});
   }catch(e){
-    alert(e.message);
+    showAppNotice(e.message);
     btn.disabled=false;
     btn.textContent='Apply';
   }
 }
-async function undoCurrent(){try{const r=await api(`/api/undo/${currentChange.id}`,{method:'POST'});alert(`Restored to:\n${r.restored_to}`);resetInbox()}catch(e){alert(e.message)}}
-async function reveal(path){try{await api('/api/open-folder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})})}catch(e){alert(e.message)}}
+async function undoCurrent(){try{const r=await api(`/api/undo/${currentChange.id}`,{method:'POST'});showAppNotice(`Restored to: ${r.restored_to}`,'ok');resetInbox()}catch(e){showAppNotice(e.message)}}
+async function reveal(path){try{await api('/api/open-folder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})})}catch(e){showAppNotice(e.message)}}
 
 async function loadReview(){
   const items=await api('/api/review');
   $('#reviewList').innerHTML=items.length?items.map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.severity==='high'?'red':'warn'}">${esc(x.severity)}</span></div><div class="meta"><span>${esc(x.category||'')}</span><span>${esc(x.case_name||'')}</span></div>${x.reasons.map(r=>`<div class="reviewReason"><strong>${esc(r.code)}</strong> — ${esc(r.detail)}</div>`).join('')}<div class="actions"><button class="secondary reviewOpen" data-path="${esc(x.path)}">Show file</button></div></div>`).join(''):'<p class="muted">Review Queue is clear.</p>';
   $$('.reviewOpen').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));
 }
-$('#refreshReviewBtn')?.addEventListener('click',loadReview);
+$('#refreshReviewBtn')?.addEventListener('click',()=>runLoad(loadReview));
 
 async function loadDocuments(){const docs=await api('/api/documents?limit=1000');$('#documentsTable').innerHTML=docs.length?`<div class="tableWrap"><table><thead><tr><th>Name</th><th>Type</th><th>Deadline</th><th>Profile</th><th>Case</th><th>Action</th><th>Health</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td><strong>${esc(d.source_name)}</strong><div class="muted">${esc(d.category)}</div></td><td>${esc(d.metadata?.document_type||'')}</td><td>${fmtDate(d.metadata?.deadline||d.metadata?.warranty_until)}</td><td>${esc(d.profile||'Home')}</td><td>${esc(d.case_name||'—')}</td><td>${esc(d.action_required||'—')}</td><td>${d.health_score}/100</td><td><button class="secondary revealDoc" data-path="${esc(d.path)}">Open</button> <button class="secondary redactDoc" data-id="${d.id}">Redact copy</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No indexed documents yet.</p>';$$('.revealDoc').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));$$('.redactDoc').forEach(b=>b.addEventListener('click',async()=>{try{const r=await api(`/api/redact/${b.dataset.id}`,{method:'POST'});alert(`Redacted copy created:\n${r.path}\n\nReview it before sharing.`);reveal(r.path)}catch(e){alert(e.message)}}))}
-$('#refreshDocsBtn').addEventListener('click',loadDocuments);
+$('#refreshDocsBtn').addEventListener('click',()=>runLoad(loadDocuments));
 async function loadDeadlines(){const d=await api('/api/dashboard');$('#deadlineList').innerHTML=d.deadlines.length?d.deadlines.map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No deadlines detected.</p>'}
 async function compareDuplicatePair(leftId,rightId){
   const out=$('#duplicateCompareOutput');
@@ -169,7 +207,7 @@ async function loadDuplicates(){
   $('.duplicateOpen').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));
   $('.duplicateCompare').forEach(b=>b.addEventListener('click',()=>compareDuplicatePair(Number(b.dataset.left),Number(b.dataset.right))));
 }
-$('#scanDuplicatesBtn').addEventListener('click',loadDuplicates);
+$('#scanDuplicatesBtn').addEventListener('click',()=>runLoad(loadDuplicates));
 async function loadCases(){const cs=await api('/api/cases');$('#caseList').innerHTML=cs.length?cs.map(c=>`<div class="listItem"><h3>${esc(c.name)}</h3>${c.timeline.map(t=>`<div class="meta"><strong>${esc(t.date||'')}</strong><span>${esc(t.name)}</span><span>${esc(t.action||'')}</span>${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div>`).join('')}</div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>'}
 
 async function runSearch(){
@@ -281,4 +319,4 @@ $('#changesBtn').addEventListener('click',async()=>{
   $$('.historyUndo').forEach(b=>b.addEventListener('click',async()=>{try{const u=await api(`/api/undo/${b.dataset.id}`,{method:'POST'});alert(`Restored to:\n${u.restored_to}`);$('#changesBtn').click()}catch(e){alert(e.message)}}));
 });
 
-loadSetupStatus().finally(loadDashboard);
+loadSetupStatus().finally(()=>runLoad(loadDashboard));
