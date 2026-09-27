@@ -152,8 +152,15 @@ jobs:
           $old = Start-Process -FilePath $oldInstaller -ArgumentList $silentArgs -Wait -PassThru
           if ($old.ExitCode -ne 0) { throw "v0.5.1 installer failed with exit code $($old.ExitCode)." }
 
+          $oldExe = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
+          if (!(Test-Path $oldExe)) { throw 'v0.5.1 DocPilot.exe was not installed.' }
+          $oldSelfTest = Start-Process -FilePath $oldExe -ArgumentList '--self-test' -Wait -PassThru
+          if ($oldSelfTest.ExitCode -ne 0) { throw "v0.5.1 self-test failed with exit code $($oldSelfTest.ExitCode)." }
+
           $dataRoot = Join-Path $env:LOCALAPPDATA 'DocPilot\Data'
-          New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
+          $legacyDb = Join-Path $dataRoot 'state\docpilot.sqlite3'
+          if (!(Test-Path $legacyDb)) { throw 'v0.5.1 did not initialize its SQLite database.' }
+
           $marker = Join-Path $dataRoot 'upgrade-smoke-test.txt'
           'keep-me' | Set-Content -Path $marker -Encoding UTF8
 
