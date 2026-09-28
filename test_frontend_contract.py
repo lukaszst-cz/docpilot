@@ -176,3 +176,16 @@ def test_recovery_restore_requires_typed_confirmation_in_ui():
     assert "if(typed!=='RESTORE')return;" in script
     assert "/api/recovery/restore" in script
     assert "confirm:'RESTORE'" in script
+
+
+def test_diagnostics_ui_explains_recovery_readiness():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "d.recovery_status" in script
+    assert "d.verified_recovery_points" in script
+    assert "d.latest_recovery_point" in script
+    assert "d.recovery_message" in script
+    assert "Recovery i baza dokumentów" in readme
+    assert "Settings → Recovery checkpoints" in readme
+    assert "Restore dotyczy **indeksu i ustawień SQLite**" in readme
