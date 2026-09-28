@@ -57,6 +57,7 @@ from .semantic import semantic_rank
 from .qa import answer_local
 from .review import build_review_queue
 from .preprocess import save_clean_copy
+from .portable_config import export_portable_config, import_portable_config, preview_portable_config
 from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, google_calendar_status,
     imap_status, import_imap_attachments, notion_status, sync_google_calendar, sync_notion,
@@ -870,6 +871,33 @@ def custom_types_add(payload: dict = Body(...)):
     item_id = add_custom_type(settings, name, [str(x) for x in keywords], category)
     audit(settings, "custom-type-added", {"id": item_id, "name": name})
     return {"id": item_id}
+
+
+@app.get("/api/export/config")
+def export_config():
+    path = settings.exports / f"docpilot-config-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+    payload = export_portable_config(settings)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    audit(settings, "portable-config-export", {"path": str(path), "format_version": payload["format_version"]})
+    return FileResponse(path, filename=path.name, media_type="application/json")
+
+
+@app.post("/api/config/preview")
+def config_preview(payload: dict = Body(...)):
+    try:
+        return preview_portable_config(settings, payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/api/config/import")
+def config_import(payload: dict = Body(...)):
+    try:
+        result = import_portable_config(settings, payload)
+        audit(settings, "portable-config-import", result)
+        return result
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
 
 
 @app.get("/api/export/calendar")

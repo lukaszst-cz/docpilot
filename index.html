@@ -177,6 +177,7 @@
           <a class="card exportCard" href="/api/export/notion"><h2>Notion</h2><p>Import-ready CSV with metadata</p></a>
           <a class="card exportCard" href="/api/export/backup"><h2>Index Backup</h2><p>Portable database + metadata only</p></a>
           <a class="card exportCard" href="/api/export/backup-full"><h2>Full Archive Backup</h2><p>Metadata + accessible source document copies</p></a>
+          <a class="card exportCard" href="/api/export/config"><h2>Portable Configuration</h2><p>Rules, custom types and safe preferences. Credentials and local paths are excluded.</p></a>
         </div>
       </section>
 
@@ -186,6 +187,11 @@
           <section class="card"><h2>Profiles</h2><p>Use profiles such as Home, Company, Child, Vehicle or Legal Cases. When Smart Inbox organizes a file, Home keeps the existing archive layout while other profiles use separate folders under <code>archive/Profiles/&lt;profile&gt;</code>. Changing profile metadata later does not move an already archived file.</p></section>
           <section class="card"><h2>PWA</h2><p>Install the DocPilot interface from a compatible browser. The local DocPilot service must be running for document operations.</p><button id="installPwaBtn2" class="secondary">Install PWA</button></section>
           <section class="card"><h2>Background deadline notifications</h2><p>Windows can start a lightweight DocPilot notifier at sign-in, even when the main window is closed.</p><div class="inline"><input id="notifyDays" type="number" min="0" max="30" value="3"><button id="notifyEnableBtn">Enable</button><button id="notifyDisableBtn" class="secondary">Disable</button></div><div id="notifyStatus" class="muted"></div></section>
+          <section class="card"><h2>Portable configuration</h2><p>Move rules, custom types and safe preferences between installations. Credentials, OAuth tokens and machine-specific paths are never imported automatically.</p>
+            <input id="configImportFile" type="file" accept=".json,application/json" aria-label="Choose DocPilot portable configuration JSON">
+            <div class="inline"><button id="configPreviewBtn" class="secondary">Preview import</button><button id="configApplyBtn" disabled>Apply import</button></div>
+            <div id="configImportPreview" class="muted">Choose a DocPilot configuration JSON to preview it.</div>
+          </section>
           <section class="card"><h2>Integration scope</h2><p>Preview and limit which local records can leave DocPilot before running Notion or Google Calendar sync.</p>
             <select id="integrationPreviewProvider" aria-label="Integration preview provider"><option value="notion">Notion</option><option value="google_calendar">Google Calendar</option></select>
             <select id="integrationScopeProfile" aria-label="Integration profile scope"><option value="">All profiles</option><option>Home</option><option>Company</option><option>Child</option><option>Vehicle</option><option>Legal Cases</option></select>
