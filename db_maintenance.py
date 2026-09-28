@@ -213,6 +213,22 @@ def _replace_file_with_retry(source: Path, destination: Path, *, attempts: int =
         raise last_error
 
 
+def _activate_verified_database(source: Path, destination: Path, *, destination_integrity: str) -> None:
+    # Replacing an existing SQLite file can fail on Windows even after every
+    # Python connection has been closed. For a healthy active database, use
+    # SQLite's own backup API to copy the verified restore image into place.
+    if destination.exists() and destination_integrity.lower() == "ok":
+        with closing(sqlite3.connect(source)) as source_db, closing(sqlite3.connect(destination)) as destination_db:
+            source_db.backup(destination_db)
+            destination_db.commit()
+        return
+
+    # If the active database is missing or unreadable, there is no trustworthy
+    # SQLite destination to open. The caller has already preserved a raw safety
+    # copy when possible, so fall back to atomic file activation.
+    _replace_file_with_retry(source, destination)
+
+
 def restore_database_from_point(
     path: Path,
     name: str,
@@ -235,13 +251,15 @@ def restore_database_from_point(
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         pre_restore_path = recovery_dir / f"docpilot-pre-restore-{stamp}.sqlite3"
 
+        current_integrity = "missing"
         if path.exists():
             try:
                 current = database_health(path)
             except sqlite3.DatabaseError:
                 current = {"integrity": "unreadable"}
+            current_integrity = str(current.get("integrity", "") or "unreadable").lower()
 
-            if str(current.get("integrity", "")).lower() == "ok":
+            if current_integrity == "ok":
                 with closing(sqlite3.connect(path)) as current_db, closing(sqlite3.connect(pre_restore_path)) as safety:
                     current_db.backup(safety)
                 safety_meta = _checkpoint_metadata(pre_restore_path, "pre-restore")
@@ -282,7 +300,11 @@ def restore_database_from_point(
 
             for suffix in ("-wal", "-shm"):
                 Path(str(path) + suffix).unlink(missing_ok=True)
-            _replace_file_with_retry(temp_path, path)
+            _activate_verified_database(
+                temp_path,
+                path,
+                destination_integrity=current_integrity,
+            )
 
             active = database_health(path)
             if active["integrity"].lower() != "ok":
