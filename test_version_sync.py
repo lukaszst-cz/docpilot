@@ -19,6 +19,7 @@ def test_public_version_markers_are_in_sync():
     assert f"app.js?v={version}" in index
 
     worker = (ROOT / "service-worker.js").read_text(encoding="utf-8")
+    assert f"const VERSION='{version}'" in worker
     cache_version = version.replace(".", "")
     assert f"docpilot-shell-v{cache_version}" in worker
     assert f"app.css?v={version}" in worker
