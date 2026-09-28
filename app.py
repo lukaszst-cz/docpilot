@@ -27,6 +27,7 @@ from . import __version__
 from .analyze import analyze_file
 from .config import get_settings
 from .db import (
+    SCHEMA,
     add_custom_type,
     add_rule,
     audit,
