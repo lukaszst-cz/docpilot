@@ -87,7 +87,7 @@ def test_local_qa_polish_deadline_keeps_source():
 def test_semantic_candidate_terms_drop_question_filler_and_expand_synonyms():
     from docpilot.semantic import candidate_terms
 
-    terms = candidate_terms("jaki jest termin faktury")
+    terms = candidate_terms("jaki jest termin faktura")
     assert "jaki" not in terms
     assert "jest" not in terms
     assert "termin" in terms
