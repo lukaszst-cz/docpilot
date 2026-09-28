@@ -665,6 +665,24 @@ def review_candidate_documents(
 
 
 
+def list_case_documents(settings: Settings, limit: int = 5000) -> list[dict[str, Any]]:
+    safe_limit = min(max(int(limit), 100), 10000)
+    with connect(settings) as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id, path, source_name, metadata_json, category, tags_json, profile,
+                case_name, action_required, health_score, health_json, indexed_at, updated_at
+            FROM documents
+            WHERE case_name IS NOT NULL AND case_name <> ''
+            ORDER BY case_name COLLATE NOCASE, updated_at ASC, id ASC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+    return [row_to_document(row) for row in rows]
+
+
 def get_document(settings: Settings, doc_id: int) -> dict[str, Any] | None:
     with connect(settings) as conn:
         row = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
