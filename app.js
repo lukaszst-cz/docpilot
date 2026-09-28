@@ -529,7 +529,7 @@ async function loadDiagnostics(){
   try{
     const d=await api('/api/diagnostics');
     diagnosticsCache=d;
-    out.innerHTML=`<div class="diagGrid"><span><b>Version</b> ${esc(d.version)}</span><span><b>Mode</b> ${d.packaged?'installed/portable':'source'}</span><span><b>Documents</b> ${d.documents}</span><span><b>Database</b> ${esc(d.database)} · integrity ${esc(d.database_integrity||'unknown')}</span><span><b>Schema</b> v${d.schema_version} / supported v${d.supported_schema_version}</span><span><b>Migration backups</b> ${d.migration_backups}</span><span><b>Free space</b> ${d.free_space_gb} GB</span><span><b>Data folder</b> ${esc(d.data_root)}</span></div>`;
+    out.innerHTML=`<div class="diagGrid"><span><b>Version</b> ${esc(d.version)}</span><span><b>Mode</b> ${d.packaged?'installed/portable':'source'}</span><span><b>Documents</b> ${d.documents}</span><span><b>Database</b> ${esc(d.database)} · integrity ${esc(d.database_integrity||'unknown')}</span><span><b>Schema</b> v${d.schema_version} / supported v${d.supported_schema_version}</span><span><b>Migration backups</b> ${d.migration_backups}</span><span><b>Config format</b> v${d.portable_config_format}</span><span><b>Free space</b> ${d.free_space_gb} GB</span><span><b>Data folder</b> ${esc(d.data_root)}</span></div>`;
     const advice=$('#diagnosticsAdvice');
     const assessment=d.assessment||{status:'ok',checks:[],recommendations:[]};
     const badgeClass=assessment.status==='error'?'red':assessment.status==='warning'?'warn':'';
