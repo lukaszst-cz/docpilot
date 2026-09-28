@@ -4,6 +4,7 @@ import os
 import shutil
 import sqlite3
 import threading
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,7 @@ def _migration_backup(path: Path, conn: sqlite3.Connection, from_version: int, t
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     backup_path = backup_dir / f"docpilot-schema-v{from_version}-to-v{to_version}-{stamp}.sqlite3"
-    with sqlite3.connect(backup_path) as destination:
+    with closing(sqlite3.connect(backup_path)) as destination:
         conn.backup(destination)
     return backup_path
 
@@ -71,7 +72,7 @@ def database_health(path: Path) -> dict[str, Any]:
             "migration_backups": 0,
         }
 
-    with sqlite3.connect(path) as conn:
+    with closing(sqlite3.connect(path)) as conn:
         integrity_row = conn.execute("PRAGMA quick_check").fetchone()
         integrity = str(integrity_row[0] if integrity_row else "unknown")
         version = schema_version(conn)
@@ -93,7 +94,7 @@ def database_health(path: Path) -> dict[str, Any]:
 
 
 def _checkpoint_metadata(path: Path, kind: str) -> dict[str, Any]:
-    with sqlite3.connect(path) as conn:
+    with closing(sqlite3.connect(path)) as conn:
         integrity_row = conn.execute("PRAGMA quick_check").fetchone()
         integrity = str(integrity_row[0] if integrity_row else "unknown")
         version = schema_version(conn)
@@ -155,7 +156,7 @@ def create_database_checkpoint(path: Path) -> dict[str, Any]:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         checkpoint = recovery_dir / f"docpilot-checkpoint-{stamp}.sqlite3"
 
-        with sqlite3.connect(path) as source, sqlite3.connect(checkpoint) as destination:
+        with closing(sqlite3.connect(path)) as source, closing(sqlite3.connect(checkpoint)) as destination:
             source.backup(destination)
 
         created = _checkpoint_metadata(checkpoint, "checkpoint")
@@ -225,7 +226,7 @@ def restore_database_from_point(
                 current = {"integrity": "unreadable"}
 
             if str(current.get("integrity", "")).lower() == "ok":
-                with sqlite3.connect(path) as current_db, sqlite3.connect(pre_restore_path) as safety:
+                with closing(sqlite3.connect(path)) as current_db, closing(sqlite3.connect(pre_restore_path)) as safety:
                     current_db.backup(safety)
                 safety_meta = _checkpoint_metadata(pre_restore_path, "pre-restore")
                 if safety_meta["integrity"].lower() != "ok":
@@ -253,10 +254,11 @@ def restore_database_from_point(
         temp_path = state_dir / "docpilot.restore.tmp.sqlite3"
         temp_path.unlink(missing_ok=True)
         try:
-            with sqlite3.connect(source_path) as source, sqlite3.connect(temp_path) as destination:
+            with closing(sqlite3.connect(source_path)) as source, closing(sqlite3.connect(temp_path)) as destination:
                 source.backup(destination)
-            with sqlite3.connect(temp_path) as restored:
+            with closing(sqlite3.connect(temp_path)) as restored:
                 migrate_database(temp_path, restored, schema_sql, backup_existing=False)
+                restored.commit()
 
             temp_health = database_health(temp_path)
             if temp_health["integrity"].lower() != "ok":
