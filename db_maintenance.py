@@ -4,6 +4,7 @@ import os
 import shutil
 import sqlite3
 import threading
+import time
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
@@ -197,6 +198,21 @@ def _prune_pre_restore_backups(recovery_dir: Path) -> None:
         stale.unlink(missing_ok=True)
 
 
+def _replace_file_with_retry(source: Path, destination: Path, *, attempts: int = 12, delay: float = 0.1) -> None:
+    last_error: PermissionError | None = None
+    for attempt in range(max(1, attempts)):
+        try:
+            os.replace(source, destination)
+            return
+        except PermissionError as exc:
+            last_error = exc
+            if attempt + 1 >= max(1, attempts):
+                raise
+            time.sleep(max(0.0, delay))
+    if last_error is not None:
+        raise last_error
+
+
 def restore_database_from_point(
     path: Path,
     name: str,
@@ -266,7 +282,7 @@ def restore_database_from_point(
 
             for suffix in ("-wal", "-shm"):
                 Path(str(path) + suffix).unlink(missing_ok=True)
-            os.replace(temp_path, path)
+            _replace_file_with_retry(temp_path, path)
 
             active = database_health(path)
             if active["integrity"].lower() != "ok":

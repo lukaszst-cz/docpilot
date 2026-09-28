@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+
+import pytest
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -122,3 +124,55 @@ def test_restore_api_restores_and_audits(monkeypatch, tmp_path):
     assert audit.status_code == 200
     event = next(item for item in audit.json() if item["event"] == "recovery-restore")
     assert event["payload"]["restored_from"] == checkpoint["name"]
+
+
+def test_database_activation_retries_transient_permission_errors(monkeypatch, tmp_path):
+    import docpilot.db_maintenance as maintenance
+
+    source = tmp_path / "restored.sqlite3"
+    destination = tmp_path / "active.sqlite3"
+    source.write_bytes(b"restored")
+    destination.write_bytes(b"active")
+
+    real_replace = maintenance.os.replace
+    attempts = {"count": 0}
+
+    def flaky_replace(src, dst):
+        attempts["count"] += 1
+        if attempts["count"] < 3:
+            raise PermissionError("temporary Windows file lock")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(maintenance.os, "replace", flaky_replace)
+    monkeypatch.setattr(maintenance.time, "sleep", lambda _seconds: None)
+
+    maintenance._replace_file_with_retry(source, destination, attempts=5, delay=0.01)
+
+    assert attempts["count"] == 3
+    assert destination.read_bytes() == b"restored"
+    assert not source.exists()
+
+
+def test_database_activation_stops_after_retry_limit(monkeypatch, tmp_path):
+    import docpilot.db_maintenance as maintenance
+
+    source = tmp_path / "restored.sqlite3"
+    destination = tmp_path / "active.sqlite3"
+    source.write_bytes(b"restored")
+    destination.write_bytes(b"active")
+
+    attempts = {"count": 0}
+
+    def locked_replace(_src, _dst):
+        attempts["count"] += 1
+        raise PermissionError("still locked")
+
+    monkeypatch.setattr(maintenance.os, "replace", locked_replace)
+    monkeypatch.setattr(maintenance.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(PermissionError, match="still locked"):
+        maintenance._replace_file_with_retry(source, destination, attempts=4, delay=0.01)
+
+    assert attempts["count"] == 4
+    assert source.exists()
+    assert destination.read_bytes() == b"active"
