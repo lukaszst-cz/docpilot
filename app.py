@@ -42,6 +42,7 @@ from .db import (
     search_documents,
     set_setting,
     update_document_fields,
+    update_documents_fields,
     update_rule,
     upsert_document,
 )
@@ -520,6 +521,35 @@ def patch_document(doc_id: int, payload: dict = Body(...)):
     return get_document(settings, doc_id)
 
 
+@app.post("/api/documents/batch-update")
+def batch_update_documents(payload: dict = Body(...)):
+    raw_ids = payload.get("ids") or []
+    if not isinstance(raw_ids, list):
+        raise HTTPException(400, "ids must be a list")
+
+    try:
+        ids = sorted({int(value) for value in raw_ids if int(value) > 0})
+    except (TypeError, ValueError):
+        raise HTTPException(400, "ids must contain positive integers")
+
+    if not ids:
+        raise HTTPException(400, "Choose at least one document")
+    if len(ids) > 500:
+        raise HTTPException(400, "Bulk update is limited to 500 documents at a time")
+
+    fields = payload.get("fields") or {}
+    if not isinstance(fields, dict):
+        raise HTTPException(400, "fields must be an object")
+    allowed = {"category", "profile", "case_name", "action_required"}
+    actual = {key: value for key, value in fields.items() if key in allowed}
+    if not actual:
+        raise HTTPException(400, "Choose at least one field to update")
+
+    updated = update_documents_fields(settings, ids, **actual)
+    audit(settings, "documents-batch-update", {"ids": ids, "fields": actual, "updated": updated})
+    return {"requested": len(ids), "updated": updated, "ids": ids}
+
+
 @app.get("/api/search")
 def search(q: str, limit: int = 50):
     docs = list_documents(settings, limit=5000)
@@ -591,17 +621,37 @@ def cases():
         case = d.get("case_name")
         if case:
             groups.setdefault(case, []).append(d)
+
     out = []
     for name, items in groups.items():
         items.sort(key=lambda d: ((d.get("metadata") or {}).get("document_date") or d.get("updated_at") or ""))
-        out.append({"name": name, "documents": items, "timeline": [
-            {
-                "id": d["id"], "name": d["source_name"],
-                "date": (d.get("metadata") or {}).get("document_date") or d.get("updated_at"),
-                "deadline": (d.get("metadata") or {}).get("deadline"),
-                "action": d.get("action_required"),
-            } for d in items
-        ]})
+        deadlines = sorted(
+            value
+            for d in items
+            if (value := ((d.get("metadata") or {}).get("deadline") or (d.get("metadata") or {}).get("warranty_until")))
+        )
+        out.append({
+            "name": name,
+            "document_count": len(items),
+            "open_actions": sum(1 for d in items if d.get("action_required")),
+            "next_deadline": deadlines[0] if deadlines else None,
+            "profiles": sorted({d.get("profile") or "Home" for d in items}),
+            "documents": items,
+            "timeline": [
+                {
+                    "id": d["id"],
+                    "name": d["source_name"],
+                    "path": d["path"],
+                    "date": (d.get("metadata") or {}).get("document_date") or d.get("updated_at"),
+                    "deadline": (d.get("metadata") or {}).get("deadline") or (d.get("metadata") or {}).get("warranty_until"),
+                    "action": d.get("action_required"),
+                    "category": d.get("category"),
+                    "profile": d.get("profile") or "Home",
+                    "document_type": (d.get("metadata") or {}).get("document_type"),
+                }
+                for d in items
+            ],
+        })
     return sorted(out, key=lambda x: x["name"].lower())
 
 
