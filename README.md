@@ -153,9 +153,25 @@ Najważniejsze zmiany:
 
 Podstawowy workflow nadal pozostaje lokalny. Dane trafiają do usługi zewnętrznej dopiero po wybraniu i uruchomieniu odpowiedniej integracji.
 
+## Co zmienia 4.0
+
+DocPilot 4.0 skupia się na dojrzałości i odporności zamiast dokładania kolejnych modułów.
+
+Najważniejsze zmiany:
+- jawnie opisane granice architektury i testy kompatybilności między modułami;
+- kontrolowane migracje SQLite z backupem przed zmianą schematu i blokadą nieobsługiwanego downgrade;
+- ręczne Recovery checkpoints, bezpieczne restore z kopią pre-restore oraz automatyczny checkpoint przy zmianie wersji;
+- diagnostyka bazy, schematu, recovery i wolnego miejsca z prostymi zaleceniami dla użytkownika;
+- lepsza praca na dużych archiwach: lekkie strony dokumentów, ograniczeni kandydaci dla Search/Q&A/Review i lżejszy Duplicate Finder;
+- spójność Desktop/PWA i wykrywanie rozjazdu wersji cache względem lokalnego backendu;
+- rozszerzone testy cyklu upgrade → recovery → ponowne uruchomienie;
+- praktyczne README i Troubleshooting bez wymagania wiedzy o SQLite czy strukturze wewnętrznej programu.
+
+Podstawowa zasada pozostaje bez zmian: najpierw analiza i podgląd, potem zatwierdzona operacja.
+
 ## Status wydania
 
-Kod gałęzi `main` jest przygotowany jako **v3.0.0**. Publiczne pliki są publikowane z oznaczonego wydania, a linki w sekcji „Pobierz” zawsze prowadzą do najnowszego opublikowanego release.
+Kod gałęzi `main` jest przygotowany jako **v4.0.0**. Publiczne pliki są publikowane z oznaczonego wydania, a linki w sekcji „Pobierz” zawsze prowadzą do najnowszego opublikowanego release.
 
 Wydanie Windows przechodzi automatyczne testy, kontrolę składni frontendu, smoke testy typowych dokumentów i codziennego workflow, budowę aplikacji i modułu powiadomień, OCR obrazu i skanowanego PDF-u, self-test gotowego EXE, czystą instalację i uninstall z zachowaniem danych, upgrade z v0.5.1 na istniejącej bazie SQLite, budowę instalatora i Portable ZIP oraz wygenerowanie sum SHA-256.
 
