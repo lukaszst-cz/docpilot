@@ -29,8 +29,10 @@ from .db import (
     add_custom_type,
     add_rule,
     audit,
+    dashboard_summary,
     delete_document_by_path,
     delete_rule,
+    duplicate_group_count,
     duplicate_groups,
     get_document,
     get_setting,
@@ -476,38 +478,9 @@ def changes():
 
 @app.get("/api/dashboard")
 def dashboard():
-    docs = list_documents(settings, limit=5000)
-    today = date.today()
-    deadlines = []
-    actions = 0
-    unhealthy = 0
-    for d in docs:
-        md = d.get("metadata") or {}
-        deadline = md.get("deadline") or md.get("warranty_until")
-        if deadline:
-            try:
-                day = date.fromisoformat(str(deadline))
-                delta = (day - today).days
-                if delta >= -7:
-                    deadlines.append({"id": d["id"], "name": d["source_name"], "date": day.isoformat(), "days": delta, "action": d.get("action_required")})
-            except ValueError:
-                pass
-        if d.get("action_required"):
-            actions += 1
-        if int(d.get("health_score") or 100) < 70:
-            unhealthy += 1
-    deadlines.sort(key=lambda x: x["date"])
-    duplicates = duplicate_groups(settings, docs)
-    return {
-        "documents": len(docs),
-        "deadlines": deadlines[:40],
-        "deadline_count": len(deadlines),
-        "actions": actions,
-        "duplicate_groups": len(duplicates),
-        "unhealthy": unhealthy,
-        "profiles": sorted(set(d.get("profile") or "Home" for d in docs)),
-        "cases": len(set(d.get("case_name") for d in docs if d.get("case_name"))),
-    }
+    summary = dashboard_summary(settings)
+    summary["duplicate_groups"] = duplicate_group_count(settings)
+    return summary
 
 
 @app.get("/api/documents")
