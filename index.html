@@ -129,11 +129,14 @@
         <div class="twoCol">
           <section class="card"><h2>Watch / Scanner Folder</h2><p>DocPilot can rescan a selected folder every 30 seconds and index new files.</p><button id="watchBtn">Choose watched folder</button><div id="watchStatus" class="muted"></div></section>
           <section class="card"><h2>Rules Engine</h2><p>Example: if issuer contains Orange → Finance/Telecom.</p>
+            <p class="muted">Matching rules run from oldest to newest, so a newer rule can intentionally override category or profile selected by an older rule.</p>
             <input id="ruleName" placeholder="Rule name">
             <input id="ruleIssuer" placeholder="Issuer contains (optional)">
             <input id="ruleText" placeholder="Text contains (optional)">
+            <input id="ruleDocType" placeholder="Document type, e.g. invoice (optional)">
             <input id="ruleCategory" placeholder="Target category, e.g. Finance/Telecom">
             <input id="ruleProfile" placeholder="Target profile, e.g. Home">
+            <input id="ruleTags" placeholder="Target tags, comma separated (optional)">
             <button id="addRuleBtn">Add rule</button><div id="rulesList"></div>
           </section>
           <section class="card"><h2>Custom Document Types</h2><input id="typeName" placeholder="Type name"><input id="typeKeywords" placeholder="Keywords separated by commas"><input id="typeCategory" placeholder="Category"><button id="addTypeBtn">Add type</button><div id="typesList"></div></section>
