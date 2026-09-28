@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set(), documentsPageOffset = 0, documentsPageTotal = 0, documentsFilterValue = '';
+let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set(), documentsPageOffset = 0, documentsPageTotal = 0, documentsFilterValue = '', pendingPortableConfig = null;
 const documentsPageLimit = 100;
 const titles = {
   dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
@@ -502,6 +502,48 @@ async function loadNotificationStatus(){
 $('#notifyEnableBtn')?.addEventListener('click',async()=>{try{const days=Number($('#notifyDays').value||3);const r=await api('/api/notifications/enable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({days_ahead:days})});await loadNotificationStatus();showAppNotice(`Background notifications enabled. Test notifications shown: ${r.test_notifications}.`,'ok');}catch(e){showAppNotice(e.message)}});
 $('#notifyDisableBtn')?.addEventListener('click',async()=>{try{await api('/api/notifications/disable',{method:'POST'});loadNotificationStatus()}catch(e){showAppNotice(e.message)}});
 
+async function readPortableConfigFile(){
+  const file=$('#configImportFile')?.files?.[0];
+  if(!file)throw new Error('Choose a DocPilot configuration JSON first.');
+  let payload;
+  try{payload=JSON.parse(await file.text())}catch{throw new Error('The selected file is not valid JSON.')}
+  return payload;
+}
+
+async function previewPortableConfig(){
+  const out=$('#configImportPreview'), apply=$('#configApplyBtn');
+  apply.disabled=true;
+  pendingPortableConfig=null;
+  out.textContent='Checking configuration…';
+  try{
+    const payload=await readPortableConfigFile();
+    const preview=await api('/api/config/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    pendingPortableConfig=payload;
+    apply.disabled=false;
+    const reconnect=(preview.reconnect_required||[]).map(item=>'<li>'+esc(item)+'</li>').join('');
+    out.innerHTML='<p><strong>Rules:</strong> '+preview.rules.add+' add · '+preview.rules.update+' update</p><p><strong>Custom types:</strong> '+preview.custom_types.add+' add · '+preview.custom_types.update+' update</p>'+(reconnect?'<p><strong>Reconnect / re-enable after import:</strong></p><ul>'+reconnect+'</ul>':'<p>No connector re-authentication requested by this file.</p>');
+  }catch(e){out.textContent=e.message}
+}
+
+$('#configImportFile')?.addEventListener('change',()=>{pendingPortableConfig=null;$('#configApplyBtn').disabled=true;$('#configImportPreview').textContent='File selected. Preview it before importing.'});
+$('#configPreviewBtn')?.addEventListener('click',previewPortableConfig);
+$('#configApplyBtn')?.addEventListener('click',async()=>{
+  if(!pendingPortableConfig)return;
+  if(!confirm('Apply this portable configuration? Existing rules and custom types with the same names will be updated. Credentials and machine-specific paths will not be imported.'))return;
+  const btn=$('#configApplyBtn');
+  btn.disabled=true;
+  try{
+    const result=await api('/api/config/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pendingPortableConfig)});
+    showAppNotice('Configuration imported: '+result.rules_added+' rules added, '+result.rules_updated+' updated, '+result.custom_types_added+' custom types added, '+result.custom_types_updated+' updated.','ok');
+    pendingPortableConfig=null;
+    $('#configImportFile').value='';
+    $('#configImportPreview').textContent=(result.reconnect_required||[]).length?'Import complete. Reconnect: '+result.reconnect_required.join(' · '):'Import complete. No connector reconnection required.';
+    await loadRules();
+    await loadTypes();
+    await loadIntegrationStatus();
+    await loadNotificationStatus();
+  }catch(e){showAppNotice(e.message);btn.disabled=false}
+});
 function integrationScope(){
   return {
     profile:$('#integrationScopeProfile')?.value||'',
