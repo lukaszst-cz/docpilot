@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from docpilot.config import get_settings
+from docpilot import integration_registry
 
 
 def _client(monkeypatch, tmp_path):
@@ -88,7 +89,7 @@ def test_notion_sync_records_scope_and_history(monkeypatch, tmp_path):
         received["limit"] = limit
         return {"synced": len(documents), "errors": []}
 
-    monkeypatch.setattr(app_module, "sync_notion", fake_sync)
+    monkeypatch.setattr(integration_registry, "sync_notion", fake_sync)
 
     response = client.post(
         "/api/integrations/notion/sync",
@@ -127,7 +128,7 @@ def test_google_sync_records_partial_result(monkeypatch, tmp_path):
         assert {int(item["id"]) for item in documents} == {first, second}
         return {"synced": 1, "errors": ["CAL-2: remote error"]}
 
-    monkeypatch.setattr(app_module, "sync_google_calendar", fake_calendar)
+    monkeypatch.setattr(integration_registry, "sync_google_calendar", fake_calendar)
 
     response = client.post(
         "/api/integrations/google-calendar/sync",
@@ -186,7 +187,7 @@ def test_failed_sync_is_retained_in_history(monkeypatch, tmp_path):
     def fail_sync(*_args, **_kwargs):
         raise RuntimeError("remote service unavailable")
 
-    monkeypatch.setattr(app_module, "sync_notion", fail_sync)
+    monkeypatch.setattr(integration_registry, "sync_notion", fail_sync)
 
     response = client.post(
         "/api/integrations/notion/sync",
