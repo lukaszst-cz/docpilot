@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null;
+let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null;
 const titles = {
   dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
   documents:['Documents','Your local document index'], deadlines:['Deadline Radar','Payments, replies, expirations and warranties'],
@@ -270,6 +270,13 @@ $('#batchBtn').addEventListener('click',async()=>{try{$('#batchOutput').innerHTM
 $('#emailImportBtn').addEventListener('click',async()=>{try{$('#emailOutput').innerHTML='<p class="muted">Importing…</p>';const r=await api('/api/email/import-eml',{method:'POST'});if(r.cancelled){$('#emailOutput').innerHTML='';return}$('#emailOutput').innerHTML=`<p><strong>${r.attachments.length}</strong> attachments imported from ${esc(r.subject||'email')}</p>`;}catch(e){showAppNotice(e.message)}});
 
 $('#watchBtn').addEventListener('click',async()=>{try{const r=await api('/api/watch/select-folder',{method:'POST'});if(!r.cancelled)loadWatch()}catch(e){showAppNotice(e.message)}});async function loadWatch(){const r=await api('/api/watch');$('#watchStatus').textContent=r.watch_folder?`Watching: ${r.watch_folder} · ${r.active?'active':'starting'}`:'No watched folder configured.'}
+function resetRuleEditor(){
+  editingRuleId=null;
+  ['#ruleName','#ruleIssuer','#ruleText','#ruleDocType','#ruleCategory','#ruleProfile','#ruleTags'].forEach(selector=>{$(selector).value=''});
+  $('#addRuleBtn').textContent='Add rule';
+  $('#cancelRuleEditBtn').classList.add('hidden');
+}
+
 async function loadRules(){
   const rules=await api('/api/rules');
   const display=[...rules].reverse();
@@ -277,10 +284,26 @@ async function loadRules(){
     const state=x.enabled?'ENABLED':'PAUSED';
     const conditions=Object.entries(x.condition||{}).filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`).join(' · ')||'all documents';
     const targets=[x.target_category?`category: ${x.target_category}`:'',x.target_profile?`profile: ${x.target_profile}`:'',(x.target_tags||[]).length?`tags: ${x.target_tags.join(', ')}`:''].filter(Boolean).join(' · ')||'no output changes';
-    return `<div class="listItem"><div class="listItemHead"><div><strong>${esc(x.name)}</strong> <span class="badge ${x.enabled?'':'warn'}">${state}</span></div><div class="inline"><button class="secondary ruleToggle" data-id="${x.id}" data-enabled="${x.enabled?'1':'0'}">${x.enabled?'Pause':'Enable'}</button><button class="secondary ruleDelete" data-id="${x.id}" data-name="${esc(x.name)}">Delete</button></div></div><div class="meta"><span>${esc(conditions)}</span><span>→ ${esc(targets)}</span></div></div>`;
+    const encoded=encodeURIComponent(JSON.stringify(x));
+    return `<div class="listItem"><div class="listItemHead"><div><strong>${esc(x.name)}</strong> <span class="badge ${x.enabled?'':'warn'}">${state}</span></div><div class="inline"><button class="secondary ruleEdit" data-rule="${encoded}">Edit</button><button class="secondary ruleToggle" data-id="${x.id}" data-enabled="${x.enabled?'1':'0'}">${x.enabled?'Pause':'Enable'}</button><button class="secondary ruleDelete" data-id="${x.id}" data-name="${esc(x.name)}">Delete</button></div></div><div class="meta"><span>${esc(conditions)}</span><span>→ ${esc(targets)}</span></div></div>`;
   }).join(''):'<p class="muted">No rules yet.</p>';
 
-  $$('.ruleToggle').forEach(btn=>btn.addEventListener('click',async()=>{
+  $('.ruleEdit').forEach(btn=>btn.addEventListener('click',()=>{
+    const rule=JSON.parse(decodeURIComponent(btn.dataset.rule));
+    editingRuleId=rule.id;
+    $('#ruleName').value=rule.name||'';
+    $('#ruleIssuer').value=rule.condition?.issuer_contains||'';
+    $('#ruleText').value=rule.condition?.text_contains||'';
+    $('#ruleDocType').value=rule.condition?.document_type||'';
+    $('#ruleCategory').value=rule.target_category||'';
+    $('#ruleProfile').value=rule.target_profile||'';
+    $('#ruleTags').value=(rule.target_tags||[]).join(', ');
+    $('#addRuleBtn').textContent='Save changes';
+    $('#cancelRuleEditBtn').classList.remove('hidden');
+    $('#ruleName').focus();
+  }));
+
+  $('.ruleToggle').forEach(btn=>btn.addEventListener('click',async()=>{
     const enabled=btn.dataset.enabled!=='1';
     try{
       await api(`/api/rules/${btn.dataset.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
@@ -289,15 +312,18 @@ async function loadRules(){
     }catch(e){showAppNotice(e.message)}
   }));
 
-  $$('.ruleDelete').forEach(btn=>btn.addEventListener('click',async()=>{
+  $('.ruleDelete').forEach(btn=>btn.addEventListener('click',async()=>{
     if(!confirm(`Delete rule "${btn.dataset.name}"? This does not change documents already processed.`))return;
     try{
       await api(`/api/rules/${btn.dataset.id}`,{method:'DELETE'});
+      if(String(editingRuleId)===btn.dataset.id)resetRuleEditor();
       showAppNotice('Rule deleted.','ok');
       await loadRules();
     }catch(e){showAppNotice(e.message)}
   }));
 }
+
+$('#cancelRuleEditBtn').addEventListener('click',resetRuleEditor);
 
 $('#addRuleBtn').addEventListener('click',async()=>{
   const p={
@@ -308,9 +334,14 @@ $('#addRuleBtn').addEventListener('click',async()=>{
     target_tags:$('#ruleTags').value.split(',').map(x=>x.trim()).filter(Boolean)
   };
   try{
-    await api('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
-    ['#ruleName','#ruleIssuer','#ruleText','#ruleDocType','#ruleCategory','#ruleProfile','#ruleTags'].forEach(selector=>{$(selector).value=''});
-    showAppNotice('Rule added. Newer matching rules take precedence.','ok');
+    if(editingRuleId){
+      await api(`/api/rules/${editingRuleId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+      showAppNotice('Rule updated.','ok');
+    }else{
+      await api('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+      showAppNotice('Rule added. Newer matching rules take precedence.','ok');
+    }
+    resetRuleEditor();
     await loadRules();
   }catch(e){showAppNotice(e.message)}
 });
