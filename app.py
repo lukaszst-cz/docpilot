@@ -34,6 +34,7 @@ from .db import (
     delete_rule,
     duplicate_group_count,
     duplicate_groups,
+    review_candidate_documents,
     get_document,
     get_setting,
     init_db,
@@ -585,8 +586,8 @@ def qa(payload: dict = Body(...)):
 
 @app.get("/api/review")
 def review_queue():
-    docs = list_documents(settings, limit=5000)
-    return build_review_queue(docs, duplicate_groups(settings, docs))
+    docs, duplicate_candidates = review_candidate_documents(settings, limit=1500)
+    return build_review_queue(docs, duplicate_candidates)
 
 
 @app.get("/api/duplicates")
