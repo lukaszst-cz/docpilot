@@ -491,22 +491,18 @@ def dashboard_summary(settings: Settings) -> dict[str, Any]:
     }
 
 
-def duplicate_group_count(settings: Settings) -> int:
+def duplicate_id_groups(settings: Settings, near_limit: int = 500) -> list[dict[str, Any]]:
     with connect(settings) as conn:
-        exact_groups = int(
-            conn.execute(
-                """
-                SELECT COUNT(*) FROM (
-                    SELECT sha256
-                    FROM documents
-                    WHERE sha256 <> ''
-                    GROUP BY sha256
-                    HAVING COUNT(*) > 1
-                )
-                """
-            ).fetchone()[0]
-        )
-        rows = conn.execute(
+        exact_rows = conn.execute(
+            """
+            SELECT sha256, GROUP_CONCAT(id) AS ids
+            FROM documents
+            WHERE sha256 <> ''
+            GROUP BY sha256
+            HAVING COUNT(*) > 1
+            """
+        ).fetchall()
+        near_rows = conn.execute(
             """
             SELECT id, simhash
             FROM documents
@@ -520,15 +516,21 @@ def duplicate_group_count(settings: Settings) -> int:
                   HAVING COUNT(*) > 1
               )
             ORDER BY updated_at DESC, id DESC
-            LIMIT 500
-            """
+            LIMIT ?
+            """,
+            (min(max(int(near_limit), 50), 1000),),
         ).fetchall()
+
+    groups: list[dict[str, Any]] = []
+    for row in exact_rows:
+        ids = [int(value) for value in str(row["ids"] or "").split(",") if value]
+        if len(ids) > 1:
+            groups.append({"kind": "exact", "ids": ids})
 
     from .intelligence import hamming_hex
 
-    candidates = [{"id": int(row["id"]), "simhash": row["simhash"]} for row in rows]
+    candidates = [{"id": int(row["id"]), "simhash": row["simhash"]} for row in near_rows]
     used: set[int] = set()
-    near_groups = 0
     for i, left in enumerate(candidates):
         left_id = int(left["id"])
         if left_id in used:
@@ -541,9 +543,79 @@ def duplicate_group_count(settings: Settings) -> int:
             if hamming_hex(left["simhash"], right["simhash"]) <= 5:
                 near_ids.add(right_id)
         if len(near_ids) > 1:
-            near_groups += 1
-            used.update(near_ids)
-    return exact_groups + near_groups
+            ids = sorted(near_ids)
+            groups.append({"kind": "near", "ids": ids})
+            used.update(ids)
+    return groups
+
+
+def duplicate_group_count(settings: Settings) -> int:
+    return len(duplicate_id_groups(settings))
+
+
+def duplicate_review_groups(settings: Settings, near_limit: int = 500) -> list[dict[str, Any]]:
+    return [
+        {"kind": group["kind"], "documents": [{"id": doc_id} for doc_id in group["ids"]]}
+        for group in duplicate_id_groups(settings, near_limit=near_limit)
+    ]
+
+
+def review_candidate_documents(
+    settings: Settings,
+    *,
+    limit: int = 1500,
+    duplicate_limit: int = 500,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    from .review import DEADLINE_HINTS
+
+    safe_limit = min(max(int(limit), 100), 2500)
+    duplicate_groups = duplicate_review_groups(settings, near_limit=500)
+
+    hint_clause = " OR ".join("lower(extracted_text) LIKE ?" for _ in DEADLINE_HINTS)
+    hint_params = [f"%{hint.lower()}%" for hint in DEADLINE_HINTS]
+    base_limit = max(100, safe_limit - min(max(int(duplicate_limit), 0), 900))
+
+    with connect(settings) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM documents
+            WHERE health_score < 70
+               OR action_required = 'to-review'
+               OR length(trim(extracted_text)) = 0
+               OR COALESCE(CAST(json_extract(metadata_json, '$.confidence') AS REAL), 0) < 0.65
+               OR (
+                    ({hint_clause})
+                    AND COALESCE(json_extract(metadata_json, '$.deadline'), '') = ''
+               )
+            ORDER BY health_score ASC, updated_at DESC, id DESC
+            LIMIT ?
+            """,
+            (*hint_params, base_limit),
+        ).fetchall()
+
+        documents = [row_to_document(row) for row in rows]
+        present = {int(doc["id"]) for doc in documents}
+
+        duplicate_ids: list[int] = []
+        for group in duplicate_groups:
+            for item in group["documents"]:
+                doc_id = int(item["id"])
+                if doc_id not in present and doc_id not in duplicate_ids:
+                    duplicate_ids.append(doc_id)
+
+        room = max(0, safe_limit - len(documents))
+        duplicate_ids = duplicate_ids[: min(room, 900)]
+        if duplicate_ids:
+            placeholders = ",".join("?" for _ in duplicate_ids)
+            duplicate_rows = conn.execute(
+                f"SELECT * FROM documents WHERE id IN ({placeholders})",
+                duplicate_ids,
+            ).fetchall()
+            documents.extend(row_to_document(row) for row in duplicate_rows)
+
+    return documents, duplicate_groups
+
 
 
 def get_document(settings: Settings, doc_id: int) -> dict[str, Any] | None:
