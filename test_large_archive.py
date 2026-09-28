@@ -212,3 +212,66 @@ def test_large_archive_common_search_is_capped_before_semantic_ranking(tmp_path)
     candidates = semantic_candidate_documents(settings, "document", limit=750)
 
     assert len(candidates) == 750
+
+
+def test_large_archive_review_queue_only_loads_candidates(monkeypatch, tmp_path):
+    import docpilot.app as app_module
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=1200)
+
+    with connect(settings) as conn:
+        conn.execute("UPDATE documents SET simhash=NULL")
+        conn.execute(
+            "UPDATE documents SET metadata_json=? WHERE id=1",
+            (json.dumps({
+                "document_type": "document",
+                "issuer": "Issuer 1",
+                "deadline": None,
+                "confidence": 0.4,
+            }),),
+        )
+        conn.execute("UPDATE documents SET health_score=40 WHERE id=2")
+        conn.execute("UPDATE documents SET action_required='to-review' WHERE id=3")
+        conn.execute("UPDATE documents SET extracted_text='' WHERE id=4")
+        conn.execute(
+            "UPDATE documents SET extracted_text='Please reply by the date shown in this letter' WHERE id=5"
+        )
+        conn.execute("UPDATE documents SET sha256='exact-review-pair' WHERE id IN (10,11)")
+
+    monkeypatch.setattr(app_module, "settings", settings)
+
+    def unexpected_full_load(*args, **kwargs):
+        raise AssertionError("Review Queue loaded the full document list")
+
+    monkeypatch.setattr(app_module, "list_documents", unexpected_full_load)
+    client = TestClient(app_module.app)
+
+    response = client.get("/api/review")
+    assert response.status_code == 200
+    queue = response.json()
+    by_id = {int(item["id"]): item for item in queue}
+
+    assert {1, 2, 3, 4, 5, 10, 11}.issubset(by_id)
+    assert "low-confidence" in {reason["code"] for reason in by_id[1]["reasons"]}
+    assert "scan-health" in {reason["code"] for reason in by_id[2]["reasons"]}
+    assert "action-review" in {reason["code"] for reason in by_id[3]["reasons"]}
+    assert "no-text" in {reason["code"] for reason in by_id[4]["reasons"]}
+    assert "uncertain-deadline" in {reason["code"] for reason in by_id[5]["reasons"]}
+    assert "duplicate" in {reason["code"] for reason in by_id[10]["reasons"]}
+    assert "duplicate" in {reason["code"] for reason in by_id[11]["reasons"]}
+
+
+def test_review_candidate_documents_are_bounded(tmp_path):
+    from docpilot.db import review_candidate_documents
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=1800)
+
+    with connect(settings) as conn:
+        conn.execute("UPDATE documents SET health_score=50, simhash=NULL")
+
+    documents, groups = review_candidate_documents(settings, limit=1500)
+
+    assert len(documents) == 1000
+    assert groups == []
