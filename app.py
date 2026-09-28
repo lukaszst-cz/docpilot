@@ -410,7 +410,14 @@ def apply(request: ApplyRequest):
             year = str((preview.metadata.document_date or date.today()).year)
             issuer = safe_name(preview.metadata.issuer or "Unknown")
             final_category = str(Path(request.category) / year / issuer)
-        change = apply_change(settings, Path(request.source_path), final_category, request.filename, request.mode)
+        change = apply_change(
+            settings,
+            Path(request.source_path),
+            final_category,
+            request.filename,
+            request.mode,
+            profile=request.profile,
+        )
         delete_document_by_path(settings, request.source_path)
         indexed = _analyze_and_index(Path(change.destination), profile=request.profile)
         if request.case_name or request.action_required:
