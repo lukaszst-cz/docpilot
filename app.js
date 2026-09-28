@@ -1,6 +1,7 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set();
+let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set(), documentsPageOffset = 0, documentsPageTotal = 0, documentsFilterValue = '';
+const documentsPageLimit = 100;
 const titles = {
   dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
   documents:['Documents','Your local document index'], deadlines:['Deadline Radar','Payments, replies, expirations and warranties'],
@@ -59,8 +60,8 @@ async function setSetupComplete(complete){
   return s;
 }
 
-$('.navBtn').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
-$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
+$$('.navBtn').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+$$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 $('#nav')?.addEventListener('keydown',e=>{
   if(!['ArrowDown','ArrowUp','ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;
   const items=$('.navBtn');
@@ -112,12 +113,12 @@ $('#setupResetBtn')?.addEventListener('click',async()=>{
 function go(name,{focus=true}={}){
   const target=$(`#view-${name}`);
   if(!target||!titles[name])return;
-  $('.navBtn').forEach(b=>{
+  $$('.navBtn').forEach(b=>{
     const active=b.dataset.view===name;
     b.classList.toggle('active',active);
     if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
-  $('.view').forEach(v=>v.classList.remove('activeView'));
+  $$('.view').forEach(v=>v.classList.remove('activeView'));
   target.classList.add('activeView');
   $('#viewTitle').textContent=titles[name][0];
   $('#viewSubtitle').textContent=titles[name][1];
@@ -192,38 +193,86 @@ function updateBulkDocumentsBar(){
   $('#bulkCaseName').disabled=mode!=='set';
 }
 
+function documentsPageUrl(){
+  const params=new URLSearchParams({limit:String(documentsPageLimit),offset:String(documentsPageOffset)});
+  if(documentsFilterValue)params.set('q',documentsFilterValue);
+  return `/api/documents/page?${params.toString()}`;
+}
+
 async function loadDocuments(){
-  const docs=await api('/api/documents?limit=1000');
+  const page=await api(documentsPageUrl());
+  const docs=page.items||[];
+  documentsPageTotal=Number(page.total||0);
+
+  if(!docs.length&&documentsPageOffset>0&&documentsPageTotal>0){
+    documentsPageOffset=Math.max(0,Math.floor((documentsPageTotal-1)/documentsPageLimit)*documentsPageLimit);
+    return loadDocuments();
+  }
+
   const visibleIds=new Set(docs.map(d=>Number(d.id)));
   selectedDocumentIds=new Set([...selectedDocumentIds].filter(id=>visibleIds.has(id)));
 
-  $('#documentsTable').innerHTML=docs.length?`<div class="tableWrap"><table><thead><tr><th><input type="checkbox" id="selectAllDocs" aria-label="Select all visible documents"></th><th>Name</th><th>Type</th><th>Deadline</th><th>Profile</th><th>Case</th><th>Action</th><th>Health</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td><input type="checkbox" class="docSelect" data-id="${d.id}" aria-label="Select ${esc(d.source_name)}" ${selectedDocumentIds.has(Number(d.id))?'checked':''}></td><td><strong>${esc(d.source_name)}</strong><div class="muted">${esc(d.category)}</div></td><td>${esc(d.metadata?.document_type||'')}</td><td>${fmtDate(d.metadata?.deadline||d.metadata?.warranty_until)}</td><td>${esc(d.profile||'Home')}</td><td>${esc(d.case_name||'—')}</td><td>${esc(d.action_required||'—')}</td><td>${d.health_score}/100</td><td><button class="secondary revealDoc" data-path="${esc(d.path)}">Open</button> <button class="secondary redactDoc" data-id="${d.id}">Redact copy</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No indexed documents yet.</p>';
+  const startIndex=documentsPageTotal?documentsPageOffset+1:0;
+  const endIndex=Math.min(documentsPageOffset+docs.length,documentsPageTotal);
+  $('#documentsPageInfo').textContent=`${startIndex}–${endIndex} of ${documentsPageTotal}`;
+  $('#prevDocumentsPage').disabled=documentsPageOffset<=0;
+  $('#nextDocumentsPage').disabled=!page.has_more;
+
+  $('#documentsTable').innerHTML=docs.length?`<div class="tableWrap"><table><thead><tr><th><input type="checkbox" id="selectAllDocs" aria-label="Select all visible documents"></th><th>Name</th><th>Type</th><th>Deadline</th><th>Profile</th><th>Case</th><th>Action</th><th>Health</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td><input type="checkbox" class="docSelect" data-id="${d.id}" aria-label="Select ${esc(d.source_name)}" ${selectedDocumentIds.has(Number(d.id))?'checked':''}></td><td><strong>${esc(d.source_name)}</strong><div class="muted">${esc(d.category)}</div></td><td>${esc(d.metadata?.document_type||'')}</td><td>${fmtDate(d.metadata?.deadline||d.metadata?.warranty_until)}</td><td>${esc(d.profile||'Home')}</td><td>${esc(d.case_name||'—')}</td><td>${esc(d.action_required||'—')}</td><td>${d.health_score}/100</td><td><button class="secondary revealDoc" data-path="${esc(d.path)}">Open</button> <button class="secondary redactDoc" data-id="${d.id}">Redact copy</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No matching documents.</p>';
 
   const all=$('#selectAllDocs');
   if(all){
     all.checked=docs.length>0&&docs.every(d=>selectedDocumentIds.has(Number(d.id)));
     all.addEventListener('change',()=>{
       selectedDocumentIds=all.checked?new Set(docs.map(d=>Number(d.id))):new Set();
-      $('.docSelect').forEach(box=>{box.checked=all.checked});
+      $$('.docSelect').forEach(box=>{box.checked=all.checked});
       updateBulkDocumentsBar();
     });
   }
 
-  $('.docSelect').forEach(box=>box.addEventListener('change',()=>{
+  $$('.docSelect').forEach(box=>box.addEventListener('change',()=>{
     const id=Number(box.dataset.id);
     if(box.checked)selectedDocumentIds.add(id);else selectedDocumentIds.delete(id);
     if(all)all.checked=docs.length>0&&docs.every(d=>selectedDocumentIds.has(Number(d.id)));
     updateBulkDocumentsBar();
   }));
-  $('.revealDoc').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));
-  $('.redactDoc').forEach(b=>b.addEventListener('click',async()=>{try{const r=await api(`/api/redact/${b.dataset.id}`,{method:'POST'});showAppNotice(`Redacted copy created: ${r.path}. Review it before sharing.`,'ok');reveal(r.path)}catch(e){showAppNotice(e.message)}}));
+  $$('.revealDoc').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));
+  $$('.redactDoc').forEach(b=>b.addEventListener('click',async()=>{try{const r=await api(`/api/redact/${b.dataset.id}`,{method:'POST'});showAppNotice(`Redacted copy created: ${r.path}. Review it before sharing.`,'ok');reveal(r.path)}catch(e){showAppNotice(e.message)}}));
   updateBulkDocumentsBar();
 }
+
 $('#refreshDocsBtn').addEventListener('click',()=>runLoad(loadDocuments));
+$('#applyDocumentsFilter').addEventListener('click',()=>{
+  documentsFilterValue=$('#documentsFilter').value.trim();
+  documentsPageOffset=0;
+  selectedDocumentIds.clear();
+  runLoad(loadDocuments);
+});
+$('#clearDocumentsFilter').addEventListener('click',()=>{
+  $('#documentsFilter').value='';
+  documentsFilterValue='';
+  documentsPageOffset=0;
+  selectedDocumentIds.clear();
+  runLoad(loadDocuments);
+});
+$('#documentsFilter').addEventListener('keydown',event=>{
+  if(event.key==='Enter')$('#applyDocumentsFilter').click();
+});
+$('#prevDocumentsPage').addEventListener('click',()=>{
+  documentsPageOffset=Math.max(0,documentsPageOffset-documentsPageLimit);
+  selectedDocumentIds.clear();
+  runLoad(loadDocuments);
+});
+$('#nextDocumentsPage').addEventListener('click',()=>{
+  if(documentsPageOffset+documentsPageLimit>=documentsPageTotal)return;
+  documentsPageOffset+=documentsPageLimit;
+  selectedDocumentIds.clear();
+  runLoad(loadDocuments);
+});
 $('#bulkCaseMode').addEventListener('change',updateBulkDocumentsBar);
 $('#clearBulkDocs').addEventListener('click',()=>{
   selectedDocumentIds.clear();
-  $('.docSelect').forEach(box=>{box.checked=false});
+  $$('.docSelect').forEach(box=>{box.checked=false});
   const all=$('#selectAllDocs');if(all)all.checked=false;
   updateBulkDocumentsBar();
 });
@@ -288,7 +337,7 @@ async function loadCases(){
     <div class="listItemHead"><div><h3>${esc(c.name)}</h3><div class="meta"><span>${c.document_count} documents</span><span>${c.open_actions} open actions</span><span>${esc((c.profiles||[]).join(', '))}</span>${c.next_deadline?`<span>next deadline ${fmtDate(c.next_deadline)}</span>`:''}${c.overdue_deadlines?`<span class="dangerText">${c.overdue_deadlines} overdue</span>`:''}</div></div><span class="badge">${c.document_count}</span></div>
     <div class="caseTimeline">${c.timeline.map(t=>`<div class="caseTimelineRow"><div><strong>${fmtDate((t.date||'').slice(0,10))}</strong><div>${esc(t.name)}</div><div class="meta"><span>${esc(t.document_type||'document')}</span><span>${esc(t.category||'')}</span><span>${esc(t.profile||'Home')}</span>${t.action?`<span>${esc(t.action)}</span>`:''}${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div></div><button class="secondary caseOpen" data-path="${esc(t.path)}">Open</button></div>`).join('')}</div>
   </div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>';
-  $('.caseOpen').forEach(button=>button.addEventListener('click',()=>reveal(button.dataset.path)));
+  $$('.caseOpen').forEach(button=>button.addEventListener('click',()=>reveal(button.dataset.path)));
 }
 
 async function runSearch(){
@@ -369,7 +418,7 @@ async function loadRules(){
     return `<div class="listItem"><div class="listItemHead"><div><strong>${esc(x.name)}</strong> <span class="badge ${x.enabled?'':'warn'}">${state}</span></div><div class="inline"><button class="secondary ruleEdit" data-rule="${encoded}">Edit</button><button class="secondary ruleToggle" data-id="${x.id}" data-enabled="${x.enabled?'1':'0'}">${x.enabled?'Pause':'Enable'}</button><button class="secondary ruleDelete" data-id="${x.id}" data-name="${esc(x.name)}">Delete</button></div></div><div class="meta"><span>${esc(conditions)}</span><span>→ ${esc(targets)}</span></div></div>`;
   }).join(''):'<p class="muted">No rules yet.</p>';
 
-  $('.ruleEdit').forEach(btn=>btn.addEventListener('click',()=>{
+  $$('.ruleEdit').forEach(btn=>btn.addEventListener('click',()=>{
     const rule=JSON.parse(decodeURIComponent(btn.dataset.rule));
     editingRuleId=rule.id;
     $('#ruleName').value=rule.name||'';
@@ -384,7 +433,7 @@ async function loadRules(){
     $('#ruleName').focus();
   }));
 
-  $('.ruleToggle').forEach(btn=>btn.addEventListener('click',async()=>{
+  $$('.ruleToggle').forEach(btn=>btn.addEventListener('click',async()=>{
     const enabled=btn.dataset.enabled!=='1';
     try{
       await api(`/api/rules/${btn.dataset.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
@@ -393,7 +442,7 @@ async function loadRules(){
     }catch(e){showAppNotice(e.message)}
   }));
 
-  $('.ruleDelete').forEach(btn=>btn.addEventListener('click',async()=>{
+  $$('.ruleDelete').forEach(btn=>btn.addEventListener('click',async()=>{
     if(!confirm(`Delete rule "${btn.dataset.name}"? This does not change documents already processed.`))return;
     try{
       await api(`/api/rules/${btn.dataset.id}`,{method:'DELETE'});

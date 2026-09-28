@@ -47,3 +47,8 @@ input[type=checkbox]{width:auto;margin:0}
 .caseTimelineRow{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05)}
 .caseTimelineRow:last-child{border-bottom:0}
 @media(max-width:800px){.bulkBar{align-items:stretch}.bulkBar input,.bulkBar select,.bulkBar button{width:100%;flex-basis:100%}.caseTimelineRow{flex-direction:column}.caseTimelineRow button{width:100%}}
+
+.documentNav{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+.documentNav>.inline{flex:1 1 360px}
+.documentNav>.inline:last-child{justify-content:flex-end;flex:0 1 auto}
+@media(max-width:800px){.documentNav{align-items:stretch}.documentNav>.inline,.documentNav>.inline:last-child{width:100%;flex-basis:100%;justify-content:stretch}.documentNav input,.documentNav button{width:100%}}
