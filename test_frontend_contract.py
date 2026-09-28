@@ -5,12 +5,14 @@ import re
 ROOT = Path(__file__).parent
 
 
-def test_dynamic_button_collections_use_query_selector_all():
+def test_dynamic_collections_use_query_selector_all():
     script = (ROOT / "app.js").read_text(encoding="utf-8")
+    bad = re.findall(r"(?<!\$)\$\([^\n;]+\)\.forEach", script)
+    assert bad == []
     assert "$('.duplicateOpen').forEach" in script
-    assert "$('.duplicateCompare').forEach" in script
-    assert re.search(r"(?<!\$)\$\('\.duplicateOpen'\)\.forEach", script) is None
-    assert re.search(r"(?<!\$)\$\('\.duplicateCompare'\)\.forEach", script) is None
+    assert "$('.docSelect').forEach" in script
+    assert "$('.ruleEdit').forEach" in script
+    assert "$('.navBtn').forEach" in script
 
 
 def test_core_navigation_exposes_accessibility_hooks():
@@ -91,3 +93,16 @@ def test_cases_ui_exposes_summary_and_openable_timeline():
     assert "c.overdue_deadlines" in script
     assert "caseTimelineRow" in script
     assert "caseOpen" in script
+
+
+def test_documents_ui_uses_lightweight_pagination_controls():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="documentsFilter"' in html
+    assert 'id="prevDocumentsPage"' in html
+    assert 'id="nextDocumentsPage"' in html
+    assert 'id="documentsPageInfo"' in html
+    assert "/api/documents/page?" in script
+    assert "documentsPageLimit = 100" in script
+    assert "documentsPageOffset" in script
