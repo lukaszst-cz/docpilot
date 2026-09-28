@@ -165,6 +165,37 @@ async function serviceWorkerShellInfo(){
   }
 }
 
+async function refreshPwaShell(){
+  if(!('serviceWorker' in navigator)){
+    showAppNotice('Service workers are not supported in this client.');
+    return;
+  }
+
+  const button=$('#runtimeUpdateShellBtn');
+  if(button){button.disabled=true;button.textContent='Updating…'}
+  try{
+    const registration=await navigator.serviceWorker.getRegistration()||await navigator.serviceWorker.ready;
+    let changed=false;
+    const controllerChanged=new Promise(resolve=>{
+      const timer=setTimeout(resolve,4500);
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{
+        changed=true;
+        clearTimeout(timer);
+        resolve();
+      },{once:true});
+    });
+
+    await registration.update();
+    if(registration.waiting)registration.waiting.postMessage({type:'SKIP_WAITING'});
+    await controllerChanged;
+    showAppNotice(changed?'Updated PWA shell. Reloading…':'PWA update checked. Reloading…','ok');
+    window.location.reload();
+  }catch(e){
+    showAppNotice(e.message);
+    if(button){button.disabled=false;button.textContent='Update PWA shell'}
+  }
+}
+
 async function loadRuntimeStatus(){
   const target=$('#runtimeStatus');
   if(!target)return;
@@ -174,7 +205,8 @@ async function loadRuntimeStatus(){
     const mode=clientRuntimeMode();
     const shellVersion=shell.version||'unavailable';
     const mismatch=Boolean(shell.version&&shell.version!==health.version);
-    target.innerHTML=`<div class="diagGrid"><span><b>Client</b> ${esc(mode)}</span><span><b>Backend</b> v${esc(health.version)}</span><span><b>PWA shell</b> ${esc(shellVersion)}</span><span><b>Service worker</b> ${shell.supported?'supported':'not supported'}</span></div>${mismatch?'<p class="dangerText"><strong>Version mismatch:</strong> the cached PWA shell does not match the local backend. Close other DocPilot windows, reload the app and let the service worker update before continuing.</p>':'<p class="muted">Desktop, browser and installed PWA use the same local backend. The backend must be running for document operations.</p>'}`;
+    target.innerHTML=`<div class="diagGrid"><span><b>Client</b> ${esc(mode)}</span><span><b>Backend</b> v${esc(health.version)}</span><span><b>PWA shell</b> ${esc(shellVersion)}</span><span><b>Service worker</b> ${shell.supported?'supported':'not supported'}</span></div>${mismatch?'<p class="dangerText"><strong>Version mismatch:</strong> the cached PWA shell does not match the local backend.</p><button id="runtimeUpdateShellBtn" class="secondary">Update PWA shell</button>':'<p class="muted">Desktop, browser and installed PWA use the same local backend. The backend must be running for document operations.</p>'}`;
+    $('#runtimeUpdateShellBtn')?.addEventListener('click',refreshPwaShell);
   }catch(e){
     target.innerHTML=`<p class="dangerText">Local backend unavailable: ${esc(e.message)}</p><p class="muted">Start DocPilot on this PC, then reload the browser or PWA window.</p>`;
   }
