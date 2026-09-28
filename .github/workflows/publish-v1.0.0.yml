@@ -1,0 +1,53 @@
+name: Publish verified DocPilot 1.0.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v1.0.0.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Download verified Windows artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 36341715964 --repo "${{ github.repository }}" -n DocPilot-Windows -D release-assets
+          test -s release-assets/DocPilot-Portable-Windows-x64.zip
+          test -s release-assets/DocPilot-Setup-Windows-x64.exe
+          test -s release-assets/SHA256SUMS.txt
+
+      - name: Verify checksums
+        run: |
+          cd release-assets
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Create v1.0.0 tag from verified build commit
+        run: |
+          git fetch --tags --force
+          if ! git show-ref --tags --verify --quiet refs/tags/v1.0.0; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a v1.0.0 8712197465ad42e2935e26256879d6be48523840 -m "DocPilot v1.0.0"
+            git push origin v1.0.0
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v1.0.0 --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload v1.0.0               release-assets/DocPilot-Portable-Windows-x64.zip               release-assets/DocPilot-Setup-Windows-x64.exe               release-assets/SHA256SUMS.txt               --clobber               --repo "${{ github.repository }}"
+          else
+            gh release create v1.0.0               release-assets/DocPilot-Portable-Windows-x64.zip               release-assets/DocPilot-Setup-Windows-x64.exe               release-assets/SHA256SUMS.txt               --verify-tag               --title "DocPilot v1.0.0"               --generate-notes               --repo "${{ github.repository }}"
+          fi
