@@ -185,6 +185,24 @@ def update_document_fields(settings: Settings, doc_id: int, **fields: Any) -> No
         conn.execute(f"UPDATE documents SET {columns} WHERE id=?", (*actual.values(), doc_id))
 
 
+def update_documents_fields(settings: Settings, doc_ids: list[int], **fields: Any) -> int:
+    allowed = {"category", "profile", "case_name", "action_required"}
+    actual = {k: v for k, v in fields.items() if k in allowed}
+    ids = sorted({int(doc_id) for doc_id in doc_ids if int(doc_id) > 0})
+    if not ids or not actual:
+        return 0
+
+    actual["updated_at"] = datetime.now(timezone.utc).isoformat()
+    columns = ",".join(f"{k}=?" for k in actual)
+    placeholders = ",".join("?" for _ in ids)
+    with connect(settings) as conn:
+        cur = conn.execute(
+            f"UPDATE documents SET {columns} WHERE id IN ({placeholders})",
+            (*actual.values(), *ids),
+        )
+        return int(cur.rowcount)
+
+
 def search_documents(settings: Settings, terms: list[str], limit: int = 50) -> list[dict[str, Any]]:
     if not terms:
         return list_documents(settings, limit)

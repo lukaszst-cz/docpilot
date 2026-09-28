@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null;
+let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set();
 const titles = {
   dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
   documents:['Documents','Your local document index'], deadlines:['Deadline Radar','Payments, replies, expirations and warranties'],
@@ -183,8 +183,82 @@ async function loadReview(){
 }
 $('#refreshReviewBtn')?.addEventListener('click',()=>runLoad(loadReview));
 
-async function loadDocuments(){const docs=await api('/api/documents?limit=1000');$('#documentsTable').innerHTML=docs.length?`<div class="tableWrap"><table><thead><tr><th>Name</th><th>Type</th><th>Deadline</th><th>Profile</th><th>Case</th><th>Action</th><th>Health</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td><strong>${esc(d.source_name)}</strong><div class="muted">${esc(d.category)}</div></td><td>${esc(d.metadata?.document_type||'')}</td><td>${fmtDate(d.metadata?.deadline||d.metadata?.warranty_until)}</td><td>${esc(d.profile||'Home')}</td><td>${esc(d.case_name||'—')}</td><td>${esc(d.action_required||'—')}</td><td>${d.health_score}/100</td><td><button class="secondary revealDoc" data-path="${esc(d.path)}">Open</button> <button class="secondary redactDoc" data-id="${d.id}">Redact copy</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No indexed documents yet.</p>';$$('.revealDoc').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));$$('.redactDoc').forEach(b=>b.addEventListener('click',async()=>{try{const r=await api(`/api/redact/${b.dataset.id}`,{method:'POST'});showAppNotice(`Redacted copy created: ${r.path}. Review it before sharing.`,'ok');reveal(r.path)}catch(e){showAppNotice(e.message)}}))}
+function updateBulkDocumentsBar(){
+  const bar=$('#bulkDocumentsBar');
+  if(!bar)return;
+  $('#bulkSelectedCount').textContent=selectedDocumentIds.size;
+  bar.classList.toggle('hidden',selectedDocumentIds.size===0);
+  const mode=$('#bulkCaseMode').value;
+  $('#bulkCaseName').disabled=mode!=='set';
+}
+
+async function loadDocuments(){
+  const docs=await api('/api/documents?limit=1000');
+  const visibleIds=new Set(docs.map(d=>Number(d.id)));
+  selectedDocumentIds=new Set([...selectedDocumentIds].filter(id=>visibleIds.has(id)));
+
+  $('#documentsTable').innerHTML=docs.length?`<div class="tableWrap"><table><thead><tr><th><input type="checkbox" id="selectAllDocs" aria-label="Select all visible documents"></th><th>Name</th><th>Type</th><th>Deadline</th><th>Profile</th><th>Case</th><th>Action</th><th>Health</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td><input type="checkbox" class="docSelect" data-id="${d.id}" aria-label="Select ${esc(d.source_name)}" ${selectedDocumentIds.has(Number(d.id))?'checked':''}></td><td><strong>${esc(d.source_name)}</strong><div class="muted">${esc(d.category)}</div></td><td>${esc(d.metadata?.document_type||'')}</td><td>${fmtDate(d.metadata?.deadline||d.metadata?.warranty_until)}</td><td>${esc(d.profile||'Home')}</td><td>${esc(d.case_name||'—')}</td><td>${esc(d.action_required||'—')}</td><td>${d.health_score}/100</td><td><button class="secondary revealDoc" data-path="${esc(d.path)}">Open</button> <button class="secondary redactDoc" data-id="${d.id}">Redact copy</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No indexed documents yet.</p>';
+
+  const all=$('#selectAllDocs');
+  if(all){
+    all.checked=docs.length>0&&docs.every(d=>selectedDocumentIds.has(Number(d.id)));
+    all.addEventListener('change',()=>{
+      selectedDocumentIds=all.checked?new Set(docs.map(d=>Number(d.id))):new Set();
+      $('.docSelect').forEach(box=>{box.checked=all.checked});
+      updateBulkDocumentsBar();
+    });
+  }
+
+  $('.docSelect').forEach(box=>box.addEventListener('change',()=>{
+    const id=Number(box.dataset.id);
+    if(box.checked)selectedDocumentIds.add(id);else selectedDocumentIds.delete(id);
+    if(all)all.checked=docs.length>0&&docs.every(d=>selectedDocumentIds.has(Number(d.id)));
+    updateBulkDocumentsBar();
+  }));
+  $('.revealDoc').forEach(b=>b.addEventListener('click',()=>reveal(b.dataset.path)));
+  $('.redactDoc').forEach(b=>b.addEventListener('click',async()=>{try{const r=await api(`/api/redact/${b.dataset.id}`,{method:'POST'});showAppNotice(`Redacted copy created: ${r.path}. Review it before sharing.`,'ok');reveal(r.path)}catch(e){showAppNotice(e.message)}}));
+  updateBulkDocumentsBar();
+}
 $('#refreshDocsBtn').addEventListener('click',()=>runLoad(loadDocuments));
+$('#bulkCaseMode').addEventListener('change',updateBulkDocumentsBar);
+$('#clearBulkDocs').addEventListener('click',()=>{
+  selectedDocumentIds.clear();
+  $('.docSelect').forEach(box=>{box.checked=false});
+  const all=$('#selectAllDocs');if(all)all.checked=false;
+  updateBulkDocumentsBar();
+});
+$('#applyBulkDocs').addEventListener('click',async()=>{
+  if(!selectedDocumentIds.size)return;
+  const fields={};
+  const caseMode=$('#bulkCaseMode').value;
+  if(caseMode==='set'){
+    const name=$('#bulkCaseName').value.trim();
+    if(!name){showAppNotice('Enter a case name or choose Clear case.');return}
+    fields.case_name=name;
+  }else if(caseMode==='clear'){
+    fields.case_name=null;
+  }
+
+  const profile=$('#bulkProfile').value;
+  if(profile)fields.profile=profile;
+
+  const action=$('#bulkAction').value;
+  if(action!=='__keep__')fields.action_required=action||null;
+
+  if(!Object.keys(fields).length){showAppNotice('Choose at least one bulk change.');return}
+
+  try{
+    const result=await api('/api/documents/batch-update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:[...selectedDocumentIds],fields})});
+    showAppNotice(`${result.updated} documents updated.`,'ok');
+    selectedDocumentIds.clear();
+    $('#bulkCaseMode').value='';
+    $('#bulkCaseName').value='';
+    $('#bulkProfile').value='';
+    $('#bulkAction').value='__keep__';
+    await loadDocuments();
+    await loadCases();
+  }catch(e){showAppNotice(e.message)}
+});
 async function loadDeadlines(){const d=await api('/api/dashboard');$('#deadlineList').innerHTML=d.deadlines.length?d.deadlines.map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No deadlines detected.</p>'}
 async function compareDuplicatePair(leftId,rightId){
   const out=$('#duplicateCompareOutput');
@@ -208,7 +282,14 @@ async function loadDuplicates(){
   $$('.duplicateCompare').forEach(b=>b.addEventListener('click',()=>compareDuplicatePair(Number(b.dataset.left),Number(b.dataset.right))));
 }
 $('#scanDuplicatesBtn').addEventListener('click',()=>runLoad(loadDuplicates));
-async function loadCases(){const cs=await api('/api/cases');$('#caseList').innerHTML=cs.length?cs.map(c=>`<div class="listItem"><h3>${esc(c.name)}</h3>${c.timeline.map(t=>`<div class="meta"><strong>${esc(t.date||'')}</strong><span>${esc(t.name)}</span><span>${esc(t.action||'')}</span>${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div>`).join('')}</div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>'}
+async function loadCases(){
+  const cs=await api('/api/cases');
+  $('#caseList').innerHTML=cs.length?cs.map(c=>`<div class="listItem caseCard">
+    <div class="listItemHead"><div><h3>${esc(c.name)}</h3><div class="meta"><span>${c.document_count} documents</span><span>${c.open_actions} open actions</span><span>${esc((c.profiles||[]).join(', '))}</span>${c.next_deadline?`<span>next deadline ${fmtDate(c.next_deadline)}</span>`:''}${c.overdue_deadlines?`<span class="dangerText">${c.overdue_deadlines} overdue</span>`:''}</div></div><span class="badge">${c.document_count}</span></div>
+    <div class="caseTimeline">${c.timeline.map(t=>`<div class="caseTimelineRow"><div><strong>${fmtDate((t.date||'').slice(0,10))}</strong><div>${esc(t.name)}</div><div class="meta"><span>${esc(t.document_type||'document')}</span><span>${esc(t.category||'')}</span><span>${esc(t.profile||'Home')}</span>${t.action?`<span>${esc(t.action)}</span>`:''}${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div></div><button class="secondary caseOpen" data-path="${esc(t.path)}">Open</button></div>`).join('')}</div>
+  </div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>';
+  $('.caseOpen').forEach(button=>button.addEventListener('click',()=>reveal(button.dataset.path)));
+}
 
 async function runSearch(){
   const q=$('#searchInput').value.trim();

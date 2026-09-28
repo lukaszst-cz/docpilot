@@ -65,3 +65,29 @@ def test_rules_ui_supports_edit_pause_and_delete():
     assert "Save changes" in script
     assert "method:'PATCH'" in script
     assert "method:'DELETE'" in script
+
+
+def test_documents_ui_exposes_bulk_case_profile_and_action_controls():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="bulkDocumentsBar"' in html
+    assert 'id="bulkCaseMode"' in html
+    assert 'id="bulkProfile"' in html
+    assert 'id="bulkAction"' in html
+    assert 'id="applyBulkDocs"' in html
+    assert 'id="selectAllDocs"' in script
+    assert 'class="docSelect"' in script
+    assert "/api/documents/batch-update" in script
+    assert "selectedDocumentIds" in script
+
+
+def test_cases_ui_exposes_summary_and_openable_timeline():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert "c.document_count" in script
+    assert "c.open_actions" in script
+    assert "c.next_deadline" in script
+    assert "c.overdue_deadlines" in script
+    assert "caseTimelineRow" in script
+    assert "caseOpen" in script

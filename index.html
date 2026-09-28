@@ -102,10 +102,24 @@
         <section class="card"><div class="cardHead"><div><h2>Review Queue</h2><p class="muted">Only documents that need a human decision: low confidence, uncertain deadlines, weak scans or possible duplicates.</p></div><button id="refreshReviewBtn" class="secondary">Refresh</button></div><div id="reviewList"></div></section>
       </section>
 
-      <section id="view-documents" class="view"><section class="card"><div class="cardHead"><h2>Local document index</h2><button id="refreshDocsBtn" class="secondary">Refresh</button></div><div id="documentsTable"></div></section></section>
+      <section id="view-documents" class="view">
+        <section class="card">
+          <div class="cardHead"><div><h2>Local document index</h2><p class="muted">Select documents to update case, profile or required action together.</p></div><button id="refreshDocsBtn" class="secondary">Refresh</button></div>
+          <div id="bulkDocumentsBar" class="bulkBar hidden">
+            <strong><span id="bulkSelectedCount">0</span> selected</strong>
+            <select id="bulkCaseMode" aria-label="Bulk case operation"><option value="">Keep case</option><option value="set">Set case</option><option value="clear">Clear case</option></select>
+            <input id="bulkCaseName" placeholder="Case name" aria-label="Bulk case name">
+            <select id="bulkProfile" aria-label="Bulk profile"><option value="">Keep profile</option><option>Home</option><option>Company</option><option>Child</option><option>Vehicle</option><option>Legal Cases</option></select>
+            <select id="bulkAction" aria-label="Bulk action"><option value="__keep__">Keep action</option><option value="">Clear action</option><option value="to-pay">To pay</option><option value="to-reply">To reply</option><option value="to-sign">To sign</option><option value="to-review">To review</option><option value="to-archive">To archive</option></select>
+            <button id="applyBulkDocs">Apply to selected</button>
+            <button id="clearBulkDocs" class="secondary">Clear selection</button>
+          </div>
+          <div id="documentsTable"></div>
+        </section>
+      </section>
       <section id="view-deadlines" class="view"><section class="card"><div class="cardHead"><h2>Deadline Radar</h2><a class="buttonLink" href="/api/export/calendar">Export .ics</a></div><div id="deadlineList"></div></section></section>
       <section id="view-duplicates" class="view"><section class="card"><div class="cardHead"><h2>Duplicate Finder</h2><button id="scanDuplicatesBtn" class="secondary">Refresh</button></div><p class="muted">Exact duplicates use SHA-256. Near duplicates use a local text fingerprint. DocPilot does not delete duplicates automatically.</p><div id="duplicateList"></div><pre id="duplicateCompareOutput" class="codeBox hidden" aria-live="polite"></pre></section></section>
-      <section id="view-cases" class="view"><section class="card"><div class="cardHead"><h2>Cases & timelines</h2></div><div id="caseList"></div></section></section>
+      <section id="view-cases" class="view"><section class="card"><div class="cardHead"><div><h2>Cases & timelines</h2><p class="muted">Cases summarize documents, open actions and the nearest detected deadline. Use Documents for bulk assignment.</p></div></div><div id="caseList"></div></section></section>
 
       <section id="view-search" class="view">
         <div class="twoCol">
