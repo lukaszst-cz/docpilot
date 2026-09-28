@@ -540,12 +540,22 @@ async function loadIntegrationStatus(){
     $('#googleStatus').textContent=r.google_calendar.configured?`OAuth client selected · ${r.google_calendar.authorized?'authorized':'authorization will open on first sync'}`:'Not configured.';
   }catch(e){console.warn(e)}
 }
+$('#integrationPreviewBtn')?.addEventListener('click',async()=>{
+  const out=$('#integrationPreviewOutput');
+  out.textContent='Checking scope…';
+  try{
+    const r=await api('/api/integrations/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('#integrationPreviewProvider').value,scope:integrationScope()})});
+    const names=(r.sample||[]).map(item=>item.name).join(' · ');
+    out.innerHTML='<strong>'+r.eligible+'</strong> eligible from '+r.matched_total+' matching records (limit '+r.scope.limit+').'+(names?'<br><span class="muted">Sample: '+esc(names)+'</span>':'');
+  }catch(e){out.textContent=e.message}
+});
+$('#integrationHistoryRefreshBtn')?.addEventListener('click',()=>runLoad(loadIntegrationHistory));
 $('#emailConfigureBtn')?.addEventListener('click',async()=>{try{await api('/api/integrations/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('#emailProvider').value,email:$('#emailAddress').value,password:$('#emailPassword').value,folder:$('#emailFolder').value||'INBOX'})});$('#emailPassword').value='';loadIntegrationStatus()}catch(e){showAppNotice(e.message)}});
-$('#emailImapImportBtn')?.addEventListener('click',async()=>{try{const r=await api('/api/email/import-imap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({unread_only:true,max_messages:20})});showAppNotice(`Imported ${r.attachments.length} attachment(s).`,'ok');loadDashboard()}catch(e){showAppNotice(e.message)}});
+$('#emailImapImportBtn')?.addEventListener('click',async()=>{try{const r=await api('/api/email/import-imap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({unread_only:true,max_messages:20})});showAppNotice('Imported '+r.attachments.length+' attachment(s).'+(r.errors?.length?' '+r.errors.length+' error(s).':''),r.errors?.length?'error':'ok');await loadDashboard();await loadIntegrationHistory()}catch(e){showAppNotice(e.message);loadIntegrationHistory()}});
 $('#notionConfigureBtn')?.addEventListener('click',async()=>{try{await api('/api/integrations/notion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:$('#notionToken').value,database_id:$('#notionDatabase').value})});$('#notionToken').value='';loadIntegrationStatus()}catch(e){showAppNotice(e.message)}});
-$('#notionSyncBtn')?.addEventListener('click',async()=>{try{const r=await api('/api/integrations/notion/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit:100})});showAppNotice(`Notion sync: ${r.synced} document(s).${r.errors?.length?` ${r.errors.length} error(s).`:''}`,r.errors?.length?'error':'ok')}catch(e){showAppNotice(e.message)}});
+$('#notionSyncBtn')?.addEventListener('click',async()=>{try{const r=await api('/api/integrations/notion/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope:integrationScope()})});showAppNotice('Notion sync: '+r.synced+' of '+r.attempted+' attempted.'+(r.errors?.length?' '+r.errors.length+' error(s).':''),r.errors?.length?'error':'ok');await loadIntegrationHistory()}catch(e){showAppNotice(e.message);loadIntegrationHistory()}});
 $('#googleClientBtn')?.addEventListener('click',async()=>{try{const r=await api('/api/integrations/google-calendar/select-client',{method:'POST'});if(!r.cancelled)loadIntegrationStatus()}catch(e){showAppNotice(e.message)}});
-$('#googleSyncBtn')?.addEventListener('click',async()=>{try{const r=await api('/api/integrations/google-calendar/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({calendar_id:'primary'})});showAppNotice(`Google Calendar sync: ${r.synced} deadline(s).${r.errors?.length?` ${r.errors.length} error(s).`:''}`,r.errors?.length?'error':'ok');loadIntegrationStatus()}catch(e){showAppNotice(e.message)}});
+$('#googleSyncBtn')?.addEventListener('click',async()=>{try{const r=await api('/api/integrations/google-calendar/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({calendar_id:'primary',scope:integrationScope()})});showAppNotice('Google Calendar sync: '+r.synced+' of '+r.attempted+' eligible deadline(s).'+(r.errors?.length?' '+r.errors.length+' error(s).':''),r.errors?.length?'error':'ok');await loadIntegrationHistory();loadIntegrationStatus()}catch(e){showAppNotice(e.message);loadIntegrationHistory()}});
 
 $('#changesBtn').addEventListener('click',async()=>{
   const r=await api('/api/changes');
