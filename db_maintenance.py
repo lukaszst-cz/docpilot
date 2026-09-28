@@ -111,6 +111,8 @@ def _checkpoint_metadata(path: Path, kind: str) -> dict[str, Any]:
 def _recovery_kind(path: Path, folder_name: str) -> str:
     if folder_name == "migration-backups":
         return "migration"
+    if path.name.startswith("docpilot-pre-restore-corrupt-"):
+        return "pre-restore-corrupt"
     if path.name.startswith("docpilot-pre-restore-"):
         return "pre-restore"
     return "checkpoint"
@@ -230,14 +232,15 @@ def restore_database_from_point(
                     pre_restore_path.unlink(missing_ok=True)
                     raise RuntimeError("Pre-restore safety backup verification failed.")
             else:
-                shutil.copy2(path, pre_restore_path)
+                corrupt_path = recovery_dir / f"docpilot-pre-restore-corrupt-{stamp}.sqlite3"
+                shutil.copy2(path, corrupt_path)
                 for suffix in ("-wal", "-shm"):
                     sidecar = Path(str(path) + suffix)
                     if sidecar.exists():
-                        shutil.copy2(sidecar, Path(str(pre_restore_path) + suffix))
-                stat = pre_restore_path.stat()
+                        shutil.copy2(sidecar, Path(str(corrupt_path) + suffix))
+                stat = corrupt_path.stat()
                 safety_meta = {
-                    "name": pre_restore_path.name,
+                    "name": corrupt_path.name,
                     "kind": "pre-restore-corrupt",
                     "size_bytes": stat.st_size,
                     "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
