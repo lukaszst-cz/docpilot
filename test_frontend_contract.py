@@ -214,3 +214,18 @@ def test_settings_exposes_user_diagnostic_guidance():
     assert "ACTION REQUIRED" in script
     assert "CHECK RECOMMENDED" in script
     assert "HEALTHY" in script
+
+
+def test_pwa_version_mismatch_has_one_click_recovery():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+    worker = (ROOT / "service-worker.js").read_text(encoding="utf-8")
+
+    assert "async function refreshPwaShell()" in script
+    assert "navigator.serviceWorker.getRegistration()" in script
+    assert "registration.update()" in script
+    assert "controllerchange" in script
+    assert "runtimeUpdateShellBtn" in script
+    assert "window.location.reload()" in script
+    assert "type:'SKIP_WAITING'" in script
+    assert "event.data?.type==='SKIP_WAITING'" in worker
+    assert "self.skipWaiting()" in worker
