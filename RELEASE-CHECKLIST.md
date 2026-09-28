@@ -37,9 +37,9 @@ Każdy przypadek sprawdzamy na kopii testowej, bez prywatnych danych.
 
 ## Bezpieczna praca na plikach
 
-- [ ] wybór lokalnego pliku nie zmienia oryginału przed zatwierdzeniem
-- [ ] rename wymaga potwierdzenia i zapisuje zmianę w historii
-- [ ] move + rename wymaga potwierdzenia i zapisuje zmianę w historii
+- [x] wybór lokalnego pliku nie zmienia oryginału przed zatwierdzeniem
+- [x] rename wymaga potwierdzenia i zapisuje zmianę w historii
+- [x] move + rename wymaga potwierdzenia i zapisuje zmianę w historii
 - [x] Undo przywraca plik do poprzedniego miejsca
 - [x] błąd operacji nie zostawia częściowo przeniesionego pliku
 - [x] Exact Duplicate jest rozpoznawany po SHA-256
@@ -99,4 +99,4 @@ Każdy przypadek sprawdzamy na kopii testowej, bez prywatnych danych.
 - release zawiera instalator Windows, Portable ZIP i `SHA256SUMS.txt`;
 - checksumy instalatora i Portable ZIP zostały zweryfikowane przed publikacją.
 
-Wydanie 1.0.0 jest publiczne. Pozostałe niezaznaczone pozycje w sekcji „Bezpieczna praca na plikach” są ręcznymi scenariuszami kontroli i nie blokują opublikowanego wydania.
+Wydanie 1.0.0 jest publiczne. Wszystkie pozycje tej checklisty mają potwierdzenie w testach lub zweryfikowanym Windows Release; nie ma już otwartych bramek wydania 1.0.
