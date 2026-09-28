@@ -565,6 +565,48 @@ def duplicate_review_groups(settings: Settings, near_limit: int = 500) -> list[d
     ]
 
 
+def duplicate_display_groups(
+    settings: Settings,
+    *,
+    near_limit: int = 500,
+) -> list[dict[str, Any]]:
+    groups = duplicate_id_groups(settings, near_limit=near_limit)
+    if not groups:
+        return []
+
+    all_ids = sorted({int(doc_id) for group in groups for doc_id in group["ids"]})
+    by_id: dict[int, dict[str, Any]] = {}
+
+    # Keep queries under SQLite's parameter limit and avoid loading OCR text or metadata blobs.
+    with connect(settings) as conn:
+        for start in range(0, len(all_ids), 800):
+            chunk = all_ids[start:start + 800]
+            placeholders = ",".join("?" for _ in chunk)
+            rows = conn.execute(
+                f"""
+                SELECT id, path, source_name, sha256, simhash, updated_at
+                FROM documents
+                WHERE id IN ({placeholders})
+                """,
+                chunk,
+            ).fetchall()
+            for row in rows:
+                item = dict(row)
+                by_id[int(item["id"])] = item
+
+    output: list[dict[str, Any]] = []
+    for group in groups:
+        documents = [by_id[doc_id] for doc_id in group["ids"] if doc_id in by_id]
+        if len(documents) < 2:
+            continue
+        output.append({
+            "kind": group["kind"],
+            "score": 1.0 if group["kind"] == "exact" else 0.9,
+            "documents": documents,
+        })
+    return output
+
+
 def review_candidate_documents(
     settings: Settings,
     *,
