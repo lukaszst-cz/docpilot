@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -216,15 +217,33 @@ def restore_database_from_point(
         pre_restore_path = recovery_dir / f"docpilot-pre-restore-{stamp}.sqlite3"
 
         if path.exists():
-            current = database_health(path)
-            if current["integrity"].lower() != "ok":
-                raise RuntimeError("Current database failed integrity check; automatic restore was stopped.")
-            with sqlite3.connect(path) as current_db, sqlite3.connect(pre_restore_path) as safety:
-                current_db.backup(safety)
-            safety_meta = _checkpoint_metadata(pre_restore_path, "pre-restore")
-            if safety_meta["integrity"].lower() != "ok":
-                pre_restore_path.unlink(missing_ok=True)
-                raise RuntimeError("Pre-restore safety backup verification failed.")
+            try:
+                current = database_health(path)
+            except sqlite3.DatabaseError:
+                current = {"integrity": "unreadable"}
+
+            if str(current.get("integrity", "")).lower() == "ok":
+                with sqlite3.connect(path) as current_db, sqlite3.connect(pre_restore_path) as safety:
+                    current_db.backup(safety)
+                safety_meta = _checkpoint_metadata(pre_restore_path, "pre-restore")
+                if safety_meta["integrity"].lower() != "ok":
+                    pre_restore_path.unlink(missing_ok=True)
+                    raise RuntimeError("Pre-restore safety backup verification failed.")
+            else:
+                shutil.copy2(path, pre_restore_path)
+                for suffix in ("-wal", "-shm"):
+                    sidecar = Path(str(path) + suffix)
+                    if sidecar.exists():
+                        shutil.copy2(sidecar, Path(str(pre_restore_path) + suffix))
+                stat = pre_restore_path.stat()
+                safety_meta = {
+                    "name": pre_restore_path.name,
+                    "kind": "pre-restore-corrupt",
+                    "size_bytes": stat.st_size,
+                    "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                    "schema_version": None,
+                    "integrity": "unreadable",
+                }
         else:
             safety_meta = None
 
