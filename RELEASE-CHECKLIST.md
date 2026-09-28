@@ -88,12 +88,15 @@ Każdy przypadek sprawdzamy na kopii testowej, bez prywatnych danych.
 5. Integracje opcjonalne nie blokują 1.0, o ile podstawowy lokalny workflow działa stabilnie.
 
 
-## Stan 1.0.0 — 27.09.2026
+## Stan 1.0.0 — 28.09.2026
 
 - kod `main` ma wersję **1.0.0**;
 - zwykłe CI dla commita 1.0.0 jest zielone;
 - pełny Windows Release dla commita 1.0.0 jest zielony;
 - artefakt `DocPilot-Windows` zawiera instalator, Portable ZIP i `SHA256SUMS.txt`;
-- publiczny GitHub Release **nie jest jeszcze opublikowany**, ponieważ nie utworzono jeszcze taga `v1.0.0`.
+- tag `v1.0.0` został utworzony z commita zweryfikowanego pełnym Windows buildem;
+- publiczny GitHub Release **DocPilot v1.0.0** został opublikowany;
+- release zawiera instalator Windows, Portable ZIP i `SHA256SUMS.txt`;
+- checksumy instalatora i Portable ZIP zostały zweryfikowane przed publikacją.
 
-Ostatni punkt nie jest błędem aplikacji ani buildu. To wyłącznie krok publikacyjny.
+Wydanie 1.0.0 jest publiczne. Pozostałe niezaznaczone pozycje w sekcji „Bezpieczna praca na plikach” są ręcznymi scenariuszami kontroli i nie blokują opublikowanego wydania.
