@@ -201,3 +201,16 @@ def test_pwa_shell_requests_service_worker_version():
     assert "new MessageChannel()" in script
     assert "DOC_PILOT_VERSION" in worker
     assert "postMessage({version:VERSION,cache:CACHE})" in worker
+
+
+def test_settings_exposes_user_diagnostic_guidance():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="diagnosticsAdvice"' in html
+    assert 'href="/api/diagnostics/report"' in html
+    assert "TROUBLESHOOTING.md" in html
+    assert "assessment.status" in script
+    assert "ACTION REQUIRED" in script
+    assert "CHECK RECOMMENDED" in script
+    assert "HEALTHY" in script

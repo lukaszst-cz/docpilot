@@ -149,6 +149,8 @@ Checklista stabilności 1.0 pozostaje w [`RELEASE-CHECKLIST.md`](RELEASE-CHECKLI
 
 ## Zgłaszanie problemów
 
+Najpierw sprawdź [TROUBLESHOOTING.md](TROUBLESHOOTING.md). W **Settings → Data & diagnostics** można też skopiować lub pobrać bezpieczny raport diagnostyczny bez treści dokumentów i lokalnych ścieżek.
+
 Jeżeli coś nie działa, najlepiej otworzyć Issue i krótko opisać:
 - co zostało zrobione;
 - co miało się wydarzyć;
