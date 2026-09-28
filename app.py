@@ -1117,13 +1117,14 @@ def integration_notion_sync(payload: dict = Body(default={})):
         result = sync_notion(settings, documents, limit=len(documents) or 1)
         errors = list(result.get("errors") or [])
         synced = int(result.get("synced") or 0)
+        skipped = int(result.get("skipped") or 0)
         finish_integration_run(
             settings,
             run_id,
             status="partial" if errors else "success",
             attempted=len(documents),
             succeeded=synced,
-            skipped=max(0, len(documents) - synced - len(errors)),
+            skipped=skipped,
             failed=len(errors),
             errors=errors,
         )
@@ -1158,13 +1159,14 @@ def integration_google_sync(payload: dict = Body(default={})):
         result = sync_google_calendar(settings, documents, calendar_id=calendar_id)
         errors = list(result.get("errors") or [])
         synced = int(result.get("synced") or 0)
+        skipped = int(result.get("skipped") or 0)
         finish_integration_run(
             settings,
             run_id,
             status="partial" if errors else "success",
             attempted=len(documents),
             succeeded=synced,
-            skipped=max(0, len(documents) - synced - len(errors)),
+            skipped=skipped,
             failed=len(errors),
             errors=errors,
         )
