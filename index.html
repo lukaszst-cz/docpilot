@@ -137,7 +137,7 @@
             <input id="ruleCategory" placeholder="Target category, e.g. Finance/Telecom">
             <input id="ruleProfile" placeholder="Target profile, e.g. Home">
             <input id="ruleTags" placeholder="Target tags, comma separated (optional)">
-            <button id="addRuleBtn">Add rule</button><div id="rulesList"></div>
+            <div class="inline"><button id="addRuleBtn">Add rule</button><button id="cancelRuleEditBtn" class="secondary hidden">Cancel edit</button></div><div id="rulesList"></div>
           </section>
           <section class="card"><h2>Custom Document Types</h2><input id="typeName" placeholder="Type name"><input id="typeKeywords" placeholder="Keywords separated by commas"><input id="typeCategory" placeholder="Category"><button id="addTypeBtn">Add type</button><div id="typesList"></div></section>
           <section class="card"><h2>MCP Server</h2><p>Optional local MCP server exposes search and Q&A tools to compatible clients.</p><code>python -m docpilot.mcp_server</code><p class="muted">Requires the optional <code>mcp</code> extra.</p></section>
