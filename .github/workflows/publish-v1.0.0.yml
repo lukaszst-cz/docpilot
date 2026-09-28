@@ -30,7 +30,7 @@ jobs:
           mkdir -p release-assets
           unzip -q verified-artifact.zip -d release-assets
           test -s release-assets/DocPilot-Portable-Windows-x64.zip
-          test -s release-assets/DocPilot-Setup-Windows-x64.exe
+          test -s release-assets/dist-installer/DocPilot-Setup-Windows-x64.exe
           test -s release-assets/SHA256SUMS.txt
 
       - name: Verify checksums
@@ -53,7 +53,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view v1.0.0 --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release upload v1.0.0               release-assets/DocPilot-Portable-Windows-x64.zip               release-assets/DocPilot-Setup-Windows-x64.exe               release-assets/SHA256SUMS.txt               --clobber               --repo "${{ github.repository }}"
+            gh release upload v1.0.0               release-assets/DocPilot-Portable-Windows-x64.zip               release-assets/dist-installer/DocPilot-Setup-Windows-x64.exe               release-assets/SHA256SUMS.txt               --clobber               --repo "${{ github.repository }}"
           else
-            gh release create v1.0.0               release-assets/DocPilot-Portable-Windows-x64.zip               release-assets/DocPilot-Setup-Windows-x64.exe               release-assets/SHA256SUMS.txt               --verify-tag               --title "DocPilot v1.0.0"               --generate-notes               --repo "${{ github.repository }}"
+            gh release create v1.0.0               release-assets/DocPilot-Portable-Windows-x64.zip               release-assets/dist-installer/DocPilot-Setup-Windows-x64.exe               release-assets/SHA256SUMS.txt               --verify-tag               --title "DocPilot v1.0.0"               --generate-notes               --repo "${{ github.repository }}"
           fi
