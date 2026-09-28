@@ -37,6 +37,7 @@ from .db import (
     init_db,
     list_audit,
     list_custom_types,
+    list_document_page,
     list_documents,
     list_rules,
     search_documents,
@@ -496,7 +497,7 @@ def dashboard():
         if int(d.get("health_score") or 100) < 70:
             unhealthy += 1
     deadlines.sort(key=lambda x: x["date"])
-    duplicates = duplicate_groups(settings)
+    duplicates = duplicate_groups(settings, docs)
     return {
         "documents": len(docs),
         "deadlines": deadlines[:40],
@@ -512,6 +513,33 @@ def dashboard():
 @app.get("/api/documents")
 def documents(limit: int = 500):
     return list_documents(settings, limit=min(max(limit, 1), 5000))
+
+
+@app.get("/api/documents/page")
+def documents_page(
+    limit: int = 100,
+    offset: int = 0,
+    q: str = "",
+    profile: str = "",
+    case_name: str = "",
+):
+    page_limit = min(max(limit, 20), 250)
+    page_offset = max(offset, 0)
+    items, total = list_document_page(
+        settings,
+        limit=page_limit,
+        offset=page_offset,
+        query=q,
+        profile=profile,
+        case_name=case_name,
+    )
+    return {
+        "items": items,
+        "total": total,
+        "limit": page_limit,
+        "offset": page_offset,
+        "has_more": page_offset + len(items) < total,
+    }
 
 
 @app.patch("/api/documents/{doc_id}")
@@ -571,7 +599,7 @@ def qa(payload: dict = Body(...)):
 @app.get("/api/review")
 def review_queue():
     docs = list_documents(settings, limit=5000)
-    return build_review_queue(docs, duplicate_groups(settings))
+    return build_review_queue(docs, duplicate_groups(settings, docs))
 
 
 @app.get("/api/duplicates")
