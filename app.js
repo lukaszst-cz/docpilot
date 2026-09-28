@@ -270,8 +270,50 @@ $('#batchBtn').addEventListener('click',async()=>{try{$('#batchOutput').innerHTM
 $('#emailImportBtn').addEventListener('click',async()=>{try{$('#emailOutput').innerHTML='<p class="muted">Importing…</p>';const r=await api('/api/email/import-eml',{method:'POST'});if(r.cancelled){$('#emailOutput').innerHTML='';return}$('#emailOutput').innerHTML=`<p><strong>${r.attachments.length}</strong> attachments imported from ${esc(r.subject||'email')}</p>`;}catch(e){showAppNotice(e.message)}});
 
 $('#watchBtn').addEventListener('click',async()=>{try{const r=await api('/api/watch/select-folder',{method:'POST'});if(!r.cancelled)loadWatch()}catch(e){showAppNotice(e.message)}});async function loadWatch(){const r=await api('/api/watch');$('#watchStatus').textContent=r.watch_folder?`Watching: ${r.watch_folder} · ${r.active?'active':'starting'}`:'No watched folder configured.'}
-async function loadRules(){const r=await api('/api/rules');$('#rulesList').innerHTML=r.length?r.map(x=>`<div class="listItem"><strong>${esc(x.name)}</strong><div class="meta"><span>${esc(JSON.stringify(x.condition))}</span><span>→ ${esc(x.target_category||'')}</span></div></div>`).join(''):'<p class="muted">No rules yet.</p>'}
-$('#addRuleBtn').addEventListener('click',async()=>{const p={name:$('#ruleName').value||'Rule',condition:{issuer_contains:$('#ruleIssuer').value||undefined,text_contains:$('#ruleText').value||undefined},target_category:$('#ruleCategory').value||null,target_profile:$('#ruleProfile').value||null,target_tags:[]};try{await api('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});loadRules()}catch(e){showAppNotice(e.message)}});
+async function loadRules(){
+  const rules=await api('/api/rules');
+  const display=[...rules].reverse();
+  $('#rulesList').innerHTML=display.length?display.map(x=>{
+    const state=x.enabled?'ENABLED':'PAUSED';
+    const conditions=Object.entries(x.condition||{}).filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`).join(' · ')||'all documents';
+    const targets=[x.target_category?`category: ${x.target_category}`:'',x.target_profile?`profile: ${x.target_profile}`:'',(x.target_tags||[]).length?`tags: ${x.target_tags.join(', ')}`:''].filter(Boolean).join(' · ')||'no output changes';
+    return `<div class="listItem"><div class="listItemHead"><div><strong>${esc(x.name)}</strong> <span class="badge ${x.enabled?'':'warn'}">${state}</span></div><div class="inline"><button class="secondary ruleToggle" data-id="${x.id}" data-enabled="${x.enabled?'1':'0'}">${x.enabled?'Pause':'Enable'}</button><button class="secondary ruleDelete" data-id="${x.id}" data-name="${esc(x.name)}">Delete</button></div></div><div class="meta"><span>${esc(conditions)}</span><span>→ ${esc(targets)}</span></div></div>`;
+  }).join(''):'<p class="muted">No rules yet.</p>';
+
+  $$('.ruleToggle').forEach(btn=>btn.addEventListener('click',async()=>{
+    const enabled=btn.dataset.enabled!=='1';
+    try{
+      await api(`/api/rules/${btn.dataset.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
+      showAppNotice(enabled?'Rule enabled.':'Rule paused.','ok');
+      await loadRules();
+    }catch(e){showAppNotice(e.message)}
+  }));
+
+  $$('.ruleDelete').forEach(btn=>btn.addEventListener('click',async()=>{
+    if(!confirm(`Delete rule "${btn.dataset.name}"? This does not change documents already processed.`))return;
+    try{
+      await api(`/api/rules/${btn.dataset.id}`,{method:'DELETE'});
+      showAppNotice('Rule deleted.','ok');
+      await loadRules();
+    }catch(e){showAppNotice(e.message)}
+  }));
+}
+
+$('#addRuleBtn').addEventListener('click',async()=>{
+  const p={
+    name:$('#ruleName').value.trim()||'Rule',
+    condition:{issuer_contains:$('#ruleIssuer').value.trim()||undefined,text_contains:$('#ruleText').value.trim()||undefined,document_type:$('#ruleDocType').value.trim()||undefined},
+    target_category:$('#ruleCategory').value.trim()||null,
+    target_profile:$('#ruleProfile').value.trim()||null,
+    target_tags:$('#ruleTags').value.split(',').map(x=>x.trim()).filter(Boolean)
+  };
+  try{
+    await api('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+    ['#ruleName','#ruleIssuer','#ruleText','#ruleDocType','#ruleCategory','#ruleProfile','#ruleTags'].forEach(selector=>{$(selector).value=''});
+    showAppNotice('Rule added. Newer matching rules take precedence.','ok');
+    await loadRules();
+  }catch(e){showAppNotice(e.message)}
+});
 async function loadTypes(){const r=await api('/api/custom-types');$('#typesList').innerHTML=r.length?r.map(x=>`<div class="listItem"><strong>${esc(x.name)}</strong><div class="meta"><span>${esc(x.keywords.join(', '))}</span><span>→ ${esc(x.category)}</span></div></div>`).join(''):'<p class="muted">No custom types.</p>'}
 $('#addTypeBtn').addEventListener('click',async()=>{const p={name:$('#typeName').value.trim(),keywords:$('#typeKeywords').value.split(',').map(x=>x.trim()).filter(Boolean),category:$('#typeCategory').value||'Documents'};try{await api('/api/custom-types',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});loadTypes()}catch(e){showAppNotice(e.message)}});
 $('#auditBtn').addEventListener('click',async()=>{const r=await api('/api/audit?limit=100');$('#auditList').innerHTML=r.map(x=>`<div class="listItem"><strong>${esc(x.event)}</strong><div class="meta"><span>${esc(x.created_at)}</span><span>${esc(JSON.stringify(x.payload))}</span></div></div>`).join('')});
