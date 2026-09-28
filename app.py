@@ -30,6 +30,7 @@ from .db import (
     add_rule,
     audit,
     delete_document_by_path,
+    delete_rule,
     duplicate_groups,
     get_document,
     get_setting,
@@ -41,6 +42,7 @@ from .db import (
     search_documents,
     set_setting,
     update_document_fields,
+    update_rule,
     upsert_document,
 )
 from .diffing import compare_documents
@@ -339,6 +341,7 @@ def _analyze_and_index(path: Path, *, profile: str = "Home") -> dict[str, Any]:
     data = analysis.model_dump(mode="json")
     data["id"] = doc_id
     data["profile"] = ruled["profile"] or profile
+    data["matched_rules"] = ruled.get("matched_rules", [])
     return data
 
 
@@ -741,6 +744,22 @@ def rules_add(payload: dict = Body(...)):
     rule_id = add_rule(settings, payload)
     audit(settings, "rule-added", {"id": rule_id, **payload})
     return {"id": rule_id}
+
+
+@app.patch("/api/rules/{rule_id}")
+def rules_update(rule_id: int, payload: dict = Body(...)):
+    if not update_rule(settings, rule_id, payload):
+        raise HTTPException(404, "Rule not found")
+    audit(settings, "rule-updated", {"id": rule_id, **payload})
+    return next(rule for rule in list_rules(settings) if int(rule["id"]) == rule_id)
+
+
+@app.delete("/api/rules/{rule_id}")
+def rules_delete(rule_id: int):
+    if not delete_rule(settings, rule_id):
+        raise HTTPException(404, "Rule not found")
+    audit(settings, "rule-deleted", {"id": rule_id})
+    return {"deleted": rule_id}
 
 
 @app.get("/api/custom-types")
