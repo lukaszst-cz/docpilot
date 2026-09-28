@@ -32,6 +32,28 @@ def test_first_start_records_version_without_creating_upgrade_checkpoint(tmp_pat
     assert not recovery_dir.exists() or list(recovery_dir.glob("*.sqlite3")) == []
 
 
+def test_existing_pre_marker_installation_gets_checkpoint_on_first_tracked_start(tmp_path):
+    settings = get_settings(tmp_path / "DocPilotData")
+    init_db(settings)
+    set_setting(settings, "existing-user-setting", "keep-me")
+
+    result = ensure_version_recovery(settings, "4.0.0")
+
+    assert result["status"] == "checkpointed"
+    assert result["previous_version"] == "legacy/unknown"
+    assert result["current_version"] == "4.0.0"
+    assert result["checkpoint"]
+    assert get_setting(settings, LAST_STARTED_VERSION_KEY) == "4.0.0"
+
+    checkpoint_path = settings.state / "recovery" / result["checkpoint"]
+    assert checkpoint_path.exists()
+    with sqlite3.connect(checkpoint_path) as checkpoint:
+        assert checkpoint.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+        assert checkpoint.execute(
+            "SELECT value FROM settings WHERE key='existing-user-setting'"
+        ).fetchone()[0] == "keep-me"
+
+
 def test_version_change_creates_one_verified_checkpoint_and_is_idempotent(tmp_path):
     settings = get_settings(tmp_path / "DocPilotData")
     db_path = init_db(settings)
