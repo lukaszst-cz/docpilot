@@ -630,11 +630,15 @@ def cases():
             for d in items
             if (value := ((d.get("metadata") or {}).get("deadline") or (d.get("metadata") or {}).get("warranty_until")))
         )
+        today_iso = date.today().isoformat()
+        upcoming_deadlines = [value for value in deadlines if value >= today_iso]
+        overdue_deadlines = [value for value in deadlines if value < today_iso]
         out.append({
             "name": name,
             "document_count": len(items),
             "open_actions": sum(1 for d in items if d.get("action_required")),
-            "next_deadline": deadlines[0] if deadlines else None,
+            "next_deadline": upcoming_deadlines[0] if upcoming_deadlines else None,
+            "overdue_deadlines": len(overdue_deadlines),
             "profiles": sorted({d.get("profile") or "Home" for d in items}),
             "documents": items,
             "timeline": [
