@@ -130,13 +130,55 @@ function go(name,{focus=true}={}){
   if(name==='duplicates')runLoad(loadDuplicates);
   if(name==='cases')runLoad(loadCases);
   if(name==='automation'){runLoad(loadRules);runLoad(loadTypes);runLoad(loadWatch)}
-  if(name==='settings'){runLoad(loadIntegrationStatus);runLoad(loadIntegrationHistory);runLoad(loadNotificationStatus);runLoad(loadDiagnostics);runLoad(loadRecoveryPoints)}
+  if(name==='settings'){runLoad(loadIntegrationStatus);runLoad(loadIntegrationHistory);runLoad(loadNotificationStatus);runLoad(loadDiagnostics);runLoad(loadRecoveryPoints);runLoad(loadRuntimeStatus)}
 }
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('#installPwaBtn').classList.remove('hidden')});
 async function installPwa(){if(!deferredInstallPrompt){showAppNotice('Use your browser menu and choose Install app / Install DocPilot if the install option is available.','ok');return}deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;}
 $('#installPwaBtn').addEventListener('click',installPwa);$('#installPwaBtn2').addEventListener('click',installPwa);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
+
+function clientRuntimeMode(){
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('client')==='desktop')return 'Desktop';
+  if(window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true)return 'Installed PWA';
+  return 'Browser';
+}
+
+async function serviceWorkerShellInfo(){
+  if(!('serviceWorker' in navigator))return {supported:false,version:null,cache:null};
+  try{
+    const registration=await navigator.serviceWorker.ready;
+    const worker=registration.active||registration.waiting||registration.installing;
+    if(!worker)return {supported:true,version:null,cache:null};
+    return await new Promise(resolve=>{
+      const channel=new MessageChannel();
+      const timer=setTimeout(()=>resolve({supported:true,version:null,cache:null}),1200);
+      channel.port1.onmessage=event=>{
+        clearTimeout(timer);
+        resolve({supported:true,version:event.data?.version||null,cache:event.data?.cache||null});
+      };
+      worker.postMessage({type:'DOC_PILOT_VERSION'},[channel.port2]);
+    });
+  }catch{
+    return {supported:true,version:null,cache:null};
+  }
+}
+
+async function loadRuntimeStatus(){
+  const target=$('#runtimeStatus');
+  if(!target)return;
+  target.textContent='Checking runtime…';
+  try{
+    const [health,shell]=await Promise.all([api('/api/health'),serviceWorkerShellInfo()]);
+    const mode=clientRuntimeMode();
+    const shellVersion=shell.version||'unavailable';
+    const mismatch=Boolean(shell.version&&shell.version!==health.version);
+    target.innerHTML=`<div class="diagGrid"><span><b>Client</b> ${esc(mode)}</span><span><b>Backend</b> v${esc(health.version)}</span><span><b>PWA shell</b> ${esc(shellVersion)}</span><span><b>Service worker</b> ${shell.supported?'supported':'not supported'}</span></div>${mismatch?'<p class="dangerText"><strong>Version mismatch:</strong> the cached PWA shell does not match the local backend. Close other DocPilot windows, reload the app and let the service worker update before continuing.</p>':'<p class="muted">Desktop, browser and installed PWA use the same local backend. The backend must be running for document operations.</p>'}`;
+  }catch(e){
+    target.innerHTML=`<p class="dangerText">Local backend unavailable: ${esc(e.message)}</p><p class="muted">Start DocPilot on this PC, then reload the browser or PWA window.</p>`;
+  }
+}
 
 async function api(url,opts={}){const r=await fetch(url,{cache:'no-store',...opts});if(!r.ok){let detail='';try{const j=await r.json();detail=j.detail||''}catch{}const err=new Error(friendlyApiMessage(r.status,detail));err.status=r.status;throw err}return r.headers.get('content-type')?.includes('application/json')?r.json():r.text()}
 

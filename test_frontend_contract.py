@@ -176,3 +176,28 @@ def test_recovery_restore_requires_typed_confirmation_in_ui():
     assert "if(typed!=='RESTORE')return;" in script
     assert "/api/recovery/restore" in script
     assert "confirm:'RESTORE'" in script
+
+
+def test_runtime_status_distinguishes_desktop_pwa_and_browser():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="runtimeStatus"' in html
+    assert "function clientRuntimeMode()" in script
+    assert "params.get('client')==='desktop'" in script
+    assert "(display-mode: standalone)" in script
+    assert "Installed PWA" in script
+    assert "return 'Browser'" in script
+    assert "/api/health" in script
+    assert "serviceWorkerShellInfo" in script
+    assert "Version mismatch:" in script
+
+
+def test_pwa_shell_requests_service_worker_version():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+    worker = (ROOT / "service-worker.js").read_text(encoding="utf-8")
+
+    assert "DOC_PILOT_VERSION" in script
+    assert "new MessageChannel()" in script
+    assert "DOC_PILOT_VERSION" in worker
+    assert "postMessage({version:VERSION,cache:CACHE})" in worker
