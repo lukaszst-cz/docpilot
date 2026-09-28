@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
 from docpilot.config import get_settings
-from docpilot.db import connect
+from docpilot.db import connect, duplicate_groups, list_documents
 
 
 def _seed_archive(settings, count: int = 1200) -> None:
@@ -98,3 +98,26 @@ def test_large_archive_document_page_filters_in_sql(monkeypatch, tmp_path):
     assert case.status_code == 200
     assert case.json()["total"] == 100
     assert all(item["case_name"] == "Case-03" for item in case.json()["items"])
+
+
+def test_large_archive_schema_indexes_document_ordering(tmp_path):
+    settings = get_settings(tmp_path / "DocPilotData")
+    with connect(settings) as conn:
+        indexes = {row[1] for row in conn.execute("PRAGMA index_list('documents')").fetchall()}
+    assert "idx_documents_updated" in indexes
+
+
+def test_duplicate_groups_can_reuse_already_loaded_documents(tmp_path, monkeypatch):
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=40)
+    docs = list_documents(settings, limit=40)
+
+    import docpilot.db as db_module
+
+    def unexpected_reload(*args, **kwargs):
+        raise AssertionError("duplicate_groups reloaded the document list")
+
+    monkeypatch.setattr(db_module, "list_documents", unexpected_reload)
+    groups = duplicate_groups(settings, docs)
+
+    assert isinstance(groups, list)
