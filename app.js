@@ -130,7 +130,7 @@ function go(name,{focus=true}={}){
   if(name==='duplicates')runLoad(loadDuplicates);
   if(name==='cases')runLoad(loadCases);
   if(name==='automation'){runLoad(loadRules);runLoad(loadTypes);runLoad(loadWatch)}
-  if(name==='settings'){runLoad(loadIntegrationStatus);runLoad(loadNotificationStatus);runLoad(loadDiagnostics)}
+  if(name==='settings'){runLoad(loadIntegrationStatus);runLoad(loadIntegrationHistory);runLoad(loadNotificationStatus);runLoad(loadDiagnostics)}
 }
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('#installPwaBtn').classList.remove('hidden')});
@@ -502,6 +502,37 @@ async function loadNotificationStatus(){
 $('#notifyEnableBtn')?.addEventListener('click',async()=>{try{const days=Number($('#notifyDays').value||3);const r=await api('/api/notifications/enable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({days_ahead:days})});await loadNotificationStatus();showAppNotice(`Background notifications enabled. Test notifications shown: ${r.test_notifications}.`,'ok');}catch(e){showAppNotice(e.message)}});
 $('#notifyDisableBtn')?.addEventListener('click',async()=>{try{await api('/api/notifications/disable',{method:'POST'});loadNotificationStatus()}catch(e){showAppNotice(e.message)}});
 
+function integrationScope(){
+  return {
+    profile:$('#integrationScopeProfile')?.value||'',
+    case_name:$('#integrationScopeCase')?.value.trim()||'',
+    action_required:$('#integrationScopeAction')?.value||'',
+    category:$('#integrationScopeCategory')?.value.trim()||'',
+    limit:Math.max(1,Math.min(Number($('#integrationScopeLimit')?.value||100),500))
+  };
+}
+
+async function loadIntegrationHistory(){
+  const target=$('#integrationHistory');
+  if(!target)return;
+  try{
+    const runs=await api('/api/integrations/history?limit=20');
+    if(!runs.length){target.innerHTML='<p class="muted">No integration runs yet.</p>';return}
+    target.innerHTML=runs.map(run=>{
+      const scope=run.scope||{};
+      const parts=[];
+      if(scope.profile)parts.push('profile: '+scope.profile);
+      if(scope.case_name)parts.push('case: '+scope.case_name);
+      if(scope.action_required)parts.push('action: '+scope.action_required);
+      if(scope.category)parts.push('category: '+scope.category);
+      if(scope.calendar_id)parts.push('calendar: '+scope.calendar_id);
+      if(scope.unread_only!==undefined)parts.push(scope.unread_only?'unread only':'all messages');
+      const errors=(run.errors||[]).slice(0,2);
+      const badge=run.status==='success'?'':(run.status==='partial'?'warn':'red');
+      return '<div class="listItem"><div class="listItemHead"><strong>'+esc(run.provider)+' · '+esc(run.operation)+'</strong><span class="badge '+badge+'">'+esc(run.status)+'</span></div><div class="meta"><span>'+esc(run.started_at||'')+'</span><span>'+run.attempted+' attempted</span><span>'+run.succeeded+' succeeded</span><span>'+run.skipped+' skipped</span><span>'+run.failed+' failed</span></div><div class="muted">'+esc(parts.join(' · ')||'all eligible records')+'</div>'+(errors.length?'<div class="reviewReason">'+esc(errors.join(' · '))+'</div>':'')+'</div>';
+    }).join('');
+  }catch(e){target.innerHTML='<p class="muted">'+esc(e.message)+'</p>'}
+}
 async function loadIntegrationStatus(){
   try{const r=await api('/api/integrations/status');
     $('#emailConnectorStatus').textContent=r.email.configured?`${r.email.provider}: ${r.email.email} · ${r.email.secret_available?'credential stored':'credential missing'}`:'Not configured.';
