@@ -7,6 +7,7 @@ from typing import Any
 
 
 CURRENT_SCHEMA_VERSION = 1
+MAX_RECOVERY_CHECKPOINTS = 5
 
 
 def schema_version(conn: sqlite3.Connection) -> int:
@@ -84,3 +85,73 @@ def database_health(path: Path) -> dict[str, Any]:
         "journal_mode": journal_mode,
         "migration_backups": backups,
     }
+
+
+def _checkpoint_metadata(path: Path, kind: str) -> dict[str, Any]:
+    with sqlite3.connect(path) as conn:
+        integrity_row = conn.execute("PRAGMA quick_check").fetchone()
+        integrity = str(integrity_row[0] if integrity_row else "unknown")
+        version = schema_version(conn)
+    stat = path.stat()
+    return {
+        "name": path.name,
+        "kind": kind,
+        "size_bytes": stat.st_size,
+        "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+        "schema_version": version,
+        "integrity": integrity,
+    }
+
+
+def list_recovery_points(state_dir: Path) -> list[dict[str, Any]]:
+    points: list[dict[str, Any]] = []
+    for kind, folder_name in (("checkpoint", "recovery"), ("migration", "migration-backups")):
+        folder = state_dir / folder_name
+        if not folder.exists():
+            continue
+        for path in folder.glob("*.sqlite3"):
+            try:
+                points.append(_checkpoint_metadata(path, kind))
+            except sqlite3.DatabaseError:
+                stat = path.stat()
+                points.append({
+                    "name": path.name,
+                    "kind": kind,
+                    "size_bytes": stat.st_size,
+                    "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                    "schema_version": None,
+                    "integrity": "unreadable",
+                })
+    return sorted(points, key=lambda item: item["modified_at"], reverse=True)
+
+
+def create_database_checkpoint(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(path)
+
+    current = database_health(path)
+    if current["integrity"].lower() != "ok":
+        raise RuntimeError("Database integrity check failed; recovery checkpoint was not created.")
+
+    recovery_dir = path.parent / "recovery"
+    recovery_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    checkpoint = recovery_dir / f"docpilot-checkpoint-{stamp}.sqlite3"
+
+    with sqlite3.connect(path) as source, sqlite3.connect(checkpoint) as destination:
+        source.backup(destination)
+
+    created = _checkpoint_metadata(checkpoint, "checkpoint")
+    if created["integrity"].lower() != "ok":
+        checkpoint.unlink(missing_ok=True)
+        raise RuntimeError("Recovery checkpoint verification failed.")
+
+    old = sorted(
+        recovery_dir.glob("docpilot-checkpoint-*.sqlite3"),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+    for stale in old[MAX_RECOVERY_CHECKPOINTS:]:
+        stale.unlink(missing_ok=True)
+
+    return created

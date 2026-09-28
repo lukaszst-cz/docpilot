@@ -130,7 +130,7 @@ function go(name,{focus=true}={}){
   if(name==='duplicates')runLoad(loadDuplicates);
   if(name==='cases')runLoad(loadCases);
   if(name==='automation'){runLoad(loadRules);runLoad(loadTypes);runLoad(loadWatch)}
-  if(name==='settings'){runLoad(loadIntegrationStatus);runLoad(loadIntegrationHistory);runLoad(loadNotificationStatus);runLoad(loadDiagnostics)}
+  if(name==='settings'){runLoad(loadIntegrationStatus);runLoad(loadIntegrationHistory);runLoad(loadNotificationStatus);runLoad(loadDiagnostics);runLoad(loadRecoveryPoints)}
 }
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('#installPwaBtn').classList.remove('hidden')});
@@ -487,13 +487,35 @@ async function loadDiagnostics(){
   try{
     const d=await api('/api/diagnostics');
     diagnosticsCache=d;
-    out.innerHTML=`<div class="diagGrid"><span><b>Version</b> ${esc(d.version)}</span><span><b>Mode</b> ${d.packaged?'installed/portable':'source'}</span><span><b>Documents</b> ${d.documents}</span><span><b>Database</b> ${esc(d.database)}</span><span><b>Free space</b> ${d.free_space_gb} GB</span><span><b>Data folder</b> ${esc(d.data_root)}</span></div>`;
+    out.innerHTML=`<div class="diagGrid"><span><b>Version</b> ${esc(d.version)}</span><span><b>Mode</b> ${d.packaged?'installed/portable':'source'}</span><span><b>Documents</b> ${d.documents}</span><span><b>Database</b> ${esc(d.database)} · integrity ${esc(d.database_integrity||'unknown')}</span><span><b>Schema</b> v${d.schema_version} / supported v${d.supported_schema_version}</span><span><b>Migration backups</b> ${d.migration_backups}</span><span><b>Free space</b> ${d.free_space_gb} GB</span><span><b>Data folder</b> ${esc(d.data_root)}</span></div>`;
   }catch(e){out.textContent=e.message}
 }
 $('#diagRefreshBtn')?.addEventListener('click',loadDiagnostics);
 $('#openDataBtn')?.addEventListener('click',async()=>{try{const d=diagnosticsCache||await api('/api/diagnostics');await reveal(d.data_root)}catch(e){showAppNotice(e.message)}});
 $('#openLogBtn')?.addEventListener('click',async()=>{try{const d=diagnosticsCache||await api('/api/diagnostics');await reveal(d.log_path)}catch(e){showAppNotice(e.message)}});
 $('#copyDiagBtn')?.addEventListener('click',async()=>{try{const d=diagnosticsCache||await api('/api/diagnostics');await navigator.clipboard.writeText(JSON.stringify(d.safe_report,null,2));showAppNotice('Safe diagnostic report copied. It does not include document contents or local paths.','ok')}catch(e){showAppNotice(e.message)}});
+
+async function loadRecoveryPoints(){
+  const target=$('#recoveryList');
+  if(!target)return;
+  target.textContent='Loading recovery points…';
+  try{
+    const points=await api('/api/recovery');
+    target.innerHTML=points.length?points.map(point=>`<div class="listItem"><div class="listItemHead"><strong>${esc(point.kind==='checkpoint'?'Recovery checkpoint':'Migration backup')}</strong><span class="badge ${point.integrity==='ok'?'':'red'}">${esc(point.integrity)}</span></div><div class="meta"><span>${esc(point.name)}</span><span>schema v${point.schema_version??'?'}</span><span>${Math.max(1,Math.round((point.size_bytes||0)/1024))} KB</span><span>${esc(point.modified_at)}</span></div></div>`).join(''):'<p class="muted">No recovery points yet.</p>';
+  }catch(e){target.textContent=e.message}
+}
+$('#recoveryRefreshBtn')?.addEventListener('click',()=>runLoad(loadRecoveryPoints));
+$('#recoveryCheckpointBtn')?.addEventListener('click',async()=>{
+  const button=$('#recoveryCheckpointBtn');
+  button.disabled=true;
+  try{
+    const point=await api('/api/recovery/checkpoint',{method:'POST'});
+    showAppNotice(`Recovery checkpoint created: ${point.name}`,'ok');
+    await loadRecoveryPoints();
+    await loadDiagnostics();
+  }catch(e){showAppNotice(e.message)}
+  finally{button.disabled=false}
+});
 
 
 async function loadNotificationStatus(){

@@ -5,6 +5,7 @@ import logging
 import os
 import platform
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -55,7 +56,7 @@ from .db import (
     update_rule,
     upsert_document,
 )
-from .db_maintenance import database_health
+from .db_maintenance import create_database_checkpoint, database_health, list_recovery_points
 from .diffing import compare_documents
 from .exporters import backup_zip, full_archive_backup, ics_for_documents, notion_csv, obsidian_zip
 from .semantic import semantic_rank
@@ -189,6 +190,24 @@ def diagnostics():
         "log_path": str(LOG_PATH),
         "safe_report": safe_report,
     }
+
+
+@app.get("/api/recovery")
+def recovery_points():
+    return list_recovery_points(settings.state)
+
+
+@app.post("/api/recovery/checkpoint")
+def recovery_checkpoint():
+    db_path = settings.state / "docpilot.sqlite3"
+    try:
+        checkpoint = create_database_checkpoint(db_path)
+    except FileNotFoundError:
+        raise HTTPException(404, "Database not found")
+    except (RuntimeError, sqlite3.DatabaseError) as exc:
+        raise HTTPException(409, str(exc))
+    audit(settings, "recovery-checkpoint", {"name": checkpoint["name"]})
+    return checkpoint
 
 
 def _ocr_runtime_status() -> dict[str, Any]:
