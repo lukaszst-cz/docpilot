@@ -597,6 +597,25 @@ def search_documents(settings: Settings, terms: list[str], limit: int = 50) -> l
     return [row_to_document(r) for r in rows]
 
 
+def semantic_candidate_documents(
+    settings: Settings,
+    query: str,
+    *,
+    limit: int = 750,
+    fallback_limit: int = 500,
+) -> list[dict[str, Any]]:
+    from .semantic import candidate_terms
+
+    safe_limit = min(max(int(limit), 50), 1000)
+    terms = candidate_terms(query)
+    if terms:
+        candidates = search_documents(settings, terms, limit=safe_limit)
+        if candidates:
+            return candidates
+
+    return list_documents(settings, limit=min(max(int(fallback_limit), 50), safe_limit))
+
+
 def list_audit(settings: Settings, limit: int = 200) -> list[dict[str, Any]]:
     with connect(settings) as conn:
         rows = conn.execute("SELECT * FROM audit ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
