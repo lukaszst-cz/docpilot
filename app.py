@@ -170,6 +170,29 @@ def diagnostics():
     db_path = settings.state / "docpilot.sqlite3"
     summary = dashboard_summary(settings)
     db_health = database_health(db_path)
+    recovery_points = list_recovery_points(settings.state)
+    usable_recovery = [
+        point
+        for point in recovery_points
+        if point.get("integrity") == "ok"
+        and int(point.get("schema_version") or 0) <= int(db_health["supported_schema_version"])
+    ]
+    latest_recovery = usable_recovery[0] if usable_recovery else None
+
+    if db_health["integrity"] != "ok":
+        recovery_status = "needs-attention"
+        recovery_message = (
+            "Database integrity needs attention. Restore from a verified recovery point if normal use is affected."
+            if usable_recovery
+            else "Database integrity needs attention and no verified recovery point is available."
+        )
+    elif not usable_recovery:
+        recovery_status = "checkpoint-recommended"
+        recovery_message = "Database is healthy. Create a recovery checkpoint before major maintenance or updates."
+    else:
+        recovery_status = "ready"
+        recovery_message = "Database is healthy and a verified recovery point is available."
+
     safe_report = {
         "version": __version__,
         "packaged": bool(getattr(sys, "frozen", False)),
@@ -181,6 +204,11 @@ def diagnostics():
         "schema_version": db_health["schema_version"],
         "supported_schema_version": db_health["supported_schema_version"],
         "migration_backups": db_health["migration_backups"],
+        "recovery_points": len(recovery_points),
+        "verified_recovery_points": len(usable_recovery),
+        "recovery_status": recovery_status,
+        "recovery_message": recovery_message,
+        "latest_recovery_point": latest_recovery["modified_at"] if latest_recovery else None,
         "free_space_gb": round(usage.free / (1024 ** 3), 2),
         "max_upload_mb": settings.max_upload_mb,
     }
