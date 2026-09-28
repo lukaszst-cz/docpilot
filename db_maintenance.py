@@ -61,6 +61,9 @@ def migrate_database(
 
 
 def database_health(path: Path) -> dict[str, Any]:
+    backup_dir = path.parent / "migration-backups"
+    backups = len(list(backup_dir.glob("*.sqlite3"))) if backup_dir.exists() else 0
+
     if not path.exists():
         return {
             "status": "missing",
@@ -69,18 +72,27 @@ def database_health(path: Path) -> dict[str, Any]:
             "supported_schema_version": CURRENT_SCHEMA_VERSION,
             "size_bytes": 0,
             "journal_mode": None,
-            "migration_backups": 0,
+            "migration_backups": backups,
         }
 
-    with closing(sqlite3.connect(path)) as conn:
-        integrity_row = conn.execute("PRAGMA quick_check").fetchone()
-        integrity = str(integrity_row[0] if integrity_row else "unknown")
-        version = schema_version(conn)
-        journal_row = conn.execute("PRAGMA journal_mode").fetchone()
-        journal_mode = str(journal_row[0] if journal_row else "") or None
+    try:
+        with closing(sqlite3.connect(path)) as conn:
+            integrity_row = conn.execute("PRAGMA quick_check").fetchone()
+            integrity = str(integrity_row[0] if integrity_row else "unknown")
+            version = schema_version(conn)
+            journal_row = conn.execute("PRAGMA journal_mode").fetchone()
+            journal_mode = str(journal_row[0] if journal_row else "") or None
+    except sqlite3.DatabaseError:
+        return {
+            "status": "attention",
+            "integrity": "unreadable",
+            "schema_version": None,
+            "supported_schema_version": CURRENT_SCHEMA_VERSION,
+            "size_bytes": path.stat().st_size,
+            "journal_mode": None,
+            "migration_backups": backups,
+        }
 
-    backup_dir = path.parent / "migration-backups"
-    backups = len(list(backup_dir.glob("*.sqlite3"))) if backup_dir.exists() else 0
     supported = version <= CURRENT_SCHEMA_VERSION and integrity.lower() == "ok"
     return {
         "status": "ok" if supported else "attention",
