@@ -42,6 +42,7 @@ from .db import (
     get_setting,
     init_db,
     list_audit,
+    list_case_documents,
     list_custom_types,
     list_document_page,
     list_documents,
@@ -766,7 +767,7 @@ def compare_duplicate_documents(payload: dict = Body(...)):
 
 @app.get("/api/cases")
 def cases():
-    docs = list_documents(settings, limit=5000)
+    docs = list_case_documents(settings, limit=5000)
     groups: dict[str, list[dict]] = {}
     for d in docs:
         case = d.get("case_name")
