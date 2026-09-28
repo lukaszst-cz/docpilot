@@ -584,14 +584,27 @@ def update_documents_fields(settings: Settings, doc_ids: list[int], **fields: An
 def search_documents(settings: Settings, terms: list[str], limit: int = 50) -> list[dict[str, Any]]:
     if not terms:
         return list_documents(settings, limit)
-    clauses = []
-    params: list[Any] = []
+
+    clauses: list[str] = []
+    where_params: list[Any] = []
+    score_params: list[Any] = []
     for term in terms:
-        clauses.append("(lower(source_name) LIKE ? OR lower(extracted_text) LIKE ? OR lower(metadata_json) LIKE ? OR lower(tags_json) LIKE ? OR lower(case_name) LIKE ?)")
+        clause = (
+            "(lower(source_name) LIKE ? OR lower(extracted_text) LIKE ? OR lower(metadata_json) LIKE ? "
+            "OR lower(tags_json) LIKE ? OR lower(case_name) LIKE ?)"
+        )
+        clauses.append(clause)
         pattern = f"%{term.lower()}%"
-        params.extend([pattern] * 5)
-    sql = "SELECT * FROM documents WHERE " + " OR ".join(clauses) + " ORDER BY updated_at DESC LIMIT ?"
-    params.append(limit)
+        where_params.extend([pattern] * 5)
+        score_params.extend([pattern] * 5)
+
+    score = " + ".join(f"CASE WHEN {clause} THEN 1 ELSE 0 END" for clause in clauses)
+    sql = (
+        "SELECT * FROM documents WHERE "
+        + " OR ".join(clauses)
+        + f" ORDER BY ({score}) DESC, updated_at DESC LIMIT ?"
+    )
+    params = [*where_params, *score_params, limit]
     with connect(settings) as conn:
         rows = conn.execute(sql, params).fetchall()
     return [row_to_document(r) for r in rows]
