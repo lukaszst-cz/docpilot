@@ -14,7 +14,6 @@ def test_dynamic_collections_use_query_selector_all():
     assert "$$('.ruleEdit').forEach" in script
     assert "$$('.navBtn').forEach" in script
     assert "const items=$$('.navBtn');" in script
-    assert "const items=$('.navBtn');" in script
 
 
 def test_core_navigation_exposes_accessibility_hooks():
