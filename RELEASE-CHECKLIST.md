@@ -15,6 +15,8 @@ Ta lista opisuje warunki, które trzeba zamknąć przed oznaczeniem DocPilot 1.0
 - [x] upgrade smoke test z publicznego v0.5.1 bez utraty danych
 - [x] SHA-256 dla instalatora i Portable ZIP
 
+Automatyczne bramki zostały potwierdzone przez GitHub Actions na `main` po scaleniu rozszerzonej macierzy testów przed 1.0.
+
 ## Typowe dokumenty
 
 Każdy przypadek sprawdzamy na kopii testowej, bez prywatnych danych.
