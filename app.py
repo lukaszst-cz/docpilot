@@ -34,6 +34,7 @@ from .db import (
     dashboard_summary,
     delete_document_by_path,
     delete_rule,
+    duplicate_display_groups,
     duplicate_group_count,
     duplicate_groups,
     review_candidate_documents,
@@ -726,7 +727,7 @@ def review_queue():
 
 @app.get("/api/duplicates")
 def duplicates():
-    return duplicate_groups(settings)
+    return duplicate_display_groups(settings)
 
 
 @app.post("/api/duplicates/compare")
