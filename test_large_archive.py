@@ -319,3 +319,36 @@ def test_duplicate_display_groups_chunks_large_exact_groups(tmp_path):
     assert groups[0]["kind"] == "exact"
     assert len(groups[0]["documents"]) == 1200
     assert all("extracted_text" not in item for item in groups[0]["documents"])
+
+
+def test_large_archive_cases_use_lightweight_rows(monkeypatch, tmp_path):
+    import docpilot.app as app_module
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=1200)
+    monkeypatch.setattr(app_module, "settings", settings)
+
+    def unexpected_full_load(*args, **kwargs):
+        raise AssertionError("Cases loaded full document rows")
+
+    monkeypatch.setattr(app_module, "list_documents", unexpected_full_load)
+    client = TestClient(app_module.app)
+
+    response = client.get("/api/cases")
+    assert response.status_code == 200
+    cases = response.json()
+
+    assert len(cases) == 12
+    assert sum(case["document_count"] for case in cases) == 1200
+    assert all(len(case["timeline"]) == 100 for case in cases)
+    assert all(len(case["documents"]) == 100 for case in cases)
+    assert all(
+        "extracted_text" not in document
+        for case in cases
+        for document in case["documents"]
+    )
+    assert all(
+        {"id", "path", "source_name", "metadata", "category", "profile", "case_name", "action_required"}.issubset(document)
+        for case in cases
+        for document in case["documents"]
+    )
