@@ -59,9 +59,9 @@ from .review import build_review_queue
 from .preprocess import save_clean_copy
 from .portable_config import export_portable_config, import_portable_config, preview_portable_config
 from .integrations import (
-    configure_google_calendar, configure_imap, configure_notion, google_calendar_status,
-    imap_status, import_imap_attachments, notion_status, sync_google_calendar, sync_notion,
+    configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
+from .integration_registry import get_integration_adapter, integration_catalog
 from .notifier import install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest
 from .redaction import redact_file
@@ -1017,6 +1017,9 @@ def _integration_scope(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _integration_documents(payload: dict[str, Any], *, provider: str) -> tuple[list[dict[str, Any]], dict[str, Any], int]:
+    adapter = get_integration_adapter(provider)
+    if not adapter or not adapter.supports_document_sync:
+        raise HTTPException(400, f"Integration does not support document sync: {provider}")
     scope = _integration_scope(payload)
     documents, matched_total = list_documents_for_integration(
         settings,
@@ -1026,18 +1029,11 @@ def _integration_documents(payload: dict[str, Any], *, provider: str) -> tuple[l
         action_required=scope["action_required"],
         category=scope["category"],
     )
-    if provider == "google_calendar":
-        documents = [
-            document
-            for document in documents
-            if (document.get("metadata") or {}).get("deadline")
-            or (document.get("metadata") or {}).get("warranty_until")
-        ]
-    return documents, scope, matched_total
+    return adapter.eligible_documents(documents), scope, matched_total
 
 
 def _integration_status():
-    return {"email": imap_status(settings), "notion": notion_status(settings), "google_calendar": google_calendar_status(settings)}
+    return {item["key"]: item["status"] for item in integration_catalog(settings)}
 
 
 @app.get("/api/integrations/status")
@@ -1045,11 +1041,14 @@ def integrations_status():
     return _integration_status()
 
 
+@app.get("/api/integrations/catalog")
+def integrations_catalog():
+    return integration_catalog(settings)
+
+
 @app.post("/api/integrations/preview")
 def integrations_preview(payload: dict = Body(default={})):
     provider = str(payload.get("provider") or "notion").strip()
-    if provider not in {"notion", "google_calendar"}:
-        raise HTTPException(400, "provider must be notion or google_calendar")
     documents, scope, matched_total = _integration_documents(payload, provider=provider)
     return {
         "provider": provider,
@@ -1142,7 +1141,10 @@ def integration_notion_sync(payload: dict = Body(default={})):
     documents, scope, matched_total = _integration_documents(payload, provider="notion")
     run_id = start_integration_run(settings, "notion", "sync", scope)
     try:
-        result = sync_notion(settings, documents, limit=len(documents) or 1)
+        adapter = get_integration_adapter("notion")
+        if not adapter:
+            raise RuntimeError("Notion adapter is not registered.")
+        result = adapter.sync_documents(settings, documents, {"limit": len(documents) or 1})
         errors = list(result.get("errors") or [])
         synced = int(result.get("synced") or 0)
         skipped = int(result.get("skipped") or 0)
@@ -1184,7 +1186,10 @@ def integration_google_sync(payload: dict = Body(default={})):
     run_scope = {**scope, "calendar_id": calendar_id}
     run_id = start_integration_run(settings, "google_calendar", "sync", run_scope)
     try:
-        result = sync_google_calendar(settings, documents, calendar_id=calendar_id)
+        adapter = get_integration_adapter("google_calendar")
+        if not adapter:
+            raise RuntimeError("Google Calendar adapter is not registered.")
+        result = adapter.sync_documents(settings, documents, {"calendar_id": calendar_id})
         errors = list(result.get("errors") or [])
         synced = int(result.get("synced") or 0)
         skipped = int(result.get("skipped") or 0)

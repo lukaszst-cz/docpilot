@@ -576,10 +576,18 @@ async function loadIntegrationHistory(){
   }catch(e){target.innerHTML='<p class="muted">'+esc(e.message)+'</p>'}
 }
 async function loadIntegrationStatus(){
-  try{const r=await api('/api/integrations/status');
+  try{
+    const [r,catalog]=await Promise.all([api('/api/integrations/status'),api('/api/integrations/catalog')]);
     $('#emailConnectorStatus').textContent=r.email.configured?`${r.email.provider}: ${r.email.email} · ${r.email.secret_available?'credential stored':'credential missing'}`:'Not configured.';
     $('#notionStatus').textContent=r.notion.configured?`Configured · database ${r.notion.database_id}`:'Not configured.';
     $('#googleStatus').textContent=r.google_calendar.configured?`OAuth client selected · ${r.google_calendar.authorized?'authorized':'authorization will open on first sync'}`:'Not configured.';
+    const select=$('#integrationPreviewProvider');
+    if(select){
+      const current=select.value;
+      const options=(catalog||[]).filter(item=>item.supports_scope&&item.supports_document_sync);
+      select.innerHTML=options.map(item=>`<option value="${esc(item.key)}">${esc(item.label)}</option>`).join('');
+      if(options.some(item=>item.key===current))select.value=current;
+    }
   }catch(e){console.warn(e)}
 }
 $('#integrationPreviewBtn')?.addEventListener('click',async()=>{

@@ -144,3 +144,11 @@ def test_ui_exposes_portable_config_export_preview_and_apply():
     assert "/api/config/import" in script
     assert "pendingPortableConfig" in script
     assert "Credentials and machine-specific paths will not be imported." in script
+
+
+def test_integration_preview_options_come_from_adapter_catalog():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert "/api/integrations/catalog" in script
+    assert "item.supports_scope&&item.supports_document_sync" in script
+    assert "integrationPreviewProvider" in script
