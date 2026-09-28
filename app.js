@@ -530,7 +530,12 @@ async function loadDiagnostics(){
     const d=await api('/api/diagnostics');
     diagnosticsCache=d;
     out.innerHTML=`<div class="diagGrid"><span><b>Version</b> ${esc(d.version)}</span><span><b>Mode</b> ${d.packaged?'installed/portable':'source'}</span><span><b>Documents</b> ${d.documents}</span><span><b>Database</b> ${esc(d.database)} · integrity ${esc(d.database_integrity||'unknown')}</span><span><b>Schema</b> v${d.schema_version} / supported v${d.supported_schema_version}</span><span><b>Migration backups</b> ${d.migration_backups}</span><span><b>Free space</b> ${d.free_space_gb} GB</span><span><b>Data folder</b> ${esc(d.data_root)}</span></div>`;
-  }catch(e){out.textContent=e.message}
+    const advice=$('#diagnosticsAdvice');
+    const assessment=d.assessment||{status:'ok',checks:[],recommendations:[]};
+    const badgeClass=assessment.status==='error'?'red':assessment.status==='warning'?'warn':'';
+    const label=assessment.status==='error'?'ACTION REQUIRED':assessment.status==='warning'?'CHECK RECOMMENDED':'HEALTHY';
+    advice.innerHTML=`<div class="listItem"><div class="listItemHead"><strong>Diagnostic status</strong><span class="badge ${badgeClass}">${label}</span></div>${(assessment.checks||[]).map(item=>`<div class="meta"><span>${esc(item.code)}</span><span>${esc(item.message)}</span></div>`).join('')}${(assessment.recommendations||[]).length?`<div class="reviewReason"><strong>Next steps</strong><ul>${assessment.recommendations.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></div>`:''}</div>`;
+  }catch(e){out.textContent=e.message;const advice=$('#diagnosticsAdvice');if(advice)advice.innerHTML=''}
 }
 $('#diagRefreshBtn')?.addEventListener('click',loadDiagnostics);
 $('#openDataBtn')?.addEventListener('click',async()=>{try{const d=diagnosticsCache||await api('/api/diagnostics');await reveal(d.data_root)}catch(e){showAppNotice(e.message)}});
