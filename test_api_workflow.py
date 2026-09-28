@@ -67,3 +67,36 @@ def test_import_apply_and_undo_keep_index_in_sync(monkeypatch, tmp_path):
     assert len(restored_docs) == 1
     assert Path(restored_docs[0]["path"]) == restored
     assert Path(restored_docs[0]["path"]).exists()
+
+
+def test_api_organize_uses_selected_profile_space(monkeypatch, tmp_path):
+    app_module = importlib.import_module("docpilot.app")
+    temp_settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", temp_settings)
+    client = TestClient(app_module.app)
+
+    analyzed = client.post(
+        "/api/analyze",
+        files={"upload": ("company.txt", b"Company contract document", "text/plain")},
+    )
+    assert analyzed.status_code == 200
+
+    applied = client.post(
+        "/api/apply",
+        json={
+            "source_path": analyzed.json()["source_path"],
+            "category": "Contracts",
+            "filename": "company-contract.txt",
+            "mode": "organize",
+            "profile": "Company",
+            "case_name": None,
+            "action_required": None,
+            "smart_structure": False,
+        },
+    )
+    assert applied.status_code == 200
+
+    destination = Path(applied.json()["destination"])
+    assert destination.parent == (
+        temp_settings.archive / "Profiles" / "Company" / "Contracts"
+    ).resolve()
