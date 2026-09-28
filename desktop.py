@@ -85,7 +85,7 @@ def main() -> None:
         return
     try:
         import webview
-        webview.create_window("DocPilot", "http://127.0.0.1:8765", width=1280, height=820, min_size=(900, 620))
+        webview.create_window("DocPilot", "http://127.0.0.1:8765/?client=desktop", width=1280, height=820, min_size=(900, 620))
         webview.start()
     except Exception:
         webbrowser.open("http://127.0.0.1:8765")
