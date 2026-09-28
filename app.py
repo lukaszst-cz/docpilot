@@ -118,9 +118,13 @@ async def lifespan(_app: FastAPI):
             )
     except Exception as exc:
         logger.exception("upgrade recovery checkpoint failed")
+        try:
+            previous_version = get_setting(settings, "last_started_version")
+        except Exception:
+            previous_version = None
         UPGRADE_RECOVERY_STATUS = {
             "status": "error",
-            "previous_version": get_setting(settings, "last_started_version"),
+            "previous_version": previous_version,
             "current_version": __version__,
             "checkpoint": None,
             "message": str(exc),
@@ -222,6 +226,30 @@ def _diagnostic_assessment(report: dict[str, Any]) -> dict[str, Any]:
         recommendations.append("Restart DocPilot so the guarded database migration can complete.")
     else:
         checks.append({"code": "schema", "status": "ok", "message": f"Schema compatibility is OK (v{schema} / v{supported})."})
+
+    upgrade_recovery = report.get("upgrade_recovery") or {}
+    upgrade_status = str(upgrade_recovery.get("status") or "not-run")
+    if upgrade_status == "error":
+        checks.append({
+            "code": "upgrade-recovery",
+            "status": "warning",
+            "message": "DocPilot could not create the automatic recovery checkpoint for this version change.",
+        })
+        recommendations.append(
+            "Create a verified Recovery checkpoint manually before large imports, maintenance or another update."
+        )
+    elif upgrade_status == "checkpointed":
+        checks.append({
+            "code": "upgrade-recovery",
+            "status": "ok",
+            "message": "A verified recovery checkpoint was created for the version change.",
+        })
+    elif upgrade_status in {"initialized", "current"}:
+        checks.append({
+            "code": "upgrade-recovery",
+            "status": "ok",
+            "message": "Version recovery state is current.",
+        })
 
     if free_space < 0.25:
         checks.append({"code": "disk", "status": "error", "message": f"Only {free_space:.2f} GB of free disk space remains."})
