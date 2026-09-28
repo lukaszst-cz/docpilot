@@ -78,6 +78,18 @@ CREATE TABLE IF NOT EXISTS integration_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_integration_runs_provider_started
     ON integration_runs(provider, started_at DESC);
+CREATE TABLE IF NOT EXISTS integration_links (
+    provider TEXT NOT NULL,
+    document_id INTEGER NOT NULL,
+    external_id TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    external_url TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(provider, document_id)
+);
+CREATE INDEX IF NOT EXISTS idx_integration_links_external
+    ON integration_links(provider, external_id);
 """
 
 
@@ -231,6 +243,75 @@ def list_documents_for_integration(
             (*params, safe_limit),
         ).fetchall()
     return [row_to_document(row) for row in rows], total
+
+
+def get_integration_link(settings: Settings, provider: str, document_id: int) -> dict[str, Any] | None:
+    with connect(settings) as conn:
+        row = conn.execute(
+            "SELECT * FROM integration_links WHERE provider=? AND document_id=?",
+            (provider, int(document_id)),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def upsert_integration_link(
+    settings: Settings,
+    *,
+    provider: str,
+    document_id: int,
+    external_id: str,
+    fingerprint: str,
+    external_url: str | None = None,
+) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat()
+    with connect(settings) as conn:
+        conn.execute(
+            """
+            INSERT INTO integration_links(
+                provider,document_id,external_id,fingerprint,external_url,created_at,updated_at
+            ) VALUES(?,?,?,?,?,?,?)
+            ON CONFLICT(provider,document_id) DO UPDATE SET
+                external_id=excluded.external_id,
+                fingerprint=excluded.fingerprint,
+                external_url=excluded.external_url,
+                updated_at=excluded.updated_at
+            """,
+            (provider, int(document_id), external_id, fingerprint, external_url, now, now),
+        )
+        row = conn.execute(
+            "SELECT * FROM integration_links WHERE provider=? AND document_id=?",
+            (provider, int(document_id)),
+        ).fetchone()
+    return dict(row)
+
+
+def delete_integration_link(settings: Settings, provider: str, document_id: int) -> None:
+    with connect(settings) as conn:
+        conn.execute(
+            "DELETE FROM integration_links WHERE provider=? AND document_id=?",
+            (provider, int(document_id)),
+        )
+
+
+def list_integration_links(
+    settings: Settings,
+    *,
+    provider: str = "",
+    limit: int = 500,
+) -> list[dict[str, Any]]:
+    safe_limit = min(max(int(limit), 1), 5000)
+    with connect(settings) as conn:
+        if provider.strip():
+            rows = conn.execute(
+                "SELECT * FROM integration_links WHERE provider=? ORDER BY updated_at DESC LIMIT ?",
+                (provider.strip(), safe_limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM integration_links ORDER BY updated_at DESC LIMIT ?",
+                (safe_limit,),
+            ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def upsert_document(
