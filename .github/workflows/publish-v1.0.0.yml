@@ -50,11 +50,14 @@ jobs:
           fi
 
       - name: Publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view v1.0.0 --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release upload v1.0.0               release-assets/DocPilot-Portable-Windows-x64.zip               release-assets/DocPilot-Setup-Windows-x64.exe               release-assets/SHA256SUMS.txt               --clobber               --repo "${{ github.repository }}"
-          else
-            gh release create v1.0.0               release-assets/DocPilot-Portable-Windows-x64.zip               release-assets/DocPilot-Setup-Windows-x64.exe               release-assets/SHA256SUMS.txt               --verify-tag               --title "DocPilot v1.0.0"               --generate-notes               --repo "${{ github.repository }}"
-          fi
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: DocPilot v1.0.0
+          prerelease: false
+          generate_release_notes: true
+          overwrite_files: true
+          files: |
+            release-assets/DocPilot-Portable-Windows-x64.zip
+            release-assets/DocPilot-Setup-Windows-x64.exe
+            release-assets/SHA256SUMS.txt
