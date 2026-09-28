@@ -121,3 +121,43 @@ def test_duplicate_groups_can_reuse_already_loaded_documents(tmp_path, monkeypat
     groups = duplicate_groups(settings, docs)
 
     assert isinstance(groups, list)
+
+
+def test_large_archive_dashboard_does_not_load_full_document_rows(monkeypatch, tmp_path):
+    import docpilot.app as app_module
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=1200)
+    monkeypatch.setattr(app_module, "settings", settings)
+
+    def unexpected_full_load(*args, **kwargs):
+        raise AssertionError("dashboard loaded full document rows")
+
+    monkeypatch.setattr(app_module, "list_documents", unexpected_full_load)
+    client = TestClient(app_module.app)
+
+    response = client.get("/api/dashboard")
+    assert response.status_code == 200
+    dashboard = response.json()
+
+    assert dashboard["documents"] == 1200
+    assert dashboard["actions"] == 0
+    assert dashboard["unhealthy"] == 0
+    assert dashboard["cases"] == 12
+    assert dashboard["profiles"] == ["Company", "Home"]
+    assert dashboard["deadline_count"] == 0
+    assert dashboard["deadlines"] == []
+
+
+def test_duplicate_group_count_uses_sql_for_exact_groups(tmp_path):
+    from docpilot.db import duplicate_group_count
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=30)
+
+    with connect(settings) as conn:
+        conn.execute("UPDATE documents SET simhash=NULL")
+        conn.execute("UPDATE documents SET sha256='same-a' WHERE id IN (1,2)")
+        conn.execute("UPDATE documents SET sha256='same-b' WHERE id IN (3,4,5)")
+
+    assert duplicate_group_count(settings) == 2
