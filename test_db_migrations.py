@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from docpilot.config import get_settings
 from docpilot.db import init_db
-from docpilot.db_maintenance import CURRENT_SCHEMA_VERSION, database_health
+from docpilot.db_maintenance import CURRENT_SCHEMA_VERSION, create_database_checkpoint, database_health
 
 
 LEGACY_SCHEMA = """
