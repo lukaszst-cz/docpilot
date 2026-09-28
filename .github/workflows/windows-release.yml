@@ -34,13 +34,15 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
 
       - name: Install Python dependencies
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           python -m pip install --upgrade pip
-          pip install -e '.[full,dev]'
-          pip install pyinstaller
+          python -m pip install --retries 8 --timeout 60 -e '.[full,dev]' pyinstaller
 
       - name: Install Tesseract OCR
         shell: pwsh
