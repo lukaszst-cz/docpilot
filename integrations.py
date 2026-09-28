@@ -170,11 +170,16 @@ def notion_status(settings) -> dict[str, Any]:
     return {"configured": bool(db and get_secret("notion-token")), "database_id": db}
 
 
-def sync_notion(settings, documents: list[dict[str, Any]], limit: int = 100) -> dict[str, Any]:
+def _notion_requests():
     try:
         import requests
+        return requests
     except ImportError as exc:
         raise RuntimeError("Notion sync requires the integrations dependency (requests).") from exc
+
+
+def sync_notion(settings, documents: list[dict[str, Any]], limit: int = 100) -> dict[str, Any]:
+    requests = _notion_requests()
 
     token = get_secret("notion-token")
     database_id = get_setting(settings, "notion_database_id")
@@ -279,7 +284,7 @@ def configure_google_calendar(settings, client_secret_path: str) -> dict[str, An
     return google_calendar_status(settings)
 
 
-def sync_google_calendar(settings, documents: list[dict[str, Any]], calendar_id: str = "primary") -> dict[str, Any]:
+def _google_calendar_service(settings):
     try:
         from google.auth.transport.requests import Request
         from google.oauth2.credentials import Credentials
@@ -305,8 +310,11 @@ def sync_google_calendar(settings, documents: list[dict[str, Any]], calendar_id:
             flow = InstalledAppFlow.from_client_secrets_file(str(client_path), scopes)
             creds = flow.run_local_server(port=0, open_browser=True)
         token_path.write_text(creds.to_json(), encoding="utf-8")
+    return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
-    service = build("calendar", "v3", credentials=creds, cache_discovery=False)
+
+def sync_google_calendar(settings, documents: list[dict[str, Any]], calendar_id: str = "primary") -> dict[str, Any]:
+    service = _google_calendar_service(settings)
     created = 0
     updated = 0
     skipped = 0
