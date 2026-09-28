@@ -176,3 +176,48 @@ def test_database_activation_stops_after_retry_limit(monkeypatch, tmp_path):
     assert attempts["count"] == 4
     assert source.exists()
     assert destination.read_bytes() == b"active"
+
+
+def test_healthy_database_activation_uses_sqlite_backup_not_file_replace(monkeypatch, tmp_path):
+    import docpilot.db_maintenance as maintenance
+
+    source = tmp_path / "verified.sqlite3"
+    destination = tmp_path / "active.sqlite3"
+
+    with sqlite3.connect(source) as conn:
+        conn.execute("CREATE TABLE marker(value TEXT)")
+        conn.execute("INSERT INTO marker(value) VALUES('restored')")
+    with sqlite3.connect(destination) as conn:
+        conn.execute("CREATE TABLE marker(value TEXT)")
+        conn.execute("INSERT INTO marker(value) VALUES('active')")
+
+    def unexpected_replace(*_args, **_kwargs):
+        raise AssertionError("healthy activation used os.replace")
+
+    monkeypatch.setattr(maintenance, "_replace_file_with_retry", unexpected_replace)
+
+    maintenance._activate_verified_database(source, destination, destination_integrity="ok")
+
+    with sqlite3.connect(destination) as conn:
+        assert conn.execute("SELECT value FROM marker").fetchone()[0] == "restored"
+    assert source.exists()
+
+
+def test_unreadable_database_activation_keeps_file_fallback(monkeypatch, tmp_path):
+    import docpilot.db_maintenance as maintenance
+
+    source = tmp_path / "verified.sqlite3"
+    destination = tmp_path / "active.sqlite3"
+    source.write_bytes(b"verified")
+    destination.write_bytes(b"unreadable")
+
+    calls = []
+
+    def fake_replace(src, dst, **_kwargs):
+        calls.append((src, dst))
+
+    monkeypatch.setattr(maintenance, "_replace_file_with_retry", fake_replace)
+
+    maintenance._activate_verified_database(source, destination, destination_integrity="unreadable")
+
+    assert calls == [(source, destination)]
