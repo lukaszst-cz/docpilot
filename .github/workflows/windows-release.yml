@@ -201,14 +201,10 @@ jobs:
         shell: pwsh
         run: |
           $version = (python -c "import docpilot; print(docpilot.__version__)").Trim()
+          $stable = (python -c "import re, docpilot; print('true' if re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', docpilot.__version__) else 'false')").Trim()
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "tag=v$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          if ($version -match '^\d+\.\d+\.\d+) {
-            "stable=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          } else {
-            "stable=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          }
-
+          "stable=$stable" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
       - name: Validate tagged release version
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
