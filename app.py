@@ -279,7 +279,13 @@ def _diagnostic_assessment(report: dict[str, Any]) -> dict[str, Any]:
     else:
         checks.append({"code": "database", "status": "ok", "message": "Database integrity is OK."})
 
-    if schema > supported:
+    if database_status != "missing" and integrity != "ok":
+        checks.append({
+            "code": "schema",
+            "status": "info",
+            "message": "Schema compatibility cannot be verified until database recovery is complete.",
+        })
+    elif schema > supported:
         checks.append({"code": "schema", "status": "error", "message": f"Database schema v{schema} is newer than supported v{supported}."})
         recommendations.append("Update DocPilot before making further database changes.")
     elif database_status != "missing" and schema < supported:
@@ -304,6 +310,18 @@ def _diagnostic_assessment(report: dict[str, Any]) -> dict[str, Any]:
             "code": "upgrade-recovery",
             "status": "ok",
             "message": "A verified recovery checkpoint was created for the version change.",
+        })
+    elif upgrade_status == "blocked":
+        checks.append({
+            "code": "upgrade-recovery",
+            "status": "warning",
+            "message": "Version-change checkpointing is paused until the database is recovered.",
+        })
+    elif upgrade_status == "restored":
+        checks.append({
+            "code": "upgrade-recovery",
+            "status": "ok",
+            "message": "The database was restored from a verified recovery point in this session.",
         })
     elif upgrade_status in {"initialized", "current"}:
         checks.append({
