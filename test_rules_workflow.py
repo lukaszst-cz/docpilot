@@ -124,6 +124,24 @@ def test_rule_crud_and_analysis_trace_through_api(monkeypatch, tmp_path):
         {"id": newer_id, "name": "ACME serial"},
     ]
 
+    edited = client.patch(
+        f"/api/rules/{newer_id}",
+        json={
+            "name": "ACME contracts",
+            "condition": {"document_type": "contract"},
+            "target_category": "Contracts/ACME",
+            "target_profile": "Legal Cases",
+            "target_tags": ["contract", "acme"],
+        },
+    )
+    assert edited.status_code == 200
+    edited_rule = edited.json()
+    assert edited_rule["name"] == "ACME contracts"
+    assert edited_rule["condition"] == {"document_type": "contract"}
+    assert edited_rule["target_category"] == "Contracts/ACME"
+    assert edited_rule["target_profile"] == "Legal Cases"
+    assert edited_rule["target_tags"] == ["contract", "acme"]
+
     paused = client.patch(f"/api/rules/{newer_id}", json={"enabled": False})
     assert paused.status_code == 200
     assert paused.json()["enabled"] is False
