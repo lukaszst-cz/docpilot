@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import sqlite3
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -124,6 +126,16 @@ def test_legacy_upgrade_checkpoint_restore_and_reopen_cycle(monkeypatch, tmp_pat
     assert len(migration_backups) == 1
 
     checkpoint = create_database_checkpoint(db_path)
+
+    # Healthy restore activation must not depend on replacing the live SQLite
+    # file, because Windows can keep a file handle alive briefly after close.
+    real_replace = os.replace
+    def guarded_replace(source, destination):
+        if Path(destination) == db_path:
+            raise AssertionError("healthy restore attempted to replace the live database file")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(os, "replace", guarded_replace)
 
     with connect(settings) as conn:
         conn.execute(
