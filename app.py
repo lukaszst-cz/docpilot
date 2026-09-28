@@ -45,6 +45,7 @@ from .db import (
     list_integration_runs,
     list_rules,
     search_documents,
+    semantic_candidate_documents,
     set_setting,
     start_integration_run,
     finish_integration_run,
@@ -565,7 +566,7 @@ def batch_update_documents(payload: dict = Body(...)):
 
 @app.get("/api/search")
 def search(q: str, limit: int = 50):
-    docs = list_documents(settings, limit=5000)
+    docs = semantic_candidate_documents(settings, q, limit=750)
     ranked = semantic_rank(q, docs, limit=min(max(limit, 1), 100))
     return [
         {**r.document, "meaning_score": round(r.score, 4), "vector_score": round(r.vector_score, 4), "lexical_score": round(r.lexical_score, 4)}
@@ -578,7 +579,8 @@ def qa(payload: dict = Body(...)):
     question = str(payload.get("question") or "").strip()
     if not question:
         raise HTTPException(400, "Question is required")
-    return answer_local(question, list_documents(settings, limit=5000))
+    docs = semantic_candidate_documents(settings, question, limit=750)
+    return answer_local(question, docs)
 
 
 @app.get("/api/review")
