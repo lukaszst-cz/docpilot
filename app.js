@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null;
+let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null;
 const titles = {
   dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
   documents:['Documents','Your local document index'], deadlines:['Deadline Radar','Payments, replies, expirations and warranties'],
@@ -144,7 +144,7 @@ async function loadDashboard(){const d=await api('/api/dashboard');const welcome
 const drop=$('#dropZone'), browse=$('#browseBtn');browse.addEventListener('click',selectLocalFile);['dragenter','dragover'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)analyzeCopy(f)});
 async function selectLocalFile(){if(pickerBusy)return;pickerBusy=true;browse.disabled=true;browse.textContent='Opening Windows picker…';try{const d=await api('/api/select-local',{method:'POST'});if(!d.cancelled){current=d;showAnalysis(d)}}catch(e){showAppNotice(e.message)}finally{pickerBusy=false;browse.disabled=false;browse.textContent='Select file on this PC'}}
 async function analyzeCopy(file){const fd=new FormData();fd.append('upload',file);try{const d=await api('/api/analyze',{method:'POST',body:fd});current=d;showAnalysis(d)}catch(e){showAppNotice(e.message)}}
-function showAnalysis(d){drop.classList.add('hidden');$('#successPanel').classList.add('hidden');const md=d.metadata||{};const sensitive=(d.sensitive||[]).map(x=>`${x.type}: ${x.value}`).join(' · ');$('#analysisPanel').classList.remove('hidden');$('#analysisPanel').innerHTML=`<div class="cardHead"><div><span class="badge">ANALYZED</span><h2>${esc(d.source_name)}</h2></div><span>${Math.round((md.confidence||0)*100)}% confidence</span></div><div class="modeNotice ${d.source_mode==='original'?'original':'copy'}">${d.source_mode==='original'?'REAL FILE MODE — Apply can rename or move the original.':'COPY MODE — drag & drop imported a safe copy.'}</div><div class="sourcePath">${esc(d.source_path)}</div><div class="grid"><label>Type<input id="docType" value="${esc(md.document_type||'')}" disabled></label><label>Issuer<input value="${esc(md.issuer||'')}" disabled></label><label>Amount<input value="${esc(money(md))}" disabled></label><label>Deadline<input value="${esc(md.deadline||md.warranty_until||'')}" disabled></label><label>Language<input value="${esc(md.language||'unknown')}" disabled></label><label>Health<input value="${d.health_score}/100" disabled></label><label class="wide">Category<input id="category" value="${esc(d.suggested_category)}"></label><label class="wide">Suggested filename<input id="suggestedFilename" value="${esc(d.suggested_filename)}"></label><label>Profile<select id="profile"><option>Home</option><option>Company</option><option>Child</option><option>Vehicle</option><option>Legal Cases</option></select></label><label>Action<select id="actionRequired"><option value="">None</option><option value="to-pay">To pay</option><option value="to-reply">To reply</option><option value="to-sign">To sign</option><option value="to-review">To review</option><option value="to-archive">To archive</option></select></label><label class="wide">Case<input id="caseName" value="${esc(d.suggested_case||'')}"></label><label class="wide">Apply action<select id="applyMode"><option value="rename">Rename original in the same folder</option><option value="organize">Move + rename into DocPilot archive</option></select></label><label class="wide"><input id="smartStructure" type="checkbox" checked style="width:auto;margin-right:8px"> Smart folder structure (category / year / issuer) when organizing</label></div>${sensitive?`<p class="badge warn">Sensitive data detected</p><p class="muted">${esc(sensitive)}</p>`:''}${(d.health_notes||[]).length?`<p class="muted">Health: ${esc(d.health_notes.join(' · '))}</p>`:''}<div class="actions"><button class="secondary" id="cancelAnalyze">Analyze another</button><button id="applyBtn">Apply</button></div>`;$('#profile').value=d.profile||'Home';$('#actionRequired').value=d.action_required||'';if(d.source_mode!=='original'){$('#applyMode').value='organize';$('#applyMode').disabled=true}$('#cancelAnalyze').addEventListener('click',resetInbox);$('#applyBtn').addEventListener('click',applyCurrent)}
+function showAnalysis(d){drop.classList.add('hidden');$('#successPanel').classList.add('hidden');const md=d.metadata||{};const sensitive=(d.sensitive||[]).map(x=>`${x.type}: ${x.value}`).join(' · ');const matchedRules=(d.matched_rules||[]).map(x=>x.name||'Rule').join(' · ');$('#analysisPanel').classList.remove('hidden');$('#analysisPanel').innerHTML=`<div class="cardHead"><div><span class="badge">ANALYZED</span><h2>${esc(d.source_name)}</h2></div><span>${Math.round((md.confidence||0)*100)}% confidence</span></div><div class="modeNotice ${d.source_mode==='original'?'original':'copy'}">${d.source_mode==='original'?'REAL FILE MODE — Apply can rename or move the original.':'COPY MODE — drag & drop imported a safe copy.'}</div><div class="sourcePath">${esc(d.source_path)}</div>${matchedRules?`<div class="meta"><span>Matched rules: ${esc(matchedRules)}</span></div>`:'' }<div class="grid"><label>Type<input id="docType" value="${esc(md.document_type||'')}" disabled></label><label>Issuer<input value="${esc(md.issuer||'')}" disabled></label><label>Amount<input value="${esc(money(md))}" disabled></label><label>Deadline<input value="${esc(md.deadline||md.warranty_until||'')}" disabled></label><label>Language<input value="${esc(md.language||'unknown')}" disabled></label><label>Health<input value="${d.health_score}/100" disabled></label><label class="wide">Category<input id="category" value="${esc(d.suggested_category)}"></label><label class="wide">Suggested filename<input id="suggestedFilename" value="${esc(d.suggested_filename)}"></label><label>Profile<select id="profile"><option>Home</option><option>Company</option><option>Child</option><option>Vehicle</option><option>Legal Cases</option></select></label><label>Action<select id="actionRequired"><option value="">None</option><option value="to-pay">To pay</option><option value="to-reply">To reply</option><option value="to-sign">To sign</option><option value="to-review">To review</option><option value="to-archive">To archive</option></select></label><label class="wide">Case<input id="caseName" value="${esc(d.suggested_case||'')}"></label><label class="wide">Apply action<select id="applyMode"><option value="rename">Rename original in the same folder</option><option value="organize">Move + rename into DocPilot archive</option></select></label><label class="wide"><input id="smartStructure" type="checkbox" checked style="width:auto;margin-right:8px"> Smart folder structure (category / year / issuer) when organizing</label></div>${sensitive?`<p class="badge warn">Sensitive data detected</p><p class="muted">${esc(sensitive)}</p>`:''}${(d.health_notes||[]).length?`<p class="muted">Health: ${esc(d.health_notes.join(' · '))}</p>`:''}<div class="actions"><button class="secondary" id="cancelAnalyze">Analyze another</button><button id="applyBtn">Apply</button></div>`;$('#profile').value=d.profile||'Home';$('#actionRequired').value=d.action_required||'';if(d.source_mode!=='original'){$('#applyMode').value='organize';$('#applyMode').disabled=true}$('#cancelAnalyze').addEventListener('click',resetInbox);$('#applyBtn').addEventListener('click',applyCurrent)}
 function resetInbox(){current=null;currentChange=null;$('#analysisPanel').classList.add('hidden');$('#successPanel').classList.add('hidden');drop.classList.remove('hidden')}
 async function applyCurrent(){
   const mode=$('#applyMode').value;
@@ -270,8 +270,81 @@ $('#batchBtn').addEventListener('click',async()=>{try{$('#batchOutput').innerHTM
 $('#emailImportBtn').addEventListener('click',async()=>{try{$('#emailOutput').innerHTML='<p class="muted">Importing…</p>';const r=await api('/api/email/import-eml',{method:'POST'});if(r.cancelled){$('#emailOutput').innerHTML='';return}$('#emailOutput').innerHTML=`<p><strong>${r.attachments.length}</strong> attachments imported from ${esc(r.subject||'email')}</p>`;}catch(e){showAppNotice(e.message)}});
 
 $('#watchBtn').addEventListener('click',async()=>{try{const r=await api('/api/watch/select-folder',{method:'POST'});if(!r.cancelled)loadWatch()}catch(e){showAppNotice(e.message)}});async function loadWatch(){const r=await api('/api/watch');$('#watchStatus').textContent=r.watch_folder?`Watching: ${r.watch_folder} · ${r.active?'active':'starting'}`:'No watched folder configured.'}
-async function loadRules(){const r=await api('/api/rules');$('#rulesList').innerHTML=r.length?r.map(x=>`<div class="listItem"><strong>${esc(x.name)}</strong><div class="meta"><span>${esc(JSON.stringify(x.condition))}</span><span>→ ${esc(x.target_category||'')}</span></div></div>`).join(''):'<p class="muted">No rules yet.</p>'}
-$('#addRuleBtn').addEventListener('click',async()=>{const p={name:$('#ruleName').value||'Rule',condition:{issuer_contains:$('#ruleIssuer').value||undefined,text_contains:$('#ruleText').value||undefined},target_category:$('#ruleCategory').value||null,target_profile:$('#ruleProfile').value||null,target_tags:[]};try{await api('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});loadRules()}catch(e){showAppNotice(e.message)}});
+function resetRuleEditor(){
+  editingRuleId=null;
+  ['#ruleName','#ruleIssuer','#ruleText','#ruleDocType','#ruleCategory','#ruleProfile','#ruleTags'].forEach(selector=>{$(selector).value=''});
+  $('#addRuleBtn').textContent='Add rule';
+  $('#cancelRuleEditBtn').classList.add('hidden');
+}
+
+async function loadRules(){
+  const rules=await api('/api/rules');
+  const display=[...rules].reverse();
+  $('#rulesList').innerHTML=display.length?display.map(x=>{
+    const state=x.enabled?'ENABLED':'PAUSED';
+    const conditions=Object.entries(x.condition||{}).filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`).join(' · ')||'all documents';
+    const targets=[x.target_category?`category: ${x.target_category}`:'',x.target_profile?`profile: ${x.target_profile}`:'',(x.target_tags||[]).length?`tags: ${x.target_tags.join(', ')}`:''].filter(Boolean).join(' · ')||'no output changes';
+    const encoded=encodeURIComponent(JSON.stringify(x));
+    return `<div class="listItem"><div class="listItemHead"><div><strong>${esc(x.name)}</strong> <span class="badge ${x.enabled?'':'warn'}">${state}</span></div><div class="inline"><button class="secondary ruleEdit" data-rule="${encoded}">Edit</button><button class="secondary ruleToggle" data-id="${x.id}" data-enabled="${x.enabled?'1':'0'}">${x.enabled?'Pause':'Enable'}</button><button class="secondary ruleDelete" data-id="${x.id}" data-name="${esc(x.name)}">Delete</button></div></div><div class="meta"><span>${esc(conditions)}</span><span>→ ${esc(targets)}</span></div></div>`;
+  }).join(''):'<p class="muted">No rules yet.</p>';
+
+  $('.ruleEdit').forEach(btn=>btn.addEventListener('click',()=>{
+    const rule=JSON.parse(decodeURIComponent(btn.dataset.rule));
+    editingRuleId=rule.id;
+    $('#ruleName').value=rule.name||'';
+    $('#ruleIssuer').value=rule.condition?.issuer_contains||'';
+    $('#ruleText').value=rule.condition?.text_contains||'';
+    $('#ruleDocType').value=rule.condition?.document_type||'';
+    $('#ruleCategory').value=rule.target_category||'';
+    $('#ruleProfile').value=rule.target_profile||'';
+    $('#ruleTags').value=(rule.target_tags||[]).join(', ');
+    $('#addRuleBtn').textContent='Save changes';
+    $('#cancelRuleEditBtn').classList.remove('hidden');
+    $('#ruleName').focus();
+  }));
+
+  $('.ruleToggle').forEach(btn=>btn.addEventListener('click',async()=>{
+    const enabled=btn.dataset.enabled!=='1';
+    try{
+      await api(`/api/rules/${btn.dataset.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
+      showAppNotice(enabled?'Rule enabled.':'Rule paused.','ok');
+      await loadRules();
+    }catch(e){showAppNotice(e.message)}
+  }));
+
+  $('.ruleDelete').forEach(btn=>btn.addEventListener('click',async()=>{
+    if(!confirm(`Delete rule "${btn.dataset.name}"? This does not change documents already processed.`))return;
+    try{
+      await api(`/api/rules/${btn.dataset.id}`,{method:'DELETE'});
+      if(String(editingRuleId)===btn.dataset.id)resetRuleEditor();
+      showAppNotice('Rule deleted.','ok');
+      await loadRules();
+    }catch(e){showAppNotice(e.message)}
+  }));
+}
+
+$('#cancelRuleEditBtn').addEventListener('click',resetRuleEditor);
+
+$('#addRuleBtn').addEventListener('click',async()=>{
+  const p={
+    name:$('#ruleName').value.trim()||'Rule',
+    condition:{issuer_contains:$('#ruleIssuer').value.trim()||undefined,text_contains:$('#ruleText').value.trim()||undefined,document_type:$('#ruleDocType').value.trim()||undefined},
+    target_category:$('#ruleCategory').value.trim()||null,
+    target_profile:$('#ruleProfile').value.trim()||null,
+    target_tags:$('#ruleTags').value.split(',').map(x=>x.trim()).filter(Boolean)
+  };
+  try{
+    if(editingRuleId){
+      await api(`/api/rules/${editingRuleId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+      showAppNotice('Rule updated.','ok');
+    }else{
+      await api('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+      showAppNotice('Rule added. Newer matching rules take precedence.','ok');
+    }
+    resetRuleEditor();
+    await loadRules();
+  }catch(e){showAppNotice(e.message)}
+});
 async function loadTypes(){const r=await api('/api/custom-types');$('#typesList').innerHTML=r.length?r.map(x=>`<div class="listItem"><strong>${esc(x.name)}</strong><div class="meta"><span>${esc(x.keywords.join(', '))}</span><span>→ ${esc(x.category)}</span></div></div>`).join(''):'<p class="muted">No custom types.</p>'}
 $('#addTypeBtn').addEventListener('click',async()=>{const p={name:$('#typeName').value.trim(),keywords:$('#typeKeywords').value.split(',').map(x=>x.trim()).filter(Boolean),category:$('#typeCategory').value||'Documents'};try{await api('/api/custom-types',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});loadTypes()}catch(e){showAppNotice(e.message)}});
 $('#auditBtn').addEventListener('click',async()=>{const r=await api('/api/audit?limit=100');$('#auditList').innerHTML=r.map(x=>`<div class="listItem"><strong>${esc(x.event)}</strong><div class="meta"><span>${esc(x.created_at)}</span><span>${esc(JSON.stringify(x.payload))}</span></div></div>`).join('')});
