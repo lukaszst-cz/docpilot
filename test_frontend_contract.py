@@ -39,3 +39,13 @@ def test_long_paths_and_narrow_layout_have_css_guards():
     assert "word-break:break-word" in css
     assert "@media(max-width:800px)" in css
     assert ".appShell{grid-template-columns:1fr}" in css
+
+
+def test_original_file_changes_require_user_confirmation():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert "if(current.source_mode==='original')" in script
+    assert "const ok=confirm(" in script
+    assert "if(!ok)return;" in script
+    assert "Undo History" in script
+    assert "mode==='rename'?'rename the original file':'move the original file into the DocPilot archive'" in script
