@@ -174,7 +174,7 @@ async function refreshPwaShell(){
   const button=$('#runtimeUpdateShellBtn');
   if(button){button.disabled=true;button.textContent='Updating…'}
   try{
-    const registration=await navigator.serviceWorker.getRegistration('/service-worker.js')||await navigator.serviceWorker.ready;
+    const registration=await navigator.serviceWorker.getRegistration()||await navigator.serviceWorker.ready;
     let changed=false;
     const controllerChanged=new Promise(resolve=>{
       const timer=setTimeout(resolve,4500);
