@@ -129,3 +129,18 @@ def test_settings_exposes_integration_scope_and_history():
     assert "/api/integrations/preview" in script
     assert "/api/integrations/history?limit=20" in script
     assert "integrationScope()" in script
+
+
+def test_ui_exposes_portable_config_export_preview_and_apply():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'href="/api/export/config"' in html
+    assert 'id="configImportFile"' in html
+    assert 'id="configPreviewBtn"' in html
+    assert 'id="configApplyBtn"' in html
+    assert 'id="configImportPreview"' in html
+    assert "/api/config/preview" in script
+    assert "/api/config/import" in script
+    assert "pendingPortableConfig" in script
+    assert "Credentials and machine-specific paths will not be imported." in script
