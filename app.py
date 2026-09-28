@@ -56,7 +56,7 @@ from .db import (
     update_rule,
     upsert_document,
 )
-from .db_maintenance import create_database_checkpoint, database_health, list_recovery_points
+from .db_maintenance import create_database_checkpoint, database_health, list_recovery_points, restore_database_from_point
 from .diffing import compare_documents
 from .exporters import backup_zip, full_archive_backup, ics_for_documents, notion_csv, obsidian_zip
 from .semantic import semantic_rank
@@ -208,6 +208,35 @@ def recovery_checkpoint():
         raise HTTPException(409, str(exc))
     audit(settings, "recovery-checkpoint", {"name": checkpoint["name"]})
     return checkpoint
+
+
+@app.post("/api/recovery/restore")
+def recovery_restore(payload: dict = Body(...)):
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "Recovery point name is required")
+    if payload.get("confirm") != "RESTORE":
+        raise HTTPException(400, "Type RESTORE to confirm database recovery")
+
+    db_path = settings.state / "docpilot.sqlite3"
+    try:
+        result = restore_database_from_point(db_path, name, SCHEMA)
+    except FileNotFoundError:
+        raise HTTPException(404, "Recovery point not found")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except (RuntimeError, sqlite3.DatabaseError, OSError) as exc:
+        raise HTTPException(409, str(exc))
+
+    audit(
+        settings,
+        "recovery-restore",
+        {
+            "restored_from": result["restored_from"]["name"],
+            "pre_restore_backup": (result.get("pre_restore_backup") or {}).get("name"),
+        },
+    )
+    return result
 
 
 def _ocr_runtime_status() -> dict[str, Any]:
