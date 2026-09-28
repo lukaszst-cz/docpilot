@@ -85,7 +85,17 @@ STATIC_DIR = PACKAGED_STATIC_DIR if PACKAGED_STATIC_DIR.exists() else BASE_DIR
 DEMO_DIR = BASE_DIR / "demo" if (BASE_DIR / "demo").exists() else BASE_DIR
 
 settings = get_settings()
-init_db(settings)
+
+
+def _bootstrap_database(current_settings) -> str | None:
+    try:
+        init_db(current_settings)
+        return None
+    except (sqlite3.DatabaseError, RuntimeError, OSError) as exc:
+        return str(exc)
+
+
+DATABASE_BOOTSTRAP_ERROR = _bootstrap_database(settings)
 
 LOG_PATH = settings.state / "docpilot.log"
 logger = logging.getLogger("docpilot")
@@ -104,34 +114,46 @@ if not logger.handlers:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     global UPGRADE_RECOVERY_STATUS
-    try:
-        UPGRADE_RECOVERY_STATUS = ensure_version_recovery(settings, __version__)
-        if UPGRADE_RECOVERY_STATUS.get("status") == "checkpointed":
-            audit(
-                settings,
-                "upgrade-recovery-checkpoint",
-                {
-                    "previous_version": UPGRADE_RECOVERY_STATUS.get("previous_version"),
-                    "current_version": UPGRADE_RECOVERY_STATUS.get("current_version"),
-                    "checkpoint": UPGRADE_RECOVERY_STATUS.get("checkpoint"),
-                },
-            )
-    except Exception as exc:
-        logger.exception("upgrade recovery checkpoint failed")
-        try:
-            previous_version = get_setting(settings, "last_started_version")
-        except Exception:
-            previous_version = None
+    if DATABASE_BOOTSTRAP_ERROR:
         UPGRADE_RECOVERY_STATUS = {
-            "status": "error",
-            "previous_version": previous_version,
+            "status": "blocked",
+            "previous_version": None,
             "current_version": __version__,
             "checkpoint": None,
-            "message": str(exc),
         }
+    else:
+        try:
+            UPGRADE_RECOVERY_STATUS = ensure_version_recovery(settings, __version__)
+            if UPGRADE_RECOVERY_STATUS.get("status") == "checkpointed":
+                audit(
+                    settings,
+                    "upgrade-recovery-checkpoint",
+                    {
+                        "previous_version": UPGRADE_RECOVERY_STATUS.get("previous_version"),
+                        "current_version": UPGRADE_RECOVERY_STATUS.get("current_version"),
+                        "checkpoint": UPGRADE_RECOVERY_STATUS.get("checkpoint"),
+                    },
+                )
+        except Exception as exc:
+            logger.exception("upgrade recovery checkpoint failed")
+            try:
+                previous_version = get_setting(settings, "last_started_version")
+            except Exception:
+                previous_version = None
+            UPGRADE_RECOVERY_STATUS = {
+                "status": "error",
+                "previous_version": previous_version,
+                "current_version": __version__,
+                "checkpoint": None,
+                "message": str(exc),
+            }
 
-    if get_setting(settings, "watch_folder"):
-        _ensure_watcher()
+    if not DATABASE_BOOTSTRAP_ERROR:
+        try:
+            if get_setting(settings, "watch_folder"):
+                _ensure_watcher()
+        except Exception:
+            logger.exception("watch folder startup check failed")
     try:
         yield
     finally:
@@ -165,6 +187,27 @@ async def local_browser_guard(request: Request, call_next):
     origin = request.headers.get("origin")
     if request.method not in {"GET", "HEAD", "OPTIONS"} and origin and not _local_origin_allowed(origin):
         return JSONResponse(status_code=403, content={"detail": "Cross-origin request blocked."})
+
+    if DATABASE_BOOTSTRAP_ERROR and request.url.path.startswith("/api/"):
+        allowed = {
+            "/api/health",
+            "/api/diagnostics",
+            "/api/diagnostics/report",
+            "/api/recovery",
+            "/api/recovery/restore",
+            "/api/open-data-folder",
+            "/api/open-log",
+        }
+        if request.url.path not in allowed:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": (
+                        "DocPilot started in recovery mode because the local database could not be opened safely. "
+                        "Use Settings → Data & diagnostics and Recovery checkpoints before continuing."
+                    )
+                },
+            )
     return await call_next(request)
 
 
@@ -197,7 +240,15 @@ def service_worker():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "mode": "local-first", "version": __version__, "pwa": True, "review_queue": True, "background_notifications": True}
+    return {
+        "status": "degraded" if DATABASE_BOOTSTRAP_ERROR else "ok",
+        "mode": "local-first",
+        "version": __version__,
+        "pwa": True,
+        "review_queue": True,
+        "background_notifications": True,
+        "database_ready": not bool(DATABASE_BOOTSTRAP_ERROR),
+    }
 
 
 def _diagnostic_assessment(report: dict[str, Any]) -> dict[str, Any]:
