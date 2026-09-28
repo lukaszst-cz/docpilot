@@ -62,6 +62,30 @@ CREATE TABLE IF NOT EXISTS audit (
     event TEXT NOT NULL,
     payload_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS integration_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    status TEXT NOT NULL,
+    requested INTEGER NOT NULL DEFAULT 0,
+    succeeded INTEGER NOT NULL DEFAULT 0,
+    skipped INTEGER NOT NULL DEFAULT 0,
+    failed INTEGER NOT NULL DEFAULT 0,
+    errors_json TEXT NOT NULL DEFAULT '[]',
+    details_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_integration_runs_provider ON integration_runs(provider, id DESC);
+CREATE TABLE IF NOT EXISTS integration_links (
+    provider TEXT NOT NULL,
+    document_id INTEGER NOT NULL,
+    external_id TEXT NOT NULL,
+    content_hash TEXT,
+    status TEXT NOT NULL DEFAULT 'synced',
+    last_error TEXT,
+    synced_at TEXT NOT NULL,
+    PRIMARY KEY(provider, document_id)
+);
 """
 
 
@@ -273,6 +297,115 @@ def list_audit(settings: Settings, limit: int = 200) -> list[dict[str, Any]]:
             d["payload"] = {}
         out.append(d)
     return out
+
+
+def record_integration_run(
+    settings: Settings,
+    provider: str,
+    operation: str,
+    *,
+    status: str,
+    requested: int = 0,
+    succeeded: int = 0,
+    skipped: int = 0,
+    failed: int = 0,
+    errors: list[str] | None = None,
+    details: dict[str, Any] | None = None,
+) -> int:
+    created_at = datetime.now(timezone.utc).isoformat()
+    with connect(settings) as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO integration_runs(
+                provider,operation,status,requested,succeeded,skipped,failed,
+                errors_json,details_json,created_at
+            ) VALUES(?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                provider,
+                operation,
+                status,
+                max(0, int(requested)),
+                max(0, int(succeeded)),
+                max(0, int(skipped)),
+                max(0, int(failed)),
+                _dumps(errors or []),
+                _dumps(details or {}),
+                created_at,
+            ),
+        )
+        return int(cur.lastrowid)
+
+
+def list_integration_runs(settings: Settings, limit: int = 100) -> list[dict[str, Any]]:
+    with connect(settings) as conn:
+        rows = conn.execute(
+            "SELECT * FROM integration_runs ORDER BY id DESC LIMIT ?",
+            (min(max(int(limit), 1), 500),),
+        ).fetchall()
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        item["errors"] = json.loads(item.pop("errors_json") or "[]")
+        item["details"] = json.loads(item.pop("details_json") or "{}")
+        out.append(item)
+    return out
+
+
+def get_integration_link(settings: Settings, provider: str, document_id: int) -> dict[str, Any] | None:
+    with connect(settings) as conn:
+        row = conn.execute(
+            "SELECT * FROM integration_links WHERE provider=? AND document_id=?",
+            (provider, int(document_id)),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def upsert_integration_link(
+    settings: Settings,
+    provider: str,
+    document_id: int,
+    external_id: str,
+    *,
+    content_hash: str | None = None,
+    status: str = "synced",
+    last_error: str | None = None,
+) -> None:
+    synced_at = datetime.now(timezone.utc).isoformat()
+    with connect(settings) as conn:
+        conn.execute(
+            """
+            INSERT INTO integration_links(
+                provider,document_id,external_id,content_hash,status,last_error,synced_at
+            ) VALUES(?,?,?,?,?,?,?)
+            ON CONFLICT(provider,document_id) DO UPDATE SET
+                external_id=excluded.external_id,
+                content_hash=excluded.content_hash,
+                status=excluded.status,
+                last_error=excluded.last_error,
+                synced_at=excluded.synced_at
+            """,
+            (provider, int(document_id), external_id, content_hash, status, last_error, synced_at),
+        )
+
+
+def list_integration_links(
+    settings: Settings,
+    provider: str | None = None,
+    limit: int = 500,
+) -> list[dict[str, Any]]:
+    with connect(settings) as conn:
+        if provider:
+            rows = conn.execute(
+                "SELECT * FROM integration_links WHERE provider=? ORDER BY synced_at DESC LIMIT ?",
+                (provider, min(max(int(limit), 1), 5000)),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM integration_links ORDER BY synced_at DESC LIMIT ?",
+                (min(max(int(limit), 1), 5000),),
+            ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def list_rules(settings: Settings) -> list[dict[str, Any]]:
