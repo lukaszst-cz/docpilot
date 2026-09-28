@@ -112,13 +112,27 @@ pip install -e ".[full,dev]"
 pytest -q
 ```
 
+## Co zmienia 2.0
+
+DocPilot 2.0 rozwija codzienny workflow bez zmiany podstawowej zasady bezpieczeństwa plików.
+
+Najważniejsze zmiany:
+- reguły seryjnych dokumentów można edytować, wstrzymywać, włączać i usuwać;
+- analiza pokazuje, które reguły zadziałały, a nowsze reguły mają jawne pierwszeństwo;
+- Documents obsługuje zaznaczanie i masową zmianę sprawy, profilu oraz wymaganej akcji;
+- Cases & Timeline pokazuje liczbę dokumentów, otwarte działania, najbliższy przyszły termin i terminy przeterminowane;
+- duże archiwa korzystają z lekkiej paginacji, filtrowania SQL i indeksu sortowania;
+- profile inne niż Home mogą organizować pliki do osobnych przestrzeni w `archive/Profiles/<profile>`.
+
+Zmiana samej wartości profilu w indeksie nie przenosi istniejącego pliku na dysku. Fizyczna przestrzeń profilu jest używana podczas operacji **organize**.
+
 ## Status wydania
 
-Kod gałęzi `main` jest przygotowany jako **v1.0.0**. Publiczne pliki są publikowane z oznaczonego wydania, a linki w sekcji „Pobierz” zawsze prowadzą do najnowszego opublikowanego release.
+Kod gałęzi `main` jest przygotowany jako **v2.0.0**. Publiczne pliki są publikowane z oznaczonego wydania, a linki w sekcji „Pobierz” zawsze prowadzą do najnowszego opublikowanego release.
 
 Wydanie Windows przechodzi automatyczne testy, kontrolę składni frontendu, smoke testy typowych dokumentów i codziennego workflow, budowę aplikacji i modułu powiadomień, OCR obrazu i skanowanego PDF-u, self-test gotowego EXE, czystą instalację i uninstall z zachowaniem danych, upgrade z v0.5.1 na istniejącej bazie SQLite, budowę instalatora i Portable ZIP oraz wygenerowanie sum SHA-256.
 
-Pełna checklista przed 1.0 znajduje się w [`RELEASE-CHECKLIST.md`](RELEASE-CHECKLIST.md).
+Checklista stabilności 1.0 pozostaje w [`RELEASE-CHECKLIST.md`](RELEASE-CHECKLIST.md), a kierunek dalszego rozwoju jest prowadzony w roadmapie repozytorium.
 
 ## Zgłaszanie problemów
 
