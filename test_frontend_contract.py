@@ -152,3 +152,16 @@ def test_integration_preview_options_come_from_adapter_catalog():
     assert "/api/integrations/catalog" in script
     assert "item.supports_scope&&item.supports_document_sync" in script
     assert "integrationPreviewProvider" in script
+
+
+def test_settings_exposes_recovery_checkpoint_controls():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="recoveryCheckpointBtn"' in html
+    assert 'id="recoveryRefreshBtn"' in html
+    assert 'id="recoveryList"' in html
+    assert "/api/recovery/checkpoint" in script
+    assert "loadRecoveryPoints" in script
+    assert "database_integrity" in script
+    assert "supported_schema_version" in script
