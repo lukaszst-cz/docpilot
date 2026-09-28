@@ -26,7 +26,7 @@ def _wait_until_ready(timeout: float = 20.0) -> bool:
         try:
             with urllib.request.urlopen(url, timeout=1.0) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-            if payload.get("status") == "ok" and payload.get("version") == __version__:
+            if payload.get("status") in {"ok", "degraded"} and payload.get("version") == __version__:
                 return True
         except (OSError, ValueError, urllib.error.URLError):
             pass
