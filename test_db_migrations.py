@@ -165,3 +165,55 @@ def test_diagnostics_reports_database_compatibility(monkeypatch, tmp_path):
     assert data["schema_version"] == CURRENT_SCHEMA_VERSION
     assert data["supported_schema_version"] == CURRENT_SCHEMA_VERSION
     assert data["migration_backups"] == 0
+
+
+def test_diagnostics_recommends_checkpoint_when_database_is_healthy_but_unprotected(monkeypatch, tmp_path):
+    import docpilot.app as app_module
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", settings)
+    init_db(settings)
+
+    client = TestClient(app_module.app)
+    data = client.get("/api/diagnostics").json()
+
+    assert data["database_integrity"] == "ok"
+    assert data["verified_recovery_points"] == 0
+    assert data["recovery_status"] == "checkpoint-recommended"
+    assert "Create a checkpoint" in data["recovery_message"]
+    assert data["latest_recovery_point"] is None
+
+
+def test_diagnostics_reports_ready_after_verified_checkpoint(monkeypatch, tmp_path):
+    import docpilot.app as app_module
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", settings)
+    db_path = init_db(settings)
+    checkpoint = create_database_checkpoint(db_path)
+
+    client = TestClient(app_module.app)
+    data = client.get("/api/diagnostics").json()
+
+    assert data["database_integrity"] == "ok"
+    assert data["verified_recovery_points"] == 1
+    assert data["recovery_status"] == "ready"
+    assert data["latest_recovery_point"] == checkpoint["modified_at"]
+    assert "verified recovery point" in data["recovery_message"]
+
+
+def test_safe_diagnostic_report_includes_recovery_readiness(monkeypatch, tmp_path):
+    import docpilot.app as app_module
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", settings)
+    init_db(settings)
+
+    client = TestClient(app_module.app)
+    response = client.get("/api/diagnostics/report")
+
+    assert response.status_code == 200
+    text = response.text
+    assert "Recovery readiness: checkpoint-recommended" in text
+    assert "Verified recovery points: 0" in text
+    assert "Latest recovery point: none" in text
