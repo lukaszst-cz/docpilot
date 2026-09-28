@@ -16,6 +16,7 @@ CORE_MODULES = [
     "qa.py",
     "portable_config.py",
     "exporters.py",
+    "update_safety.py",
 ]
 FORBIDDEN_TOP_LEVEL_IMPORTS = {
     "fastapi",

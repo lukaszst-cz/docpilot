@@ -76,6 +76,7 @@ from .models import ApplyRequest
 from .redaction import redact_file
 from .rules import apply_rules
 from .storage import apply_change, get_change, list_changes, safe_name, undo_change, unique_destination
+from .update_safety import ensure_version_recovery
 
 BASE_DIR = Path(__file__).parent
 TEMPLATE_DIR = BASE_DIR / "templates" if (BASE_DIR / "templates").exists() else BASE_DIR
@@ -89,6 +90,12 @@ init_db(settings)
 LOG_PATH = settings.state / "docpilot.log"
 logger = logging.getLogger("docpilot")
 logger.setLevel(logging.INFO)
+UPGRADE_RECOVERY_STATUS: dict[str, Any] = {
+    "status": "not-run",
+    "previous_version": None,
+    "current_version": __version__,
+    "checkpoint": None,
+}
 if not logger.handlers:
     handler = logging.FileHandler(LOG_PATH, encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
@@ -96,6 +103,33 @@ if not logger.handlers:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    global UPGRADE_RECOVERY_STATUS
+    try:
+        UPGRADE_RECOVERY_STATUS = ensure_version_recovery(settings, __version__)
+        if UPGRADE_RECOVERY_STATUS.get("status") == "checkpointed":
+            audit(
+                settings,
+                "upgrade-recovery-checkpoint",
+                {
+                    "previous_version": UPGRADE_RECOVERY_STATUS.get("previous_version"),
+                    "current_version": UPGRADE_RECOVERY_STATUS.get("current_version"),
+                    "checkpoint": UPGRADE_RECOVERY_STATUS.get("checkpoint"),
+                },
+            )
+    except Exception as exc:
+        logger.exception("upgrade recovery checkpoint failed")
+        try:
+            previous_version = get_setting(settings, "last_started_version")
+        except Exception:
+            previous_version = None
+        UPGRADE_RECOVERY_STATUS = {
+            "status": "error",
+            "previous_version": previous_version,
+            "current_version": __version__,
+            "checkpoint": None,
+            "message": str(exc),
+        }
+
     if get_setting(settings, "watch_folder"):
         _ensure_watcher()
     try:
@@ -193,6 +227,30 @@ def _diagnostic_assessment(report: dict[str, Any]) -> dict[str, Any]:
     else:
         checks.append({"code": "schema", "status": "ok", "message": f"Schema compatibility is OK (v{schema} / v{supported})."})
 
+    upgrade_recovery = report.get("upgrade_recovery") or {}
+    upgrade_status = str(upgrade_recovery.get("status") or "not-run")
+    if upgrade_status == "error":
+        checks.append({
+            "code": "upgrade-recovery",
+            "status": "warning",
+            "message": "DocPilot could not create the automatic recovery checkpoint for this version change.",
+        })
+        recommendations.append(
+            "Create a verified Recovery checkpoint manually before large imports, maintenance or another update."
+        )
+    elif upgrade_status == "checkpointed":
+        checks.append({
+            "code": "upgrade-recovery",
+            "status": "ok",
+            "message": "A verified recovery checkpoint was created for the version change.",
+        })
+    elif upgrade_status in {"initialized", "current"}:
+        checks.append({
+            "code": "upgrade-recovery",
+            "status": "ok",
+            "message": "Version recovery state is current.",
+        })
+
     if free_space < 0.25:
         checks.append({"code": "disk", "status": "error", "message": f"Only {free_space:.2f} GB of free disk space remains."})
         recommendations.append("Free disk space before importing, OCRing, backing up or updating documents.")
@@ -231,6 +289,12 @@ def diagnostics():
         "free_space_gb": round(usage.free / (1024 ** 3), 2),
         "max_upload_mb": settings.max_upload_mb,
         "portable_config_format": PORTABLE_CONFIG_FORMAT_VERSION,
+        "upgrade_recovery": {
+            "status": UPGRADE_RECOVERY_STATUS.get("status"),
+            "previous_version": UPGRADE_RECOVERY_STATUS.get("previous_version"),
+            "current_version": UPGRADE_RECOVERY_STATUS.get("current_version"),
+            "checkpoint": UPGRADE_RECOVERY_STATUS.get("checkpoint"),
+        },
     }
     assessment = _diagnostic_assessment(safe_report)
     return {
@@ -257,6 +321,8 @@ def diagnostics_report():
         f"Database: {report['database']} / integrity {report['database_integrity']}",
         f"Schema: v{report['schema_version']} / supported v{report['supported_schema_version']}",
         f"Migration backups: {report['migration_backups']}",
+        f"Upgrade recovery: {report['upgrade_recovery']['status']}",
+        f"Upgrade checkpoint: {report['upgrade_recovery'].get('checkpoint') or 'none'}",
         f"Free space: {report['free_space_gb']} GB",
         f"Overall status: {assessment['status']}",
         "",

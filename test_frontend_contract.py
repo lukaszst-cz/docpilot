@@ -229,3 +229,10 @@ def test_pwa_version_mismatch_has_one_click_recovery():
     assert "type:'SKIP_WAITING'" in script
     assert "event.data?.type==='SKIP_WAITING'" in worker
     assert "self.skipWaiting()" in worker
+
+
+def test_diagnostics_exposes_upgrade_recovery_status():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert "Upgrade recovery" in script
+    assert "d.upgrade_recovery?.status" in script

@@ -18,7 +18,8 @@ Do tej warstwy należą m.in.:
 - `review.py`;
 - `qa.py`;
 - `portable_config.py`;
-- `exporters.py`.
+- `exporters.py`;
+- `update_safety.py`.
 
 ### 2. Integracje
 
@@ -78,6 +79,12 @@ Nie przenosi automatycznie:
 - startup registration.
 
 Import nowszego, nieznanego formatu ma zostać odrzucony zamiast częściowo zastosowany.
+
+## Aktualizacja i recovery
+
+Przy pierwszym uruchomieniu po zmianie wersji aplikacji DocPilot tworzy zweryfikowany checkpoint bieżącej bazy. Dla migracji schematu dodatkowo zachowuje osobny backup przed migracją. Zwykły restart tej samej wersji nie tworzy kolejnego checkpointu.
+
+Jeżeli automatyczny checkpoint wersji się nie powiedzie, aplikacja może się uruchomić, ale diagnostyka oznacza stan upgrade recovery jako wymagający uwagi. Wersja nie jest wtedy zapisywana jako bezpiecznie przepracowana, dzięki czemu następny start ponowi próbę.
 
 ## Kompatybilność wydania
 
