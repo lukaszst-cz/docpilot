@@ -113,3 +113,19 @@ def test_profiles_explain_physical_archive_spaces():
 
     assert "archive/Profiles/&lt;profile&gt;" in html
     assert "Changing profile metadata later does not move an already archived file." in html
+
+
+def test_settings_exposes_integration_scope_and_history():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="integrationPreviewProvider"' in html
+    assert 'id="integrationScopeProfile"' in html
+    assert 'id="integrationScopeCase"' in html
+    assert 'id="integrationScopeAction"' in html
+    assert 'id="integrationScopeCategory"' in html
+    assert 'id="integrationScopeLimit"' in html
+    assert 'id="integrationHistory"' in html
+    assert "/api/integrations/preview" in script
+    assert "/api/integrations/history?limit=20" in script
+    assert "integrationScope()" in script

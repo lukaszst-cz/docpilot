@@ -39,9 +39,13 @@ from .db import (
     list_custom_types,
     list_document_page,
     list_documents,
+    list_documents_for_integration,
+    list_integration_runs,
     list_rules,
     search_documents,
     set_setting,
+    start_integration_run,
+    finish_integration_run,
     update_document_fields,
     update_documents_fields,
     update_rule,
@@ -972,6 +976,38 @@ def notification_test(payload: dict = Body(default={})):
     return {"shown": notify_once(days)}
 
 
+def _integration_scope(payload: dict[str, Any]) -> dict[str, Any]:
+    raw = payload.get("scope") if isinstance(payload.get("scope"), dict) else {}
+    limit = min(max(int(raw.get("limit") or payload.get("limit") or 100), 1), 500)
+    return {
+        "profile": str(raw.get("profile") or "").strip(),
+        "case_name": str(raw.get("case_name") or "").strip(),
+        "action_required": str(raw.get("action_required") or "").strip(),
+        "category": str(raw.get("category") or "").strip(),
+        "limit": limit,
+    }
+
+
+def _integration_documents(payload: dict[str, Any], *, provider: str) -> tuple[list[dict[str, Any]], dict[str, Any], int]:
+    scope = _integration_scope(payload)
+    documents, matched_total = list_documents_for_integration(
+        settings,
+        limit=scope["limit"],
+        profile=scope["profile"],
+        case_name=scope["case_name"],
+        action_required=scope["action_required"],
+        category=scope["category"],
+    )
+    if provider == "google_calendar":
+        documents = [
+            document
+            for document in documents
+            if (document.get("metadata") or {}).get("deadline")
+            or (document.get("metadata") or {}).get("warranty_until")
+        ]
+    return documents, scope, matched_total
+
+
 def _integration_status():
     return {"email": imap_status(settings), "notion": notion_status(settings), "google_calendar": google_calendar_status(settings)}
 
@@ -979,6 +1015,29 @@ def _integration_status():
 @app.get("/api/integrations/status")
 def integrations_status():
     return _integration_status()
+
+
+@app.post("/api/integrations/preview")
+def integrations_preview(payload: dict = Body(default={})):
+    provider = str(payload.get("provider") or "notion").strip()
+    if provider not in {"notion", "google_calendar"}:
+        raise HTTPException(400, "provider must be notion or google_calendar")
+    documents, scope, matched_total = _integration_documents(payload, provider=provider)
+    return {
+        "provider": provider,
+        "scope": scope,
+        "matched_total": matched_total,
+        "eligible": len(documents),
+        "sample": [
+            {"id": d["id"], "name": d["source_name"], "profile": d.get("profile"), "case_name": d.get("case_name")}
+            for d in documents[:10]
+        ],
+    }
+
+
+@app.get("/api/integrations/history")
+def integrations_history(provider: str = "", limit: int = 30):
+    return list_integration_runs(settings, provider=provider, limit=limit)
 
 
 @app.post("/api/integrations/email")
@@ -1001,19 +1060,42 @@ def integration_email_config(payload: dict = Body(...)):
 
 @app.post("/api/email/import-imap")
 def import_imap(payload: dict = Body(default={})):
+    max_messages = max(1, min(int(payload.get("max_messages") or 20), 100))
+    scope = {"unread_only": bool(payload.get("unread_only", True)), "max_messages": max_messages}
+    run_id = start_integration_run(settings, "email", "import-attachments", scope)
+
     def destination(name: str) -> Path:
         return unique_destination(settings.inbox, safe_name(name))
+
     try:
-        items = import_imap_attachments(settings, destination, unread_only=bool(payload.get("unread_only", True)), max_messages=int(payload.get("max_messages") or 20))
+        items = import_imap_attachments(
+            settings,
+            destination,
+            unread_only=scope["unread_only"],
+            max_messages=max_messages,
+        )
         imported = []
+        errors: list[str] = []
         for item in items:
             try:
                 imported.append(_analyze_and_index(Path(item["path"])))
             except Exception as exc:
+                message = f"{item.get('name') or 'attachment'}: {exc}"
+                errors.append(message)
                 imported.append({**item, "error": str(exc)})
-        audit(settings, "email-imap-import", {"attachments": len(imported)})
-        return {"attachments": imported}
+        finish_integration_run(
+            settings,
+            run_id,
+            status="partial" if errors else "success",
+            attempted=len(items),
+            succeeded=len(items) - len(errors),
+            failed=len(errors),
+            errors=errors,
+        )
+        audit(settings, "email-imap-import", {"attachments": len(imported), "errors": len(errors), "run_id": run_id})
+        return {"attachments": imported, "run_id": run_id, "errors": errors}
     except Exception as exc:
+        finish_integration_run(settings, run_id, status="failed", failed=1, errors=[str(exc)])
         raise HTTPException(400, str(exc))
 
 
@@ -1029,11 +1111,27 @@ def integration_notion_config(payload: dict = Body(...)):
 
 @app.post("/api/integrations/notion/sync")
 def integration_notion_sync(payload: dict = Body(default={})):
+    documents, scope, matched_total = _integration_documents(payload, provider="notion")
+    run_id = start_integration_run(settings, "notion", "sync", scope)
     try:
-        result = sync_notion(settings, list_documents(settings, 5000), limit=int(payload.get("limit") or 100))
-        audit(settings, "notion-sync", result)
-        return result
+        result = sync_notion(settings, documents, limit=len(documents) or 1)
+        errors = list(result.get("errors") or [])
+        synced = int(result.get("synced") or 0)
+        finish_integration_run(
+            settings,
+            run_id,
+            status="partial" if errors else "success",
+            attempted=len(documents),
+            succeeded=synced,
+            skipped=max(0, len(documents) - synced - len(errors)),
+            failed=len(errors),
+            errors=errors,
+        )
+        response = {**result, "run_id": run_id, "scope": scope, "matched_total": matched_total, "attempted": len(documents)}
+        audit(settings, "notion-sync", response)
+        return response
     except Exception as exc:
+        finish_integration_run(settings, run_id, status="failed", attempted=len(documents), failed=len(documents) or 1, errors=[str(exc)])
         raise HTTPException(400, str(exc))
 
 
@@ -1052,9 +1150,27 @@ def integration_google_select_client():
 
 @app.post("/api/integrations/google-calendar/sync")
 def integration_google_sync(payload: dict = Body(default={})):
+    documents, scope, matched_total = _integration_documents(payload, provider="google_calendar")
+    calendar_id = str(payload.get("calendar_id") or "primary")
+    run_scope = {**scope, "calendar_id": calendar_id}
+    run_id = start_integration_run(settings, "google_calendar", "sync", run_scope)
     try:
-        result = sync_google_calendar(settings, list_documents(settings, 5000), calendar_id=str(payload.get("calendar_id") or "primary"))
-        audit(settings, "google-calendar-sync", result)
-        return result
+        result = sync_google_calendar(settings, documents, calendar_id=calendar_id)
+        errors = list(result.get("errors") or [])
+        synced = int(result.get("synced") or 0)
+        finish_integration_run(
+            settings,
+            run_id,
+            status="partial" if errors else "success",
+            attempted=len(documents),
+            succeeded=synced,
+            skipped=max(0, len(documents) - synced - len(errors)),
+            failed=len(errors),
+            errors=errors,
+        )
+        response = {**result, "run_id": run_id, "scope": run_scope, "matched_total": matched_total, "attempted": len(documents)}
+        audit(settings, "google-calendar-sync", response)
+        return response
     except Exception as exc:
+        finish_integration_run(settings, run_id, status="failed", attempted=len(documents), failed=len(documents) or 1, errors=[str(exc)])
         raise HTTPException(400, str(exc))
