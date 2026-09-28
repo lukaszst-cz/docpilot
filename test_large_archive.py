@@ -161,3 +161,54 @@ def test_duplicate_group_count_uses_sql_for_exact_groups(tmp_path):
         conn.execute("UPDATE documents SET sha256='same-b' WHERE id IN (3,4,5)")
 
     assert duplicate_group_count(settings) == 2
+
+
+def test_large_archive_semantic_candidates_are_bounded_and_relevant(monkeypatch, tmp_path):
+    import docpilot.app as app_module
+    from docpilot.db import semantic_candidate_documents
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=1200)
+
+    with connect(settings) as conn:
+        conn.execute(
+            """
+            UPDATE documents
+            SET extracted_text='special insurance flooding claim',
+                metadata_json=?,
+                updated_at='2020-01-01T00:00:00+00:00'
+            WHERE source_name='document-0001.txt'
+            """,
+            (json.dumps({
+                "document_type": "insurance",
+                "issuer": "Special Insurer",
+                "deadline": None,
+                "confidence": 0.9,
+            }),),
+        )
+
+    candidates = semantic_candidate_documents(settings, "zalanie ubezpieczenie", limit=750)
+    assert len(candidates) <= 750
+    assert any(item["source_name"] == "document-0001.txt" for item in candidates)
+
+    monkeypatch.setattr(app_module, "settings", settings)
+    client = TestClient(app_module.app)
+
+    search = client.get("/api/search", params={"q": "zalanie ubezpieczenie", "limit": 20})
+    assert search.status_code == 200
+    assert any(item["source_name"] == "document-0001.txt" for item in search.json())
+
+    qa = client.post("/api/qa", json={"question": "zalanie ubezpieczenie"})
+    assert qa.status_code == 200
+    assert any(source["name"] == "document-0001.txt" for source in qa.json()["sources"])
+
+
+def test_large_archive_common_search_is_capped_before_semantic_ranking(tmp_path):
+    from docpilot.db import semantic_candidate_documents
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=1200)
+
+    candidates = semantic_candidate_documents(settings, "document", limit=750)
+
+    assert len(candidates) == 750

@@ -82,3 +82,15 @@ def test_local_qa_polish_deadline_keeps_source():
     assert answer["mode"] == "structured-deadline"
     assert "Najbliższy wykryty termin" in answer["answer"]
     assert answer["sources"][0]["name"] == "termin.txt"
+
+
+def test_semantic_candidate_terms_drop_question_filler_and_expand_synonyms():
+    from docpilot.semantic import candidate_terms
+
+    terms = candidate_terms("jaki jest termin faktura")
+    assert "jaki" not in terms
+    assert "jest" not in terms
+    assert "termin" in terms
+    assert "deadline" in terms
+    assert "faktura" in terms
+    assert "invoice" in terms

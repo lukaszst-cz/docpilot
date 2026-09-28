@@ -18,6 +18,30 @@ class SemanticResult:
 _CACHE: dict[str, Any] = {}
 
 
+_CANDIDATE_STOPWORDS = {
+    "jaki", "jakie", "jest", "sa", "są", "ktory", "który", "ktore", "które",
+    "ile", "kiedy", "gdzie", "czy", "the", "what", "which", "when", "where",
+    "show", "find", "pokaz", "pokaż", "znajdz", "znajdź",
+}
+
+
+def candidate_terms(query: str, limit: int = 24) -> list[str]:
+    terms = []
+    seen = set()
+    for term in expand_query(query):
+        normalized = term.strip().lower()
+        if not normalized or normalized in _CANDIDATE_STOPWORDS:
+            continue
+        if len(normalized) < 3:
+            continue
+        if normalized not in seen:
+            seen.add(normalized)
+            terms.append(normalized)
+        if len(terms) >= limit:
+            break
+    return terms
+
+
 def semantic_rank(query: str, documents: list[dict[str, Any]], limit: int = 50) -> list[SemanticResult]:
     """Local dense-vector ranking using TF-IDF + latent semantic analysis.
 
