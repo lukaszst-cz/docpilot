@@ -106,3 +106,10 @@ def test_documents_ui_uses_lightweight_pagination_controls():
     assert "/api/documents/page?" in script
     assert "documentsPageLimit = 100" in script
     assert "documentsPageOffset" in script
+
+
+def test_profiles_explain_physical_archive_spaces():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+
+    assert "archive/Profiles/&lt;profile&gt;" in html
+    assert "Changing profile metadata later does not move an already archived file." in html
