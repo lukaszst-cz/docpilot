@@ -9,10 +9,11 @@ def test_dynamic_collections_use_query_selector_all():
     script = (ROOT / "app.js").read_text(encoding="utf-8")
     bad = re.findall(r"(?<!\$)\$\([^\n;]+\)\.forEach", script)
     assert bad == []
-    assert "$('.duplicateOpen').forEach" in script
-    assert "$('.docSelect').forEach" in script
-    assert "$('.ruleEdit').forEach" in script
-    assert "$('.navBtn').forEach" in script
+    assert "$$('.duplicateOpen').forEach" in script
+    assert "$$('.docSelect').forEach" in script
+    assert "$$('.ruleEdit').forEach" in script
+    assert "$$('.navBtn').forEach" in script
+    assert "const items=$$('.navBtn');" in script
     assert "const items=$('.navBtn');" in script
 
 
