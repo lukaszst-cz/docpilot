@@ -64,7 +64,7 @@ from .semantic import semantic_rank
 from .qa import answer_local
 from .review import build_review_queue
 from .preprocess import save_clean_copy
-from .portable_config import export_portable_config, import_portable_config, preview_portable_config
+from .portable_config import FORMAT_VERSION as PORTABLE_CONFIG_FORMAT_VERSION, export_portable_config, import_portable_config, preview_portable_config
 from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
@@ -228,6 +228,7 @@ def diagnostics():
         "migration_backups": db_health["migration_backups"],
         "free_space_gb": round(usage.free / (1024 ** 3), 2),
         "max_upload_mb": settings.max_upload_mb,
+        "portable_config_format": PORTABLE_CONFIG_FORMAT_VERSION,
     }
     assessment = _diagnostic_assessment(safe_report)
     return {

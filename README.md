@@ -79,6 +79,8 @@ MCP jest przeznaczone dla osób, które wiedzą, po co chcą go użyć. Do zwyk�
 
 ## Dla bardziej technicznych
 
+Szczegółowe granice modułów, formaty danych i zasady kompatybilności są opisane w [ARCHITECTURE.md](ARCHITECTURE.md).
+
 DocPilot działa jako lokalna aplikacja z backendem FastAPI i bazą SQLite. Interfejs może działać jako aplikacja Windows lub PWA połączona z lokalnym serwisem.
 
 Najważniejsze elementy:
