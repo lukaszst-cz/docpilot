@@ -49,3 +49,19 @@ def test_original_file_changes_require_user_confirmation():
     assert "if(!ok)return;" in script
     assert "Undo History" in script
     assert "mode==='rename'?'rename the original file':'move the original file into the DocPilot archive'" in script
+
+
+def test_rules_ui_supports_edit_pause_and_delete():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="ruleDocType"' in html
+    assert 'id="ruleTags"' in html
+    assert 'id="cancelRuleEditBtn"' in html
+    assert "ruleEdit" in script
+    assert "ruleToggle" in script
+    assert "ruleDelete" in script
+    assert "editingRuleId" in script
+    assert "Save changes" in script
+    assert "method:'PATCH'" in script
+    assert "method:'DELETE'" in script
