@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE INDEX IF NOT EXISTS idx_documents_sha256 ON documents(sha256);
 CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_name);
 CREATE INDEX IF NOT EXISTS idx_documents_profile ON documents(profile);
+CREATE INDEX IF NOT EXISTS idx_documents_updated ON documents(updated_at DESC, id DESC);
 CREATE TABLE IF NOT EXISTS rules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
