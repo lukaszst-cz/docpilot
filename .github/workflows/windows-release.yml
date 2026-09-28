@@ -205,8 +205,14 @@ jobs:
         id: release_meta
         shell: pwsh
         run: |
-          $version = (python -c "import docpilot; print(docpilot.__version__)").Trim()
-          $stable = (python -c "import re, docpilot; print('true' if re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', docpilot.__version__) else 'false')").Trim()
+          $version = (python -c "import pathlib, tomllib; data=tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8')); print(data['project']['version'])").Trim()
+          $stable = "false"
+          try {
+            $parsed = [version]$version
+            if ($parsed.ToString() -eq $version) { $stable = "true" }
+          } catch {
+            $stable = "false"
+          }
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "tag=v$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "stable=$stable" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
