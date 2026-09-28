@@ -43,6 +43,20 @@ Instalator nie jest jeszcze podpisany komercyjnym certyfikatem code-signing, dla
 
 Wersja Windows przechowuje dane użytkownika poza katalogiem programu, w lokalnym katalogu danych DocPilot. Standardowe odinstalowanie usuwa aplikację i wpis autostartu powiadomień, ale **nie usuwa archiwum, indeksu ani ustawień użytkownika**. Dzięki temu ponowna instalacja lub aktualizacja może korzystać z dotychczasowych danych.
 
+### Recovery i baza dokumentów
+
+W **Settings → Recovery checkpoints** można utworzyć zweryfikowaną kopię lokalnej bazy SQLite. Warto zrobić checkpoint przed większą aktualizacją, masowymi zmianami albo pracami konserwacyjnymi.
+
+Panel **Data & diagnostics** pokazuje stan integralności bazy, wersję schematu i gotowość recovery. Jeżeli baza działa prawidłowo, DocPilot oznacza ją jako zdrową. Jeżeli wykryje problem, nie tworzy z uszkodzonej bazy zwykłego „dobrego” checkpointu.
+
+Przywrócenie bazy z punktu recovery wymaga ręcznego wpisania `RESTORE`. Przed podmianą aktualnej bazy DocPilot tworzy dodatkową kopię pre-restore. Jeżeli aktywna baza jest uszkodzona, jej surowa kopia zostaje zachowana do ewentualnej analizy. Restore dotyczy **indeksu i ustawień SQLite**; nie cofa plików źródłowych na dysku do wcześniejszych wersji.
+
+Po problemie:
+1. najpierw sprawdź **Settings → Data & diagnostics**;
+2. jeżeli integralność bazy nie jest `ok`, sprawdź listę punktów recovery;
+3. wybierz tylko punkt z integralnością `ok`;
+4. użyj Restore dopiero po upewnieniu się, że chcesz cofnąć lokalny indeks do tego stanu.
+
 ## Jak zacząć
 
 Po uruchomieniu możesz od razu użyć **Try safe demo**. Program wczyta przykładową, sztuczną fakturę. Dzięki temu można zobaczyć sposób działania bez wskazywania własnych dokumentów.
