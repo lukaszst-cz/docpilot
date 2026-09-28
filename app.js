@@ -501,7 +501,25 @@ async function loadRecoveryPoints(){
   target.textContent='Loading recovery points…';
   try{
     const points=await api('/api/recovery');
-    target.innerHTML=points.length?points.map(point=>`<div class="listItem"><div class="listItemHead"><strong>${esc(point.kind==='checkpoint'?'Recovery checkpoint':'Migration backup')}</strong><span class="badge ${point.integrity==='ok'?'':'red'}">${esc(point.integrity)}</span></div><div class="meta"><span>${esc(point.name)}</span><span>schema v${point.schema_version??'?'}</span><span>${Math.max(1,Math.round((point.size_bytes||0)/1024))} KB</span><span>${esc(point.modified_at)}</span></div></div>`).join(''):'<p class="muted">No recovery points yet.</p>';
+    target.innerHTML=points.length?points.map(point=>{
+      const label=point.kind==='checkpoint'?'Recovery checkpoint':point.kind==='migration'?'Migration backup':point.kind==='pre-restore'?'Pre-restore backup':'Pre-restore raw copy';
+      const canRestore=point.integrity==='ok'&&Number(point.schema_version||0)<=Number(diagnosticsCache?.supported_schema_version||999);
+      return `<div class="listItem"><div class="listItemHead"><strong>${esc(label)}</strong><div class="inline"><span class="badge ${point.integrity==='ok'?'':'red'}">${esc(point.integrity)}</span>${canRestore?`<button class="secondary recoveryRestore" data-name="${esc(point.name)}">Restore</button>`:''}</div></div><div class="meta"><span>${esc(point.name)}</span><span>schema v${point.schema_version??'?'}</span><span>${Math.max(1,Math.round((point.size_bytes||0)/1024))} KB</span><span>${esc(point.modified_at)}</span></div></div>`;
+    }).join(''):'<p class="muted">No recovery points yet.</p>';
+    $$('.recoveryRestore').forEach(button=>button.addEventListener('click',async()=>{
+      const typed=prompt(`Restore database from "${button.dataset.name}"? Type RESTORE to continue.`);
+      if(typed!=='RESTORE')return;
+      button.disabled=true;
+      try{
+        const result=await api('/api/recovery/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:button.dataset.name,confirm:'RESTORE'})});
+        diagnosticsCache=null;
+        showAppNotice(`Database restored from ${result.restored_from.name}. A pre-restore safety copy was kept.`,'ok');
+        await loadDiagnostics();
+        await loadRecoveryPoints();
+        await loadDashboard();
+      }catch(e){showAppNotice(e.message)}
+      finally{button.disabled=false}
+    }));
   }catch(e){target.textContent=e.message}
 }
 $('#recoveryRefreshBtn')?.addEventListener('click',()=>runLoad(loadRecoveryPoints));

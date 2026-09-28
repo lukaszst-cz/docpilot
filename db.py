@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .config import Settings
-from .db_maintenance import migrate_database
+from .db_maintenance import DATABASE_LOCK, migrate_database
 from .models import FileAnalysis
 
 SCHEMA = """
@@ -96,22 +96,24 @@ CREATE INDEX IF NOT EXISTS idx_integration_links_external
 
 def init_db(settings: Settings) -> Path:
     path = settings.state / "docpilot.sqlite3"
-    existed = path.exists() and path.stat().st_size > 0
-    with sqlite3.connect(path) as conn:
-        migrate_database(path, conn, SCHEMA, backup_existing=existed)
+    with DATABASE_LOCK:
+        existed = path.exists() and path.stat().st_size > 0
+        with sqlite3.connect(path) as conn:
+            migrate_database(path, conn, SCHEMA, backup_existing=existed)
     return path
 
 
 @contextmanager
 def connect(settings: Settings):
-    path = init_db(settings)
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
+    with DATABASE_LOCK:
+        path = init_db(settings)
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def _dumps(value: Any) -> str:

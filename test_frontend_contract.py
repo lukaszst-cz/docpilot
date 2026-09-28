@@ -165,3 +165,13 @@ def test_settings_exposes_recovery_checkpoint_controls():
     assert "loadRecoveryPoints" in script
     assert "database_integrity" in script
     assert "supported_schema_version" in script
+
+
+def test_recovery_restore_requires_typed_confirmation_in_ui():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert "recoveryRestore" in script
+    assert "Type RESTORE to continue." in script
+    assert "if(typed!=='RESTORE')return;" in script
+    assert "/api/recovery/restore" in script
+    assert "confirm:'RESTORE'" in script
