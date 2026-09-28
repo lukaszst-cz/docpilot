@@ -236,3 +236,19 @@ def test_diagnostics_exposes_upgrade_recovery_status():
 
     assert "Upgrade recovery" in script
     assert "d.upgrade_recovery?.status" in script
+
+
+def test_diagnostics_ui_explains_recovery_readiness():
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    troubleshooting = (ROOT / "TROUBLESHOOTING.md").read_text(encoding="utf-8")
+
+    assert "d.recovery_status" in script
+    assert "d.verified_recovery_points" in script
+    assert "d.latest_recovery_point" in script
+    assert "d.recovery_message" in script
+    assert "Recovery readiness" in readme
+    assert "checkpoint-recommended" in readme
+    assert "Full Archive Backup" in readme
+    assert "Recovery readiness — co oznacza" in troubleshooting
+    assert "database-problem" in troubleshooting
