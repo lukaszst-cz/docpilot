@@ -46,6 +46,18 @@ def safe_category(category: str) -> Path:
     return Path(*parts) if parts else Path("Documents")
 
 
+def archive_root_for_profile(settings: Settings, profile: str | None) -> Path:
+    """Return a safe archive root for a logical document profile.
+
+    Home keeps the legacy archive layout for backward compatibility. Other
+    profiles are physically separated below archive/Profiles/<profile>.
+    """
+    value = str(profile or "Home").strip() or "Home"
+    if value.casefold() == "home":
+        return settings.archive
+    return settings.archive / "Profiles" / safe_name(value)
+
+
 def unique_destination(directory: Path, filename: str) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     filename = safe_name(filename)
@@ -74,6 +86,7 @@ def apply_change(
     category: str,
     filename: str,
     mode: str = "rename",
+    profile: str = "Home",
 ) -> AppliedChange:
     source = source.expanduser().resolve(strict=True)
     if not source.is_file():
@@ -105,7 +118,8 @@ def apply_change(
         action = "rename"
 
     elif mode == "organize":
-        destination = unique_destination(settings.archive / safe_category(category), filename)
+        archive_root = archive_root_for_profile(settings, profile)
+        destination = unique_destination(archive_root / safe_category(category), filename)
         try:
             shutil.move(str(source), str(destination))
         except PermissionError as exc:
@@ -168,8 +182,15 @@ def _rollback_failed_change(source: Path, destination: Path) -> str:
     except Exception as exc:
         return f"Automatic rollback also failed: {exc}"
 
-def apply_move(settings: Settings, source: Path, category: str, filename: str) -> AppliedChange:
-    return apply_change(settings, source, category, filename, mode="organize")
+def apply_move(
+    settings: Settings,
+    source: Path,
+    category: str,
+    filename: str,
+    *,
+    profile: str = "Home",
+) -> AppliedChange:
+    return apply_change(settings, source, category, filename, mode="organize", profile=profile)
 
 
 def get_change(settings: Settings, change_id: str) -> AppliedChange:
