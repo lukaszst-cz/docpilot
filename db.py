@@ -217,7 +217,7 @@ def list_audit(settings: Settings, limit: int = 200) -> list[dict[str, Any]]:
 
 def list_rules(settings: Settings) -> list[dict[str, Any]]:
     with connect(settings) as conn:
-        rows = conn.execute("SELECT * FROM rules ORDER BY id DESC").fetchall()
+        rows = conn.execute("SELECT * FROM rules ORDER BY id ASC").fetchall()
     out = []
     for r in rows:
         d = dict(r)
@@ -241,6 +241,43 @@ def add_rule(settings: Settings, payload: dict[str, Any]) -> int:
             ),
         )
         return int(cur.lastrowid)
+
+
+def update_rule(settings: Settings, rule_id: int, payload: dict[str, Any]) -> bool:
+    with connect(settings) as conn:
+        row = conn.execute("SELECT * FROM rules WHERE id=?", (rule_id,)).fetchone()
+        if not row:
+            return False
+
+        current = dict(row)
+        condition = payload["condition"] if "condition" in payload else json.loads(current["condition_json"])
+        target_tags = payload["target_tags"] if "target_tags" in payload else json.loads(current["target_tags_json"])
+        enabled = int(bool(payload["enabled"])) if "enabled" in payload else int(current["enabled"])
+
+        conn.execute(
+            """
+            UPDATE rules
+            SET name=?, condition_json=?, target_category=?, target_profile=?,
+                target_tags_json=?, enabled=?
+            WHERE id=?
+            """,
+            (
+                payload.get("name", current["name"]),
+                _dumps(condition or {}),
+                payload.get("target_category", current["target_category"]),
+                payload.get("target_profile", current["target_profile"]),
+                _dumps(target_tags or []),
+                enabled,
+                rule_id,
+            ),
+        )
+        return True
+
+
+def delete_rule(settings: Settings, rule_id: int) -> bool:
+    with connect(settings) as conn:
+        cur = conn.execute("DELETE FROM rules WHERE id=?", (rule_id,))
+        return cur.rowcount > 0
 
 
 def add_custom_type(settings: Settings, name: str, keywords: list[str], category: str) -> int:
