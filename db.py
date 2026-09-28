@@ -210,6 +210,127 @@ def list_document_page(
     return [row_to_document(row) for row in rows], total
 
 
+def dashboard_summary(settings: Settings) -> dict[str, Any]:
+    with connect(settings) as conn:
+        totals = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS documents,
+                SUM(CASE WHEN action_required IS NOT NULL AND action_required <> '' THEN 1 ELSE 0 END) AS actions,
+                SUM(CASE WHEN health_score < 70 THEN 1 ELSE 0 END) AS unhealthy,
+                COUNT(DISTINCT CASE WHEN case_name IS NOT NULL AND case_name <> '' THEN case_name END) AS cases
+            FROM documents
+            """
+        ).fetchone()
+        profiles = [
+            row["profile"] or "Home"
+            for row in conn.execute(
+                "SELECT DISTINCT profile FROM documents ORDER BY profile"
+            ).fetchall()
+        ]
+        deadline_rows = conn.execute(
+            """
+            SELECT id, source_name, metadata_json, action_required
+            FROM documents
+            WHERE metadata_json LIKE '%"deadline":%'
+               OR metadata_json LIKE '%"warranty_until":%'
+            ORDER BY updated_at DESC, id DESC
+            """
+        ).fetchall()
+
+    deadlines: list[dict[str, Any]] = []
+    today = date.today()
+    for row in deadline_rows:
+        try:
+            metadata = json.loads(row["metadata_json"])
+        except Exception:
+            metadata = {}
+        value = metadata.get("deadline") or metadata.get("warranty_until")
+        if not value:
+            continue
+        try:
+            day = date.fromisoformat(str(value))
+        except ValueError:
+            continue
+        delta = (day - today).days
+        if delta >= -7:
+            deadlines.append(
+                {
+                    "id": int(row["id"]),
+                    "name": row["source_name"],
+                    "date": day.isoformat(),
+                    "days": delta,
+                    "action": row["action_required"],
+                }
+            )
+    deadlines.sort(key=lambda item: item["date"])
+    return {
+        "documents": int(totals["documents"] or 0),
+        "actions": int(totals["actions"] or 0),
+        "unhealthy": int(totals["unhealthy"] or 0),
+        "cases": int(totals["cases"] or 0),
+        "profiles": profiles,
+        "deadlines": deadlines[:40],
+        "deadline_count": len(deadlines),
+    }
+
+
+def duplicate_group_count(settings: Settings) -> int:
+    with connect(settings) as conn:
+        exact_groups = int(
+            conn.execute(
+                """
+                SELECT COUNT(*) FROM (
+                    SELECT sha256
+                    FROM documents
+                    WHERE sha256 IS NOT NULL AND sha256 <> ''
+                    GROUP BY sha256
+                    HAVING COUNT(*) > 1
+                )
+                """
+            ).fetchone()[0]
+        )
+        rows = conn.execute(
+            """
+            SELECT id, simhash
+            FROM documents
+            WHERE simhash IS NOT NULL
+              AND simhash <> ''
+              AND sha256 NOT IN (
+                  SELECT sha256
+                  FROM documents
+                  WHERE sha256 IS NOT NULL AND sha256 <> ''
+                  GROUP BY sha256
+                  HAVING COUNT(*) > 1
+              )
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 500
+            """
+        ).fetchall()
+
+    from .intelligence import hamming_hex
+
+    candidates = [{"id": int(row["id"]), "simhash": row["simhash"]} for row in rows]
+    used: set[int] = set()
+    near_groups = 0
+    for i, left in enumerate(candidates):
+        left_id = int(left["id"])
+        if left_id in used:
+            continue
+        near_ids = {left_id}
+        for right in candidates[i + 1:]:
+            right_id = int(right["id"])
+            if right_id in used:
+                continue
+            if hamming_hex(left.get("simhash"), right.get("simhash")) <= 5:
+                near_ids.add(right_id)
+        if len(near_ids) > 1:
+            near_groups += 1
+            used.update(near_ids)
+
+    return exact_groups + near_groups
+
+
 def get_document(settings: Settings, doc_id: int) -> dict[str, Any] | None:
     with connect(settings) as conn:
         row = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
