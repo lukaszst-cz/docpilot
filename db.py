@@ -168,6 +168,47 @@ def list_documents(settings: Settings, limit: int = 500) -> list[dict[str, Any]]
     return [row_to_document(r) for r in rows]
 
 
+def list_document_page(
+    settings: Settings,
+    *,
+    limit: int = 100,
+    offset: int = 0,
+    query: str = "",
+    profile: str = "",
+    case_name: str = "",
+) -> tuple[list[dict[str, Any]], int]:
+    clauses: list[str] = []
+    params: list[Any] = []
+
+    if query.strip():
+        pattern = f"%{query.strip().lower()}%"
+        clauses.append(
+            "(lower(source_name) LIKE ? OR lower(category) LIKE ? OR lower(case_name) LIKE ? "
+            "OR lower(profile) LIKE ? OR lower(metadata_json) LIKE ?)"
+        )
+        params.extend([pattern] * 5)
+    if profile.strip():
+        clauses.append("profile = ?")
+        params.append(profile.strip())
+    if case_name.strip():
+        clauses.append("case_name = ?")
+        params.append(case_name.strip())
+
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    select_columns = """
+        id, path, source_name, metadata_json, category, tags_json, profile,
+        case_name, action_required, health_score, health_json, indexed_at, updated_at
+    """
+    with connect(settings) as conn:
+        total = int(conn.execute(f"SELECT COUNT(*) FROM documents{where}", params).fetchone()[0])
+        rows = conn.execute(
+            f"SELECT {select_columns} FROM documents{where} "
+            "ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?",
+            (*params, limit, offset),
+        ).fetchall()
+    return [row_to_document(row) for row in rows], total
+
+
 def get_document(settings: Settings, doc_id: int) -> dict[str, Any] | None:
     with connect(settings) as conn:
         row = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
@@ -334,8 +375,8 @@ def delete_document_by_path(settings: Settings, path: str) -> None:
         conn.execute("DELETE FROM documents WHERE path=?", (path,))
 
 
-def duplicate_groups(settings: Settings) -> list[dict[str, Any]]:
-    docs = list_documents(settings, limit=5000)
+def duplicate_groups(settings: Settings, documents: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    docs = documents if documents is not None else list_documents(settings, limit=5000)
     groups: list[dict[str, Any]] = []
     by_hash: dict[str, list[dict[str, Any]]] = {}
     for d in docs:
