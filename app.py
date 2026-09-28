@@ -195,8 +195,7 @@ async def local_browser_guard(request: Request, call_next):
             "/api/diagnostics/report",
             "/api/recovery",
             "/api/recovery/restore",
-            "/api/open-data-folder",
-            "/api/open-log",
+            "/api/open-folder",
         }
         if request.url.path not in allowed:
             return JSONResponse(
@@ -260,6 +259,17 @@ def _diagnostic_assessment(report: dict[str, Any]) -> dict[str, Any]:
     schema = int(report.get("schema_version") or 0)
     supported = int(report.get("supported_schema_version") or 0)
     free_space = float(report.get("free_space_gb") or 0)
+    startup_status = str(report.get("database_startup") or "ok")
+
+    if startup_status == "degraded":
+        checks.append({
+            "code": "database-startup",
+            "status": "error",
+            "message": "DocPilot started in recovery mode because the local database could not be opened safely.",
+        })
+        recommendations.append(
+            "Open Settings → Recovery checkpoints and restore a verified checkpoint before normal document work."
+        )
 
     if database_status == "missing":
         checks.append({"code": "database", "status": "info", "message": "Database has not been created yet."})
@@ -324,7 +334,10 @@ def _diagnostic_assessment(report: dict[str, Any]) -> dict[str, Any]:
 def diagnostics():
     usage = shutil.disk_usage(settings.root)
     db_path = settings.state / "docpilot.sqlite3"
-    summary = dashboard_summary(settings)
+    try:
+        summary = dashboard_summary(settings) if not DATABASE_BOOTSTRAP_ERROR else {"documents": 0}
+    except (sqlite3.DatabaseError, RuntimeError, OSError):
+        summary = {"documents": 0}
     db_health = database_health(db_path)
     safe_report = {
         "version": __version__,
@@ -332,6 +345,7 @@ def diagnostics():
         "platform": platform.platform(),
         "python": platform.python_version(),
         "documents": summary["documents"],
+        "database_startup": "degraded" if DATABASE_BOOTSTRAP_ERROR else "ok",
         "database": db_health["status"],
         "database_integrity": db_health["integrity"],
         "schema_version": db_health["schema_version"],
@@ -369,6 +383,7 @@ def diagnostics_report():
         f"Mode: {'packaged' if report['packaged'] else 'source'}",
         f"Platform: {report['platform']}",
         f"Documents: {report['documents']}",
+        f"Database startup: {report['database_startup']}",
         f"Database: {report['database']} / integrity {report['database_integrity']}",
         f"Schema: v{report['schema_version']} / supported v{report['supported_schema_version']}",
         f"Migration backups: {report['migration_backups']}",
@@ -411,6 +426,7 @@ def recovery_checkpoint():
 
 @app.post("/api/recovery/restore")
 def recovery_restore(payload: dict = Body(...)):
+    global DATABASE_BOOTSTRAP_ERROR, UPGRADE_RECOVERY_STATUS
     name = str(payload.get("name") or "").strip()
     if not name:
         raise HTTPException(400, "Recovery point name is required")
@@ -427,6 +443,13 @@ def recovery_restore(payload: dict = Body(...)):
     except (RuntimeError, sqlite3.DatabaseError, OSError) as exc:
         raise HTTPException(409, str(exc))
 
+    DATABASE_BOOTSTRAP_ERROR = None
+    UPGRADE_RECOVERY_STATUS = {
+        "status": "restored",
+        "previous_version": None,
+        "current_version": __version__,
+        "checkpoint": result["restored_from"]["name"],
+    }
     audit(
         settings,
         "recovery-restore",
