@@ -26,7 +26,19 @@ Jeżeli pojawi się komunikat o rozjeździe wersji:
 
 Nie trzeba usuwać lokalnego archiwum ani bazy danych.
 
-## 3. Database integrity nie jest OK
+## 3. Recovery readiness — co oznacza
+
+W **Settings → Data & diagnostics** sprawdź pole **Recovery readiness**:
+
+- `ready` — baza jest zdrowa i masz zweryfikowany punkt odzyskiwania;
+- `checkpoint-recommended` — baza jest zdrowa, ale nie ma jeszcze zweryfikowanego punktu recovery;
+- `database-problem` — najpierw sprawdź integralność bazy i listę Recovery checkpoints.
+
+Jeżeli widzisz `checkpoint-recommended`, użyj **Create checkpoint** przed większą aktualizacją, masowymi operacjami albo konserwacją.
+
+Recovery checkpoint chroni lokalny **indeks i ustawienia SQLite**. Nie zastępuje **Full Archive Backup**, który służy do kopii dokumentów źródłowych.
+
+## 4. Database integrity nie jest OK
 
 Najpierw nie wykonuj masowych zmian ani dużego importu.
 
@@ -37,7 +49,7 @@ Najpierw nie wykonuj masowych zmian ani dużego importu.
 
 Jeżeli nie ma zweryfikowanego punktu odzyskiwania, zachowaj bieżące dane i zgłoś problem zamiast ręcznie podmieniać pliki SQLite.
 
-## 4. Schema version jest nowsza niż obsługiwana
+## 5. Schema version jest nowsza niż obsługiwana
 
 Taka sytuacja zwykle oznacza próbę otwarcia danych utworzonych przez nowszy DocPilot.
 
@@ -45,7 +57,7 @@ Taka sytuacja zwykle oznacza próbę otwarcia danych utworzonych przez nowszy Do
 2. Zainstaluj aktualne wydanie DocPilot.
 3. Uruchom aplikację ponownie i sprawdź diagnostykę.
 
-## 5. Mało wolnego miejsca
+## 6. Mało wolnego miejsca
 
 OCR, pełny backup, import seryjny i aktualizacja mogą tworzyć pliki tymczasowe lub kopie bezpieczeństwa.
 
@@ -54,7 +66,7 @@ OCR, pełny backup, import seryjny i aktualizacja mogą tworzyć pliki tymczasow
 
 Zwolnij miejsce przed dużym backupem, aktualizacją albo masowym importem.
 
-## 6. Aktualizacja nie działa
+## 7. Aktualizacja nie działa
 
 1. Zamknij działające okna DocPilot.
 2. Pobierz aktualny instalator z sekcji **Releases**.
@@ -65,11 +77,11 @@ Instalator jest testowany pod kątem zachowania lokalnych danych podczas aktuali
 
 Przy pierwszym uruchomieniu po zmianie wersji DocPilot tworzy dodatkowy zweryfikowany recovery checkpoint bazy. Jego stan jest widoczny w **Settings → Data & diagnostics → Upgrade recovery**. Jeżeli widnieje tam `error`, utwórz ręczny checkpoint przed kolejną dużą operacją albo aktualizacją.
 
-## 7. Windows SmartScreen ostrzega przed instalatorem
+## 8. Windows SmartScreen ostrzega przed instalatorem
 
 Instalator nie ma jeszcze komercyjnego podpisu code-signing, dlatego SmartScreen może wyświetlić ostrzeżenie. Przed uruchomieniem można porównać SHA-256 pobranego pliku z `SHA256SUMS.txt` dołączonym do tego samego wydania.
 
-## 8. Jak przygotować zgłoszenie błędu
+## 9. Jak przygotować zgłoszenie błędu
 
 W **Settings → Data & diagnostics** użyj:
 - **Copy safe report** albo
@@ -83,7 +95,7 @@ Bezpieczny raport zawiera informacje o wersji, platformie, stanie bazy, wersji s
 
 Do publicznego Issue nie dodawaj prywatnych dokumentów, danych osobowych ani pełnego pliku logu bez wcześniejszego sprawdzenia jego zawartości.
 
-## 9. Kiedy użyć Recovery, a kiedy ponownej instalacji
+## 10. Kiedy użyć Recovery, a kiedy ponownej instalacji
 
 **Recovery checkpoint** służy do problemów z bazą danych.
 
