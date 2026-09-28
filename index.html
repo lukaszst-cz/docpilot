@@ -105,6 +105,18 @@
       <section id="view-documents" class="view">
         <section class="card">
           <div class="cardHead"><div><h2>Local document index</h2><p class="muted">Select documents to update case, profile or required action together.</p></div><button id="refreshDocsBtn" class="secondary">Refresh</button></div>
+          <div class="documentNav">
+            <div class="inline">
+              <input id="documentsFilter" aria-label="Filter document index" placeholder="Filter by name, category, case, profile or metadata">
+              <button id="applyDocumentsFilter" class="secondary">Filter</button>
+              <button id="clearDocumentsFilter" class="secondary">Clear</button>
+            </div>
+            <div class="inline">
+              <button id="prevDocumentsPage" class="secondary">Previous</button>
+              <span id="documentsPageInfo" class="muted">0 documents</span>
+              <button id="nextDocumentsPage" class="secondary">Next</button>
+            </div>
+          </div>
           <div id="bulkDocumentsBar" class="bulkBar hidden">
             <strong><span id="bulkSelectedCount">0</span> selected</strong>
             <select id="bulkCaseMode" aria-label="Bulk case operation"><option value="">Keep case</option><option value="set">Set case</option><option value="clear">Clear case</option></select>
