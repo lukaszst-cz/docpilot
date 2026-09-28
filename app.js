@@ -506,7 +506,7 @@ async function loadRecoveryPoints(){
       const canRestore=point.integrity==='ok'&&Number(point.schema_version||0)<=Number(diagnosticsCache?.supported_schema_version||999);
       return `<div class="listItem"><div class="listItemHead"><strong>${esc(label)}</strong><div class="inline"><span class="badge ${point.integrity==='ok'?'':'red'}">${esc(point.integrity)}</span>${canRestore?`<button class="secondary recoveryRestore" data-name="${esc(point.name)}">Restore</button>`:''}</div></div><div class="meta"><span>${esc(point.name)}</span><span>schema v${point.schema_version??'?'}</span><span>${Math.max(1,Math.round((point.size_bytes||0)/1024))} KB</span><span>${esc(point.modified_at)}</span></div></div>`;
     }).join(''):'<p class="muted">No recovery points yet.</p>';
-    $('.recoveryRestore').forEach(button=>button.addEventListener('click',async()=>{
+    $$('.recoveryRestore').forEach(button=>button.addEventListener('click',async()=>{
       const typed=prompt(`Restore database from "${button.dataset.name}"? Type RESTORE to continue.`);
       if(typed!=='RESTORE')return;
       button.disabled=true;
