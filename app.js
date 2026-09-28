@@ -1,6 +1,7 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set(), documentsPageOffset = 0, documentsPageTotal = 0, documentsFilterValue = '';\nconst documentsPageLimit = 100;
+let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set(), documentsPageOffset = 0, documentsPageTotal = 0, documentsFilterValue = '';
+const documentsPageLimit = 100;
 const titles = {
   dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
   documents:['Documents','Your local document index'], deadlines:['Deadline Radar','Payments, replies, expirations and warranties'],
