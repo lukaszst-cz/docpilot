@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from dataclasses import asdict
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -98,8 +98,9 @@ def init_db(settings: Settings) -> Path:
     path = settings.state / "docpilot.sqlite3"
     with DATABASE_LOCK:
         existed = path.exists() and path.stat().st_size > 0
-        with sqlite3.connect(path) as conn:
+        with closing(sqlite3.connect(path)) as conn:
             migrate_database(path, conn, SCHEMA, backup_existing=existed)
+            conn.commit()
     return path
 
 
