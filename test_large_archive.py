@@ -275,3 +275,47 @@ def test_review_candidate_documents_are_bounded(tmp_path):
 
     assert len(documents) == 1000
     assert groups == []
+
+
+def test_duplicate_api_uses_lightweight_rows_without_full_document_load(monkeypatch, tmp_path):
+    import docpilot.app as app_module
+    import docpilot.db as db_module
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=1600)
+    with connect(settings) as conn:
+        conn.execute("UPDATE documents SET simhash=NULL")
+        conn.execute("UPDATE documents SET sha256='exact-large-pair' WHERE id IN (20,21)")
+
+    monkeypatch.setattr(app_module, "settings", settings)
+
+    def unexpected_full_load(*args, **kwargs):
+        raise AssertionError("Duplicate Finder loaded full document rows")
+
+    monkeypatch.setattr(db_module, "list_documents", unexpected_full_load)
+    client = TestClient(app_module.app)
+
+    response = client.get("/api/duplicates")
+    assert response.status_code == 200
+    groups = response.json()
+    exact = next(group for group in groups if group["kind"] == "exact")
+
+    assert {int(item["id"]) for item in exact["documents"]} == {20, 21}
+    assert all("extracted_text" not in item for item in exact["documents"])
+    assert all("metadata" not in item for item in exact["documents"])
+    assert all({"id", "path", "source_name", "sha256", "simhash", "updated_at"}.issubset(item) for item in exact["documents"])
+
+
+def test_duplicate_display_groups_chunks_large_exact_groups(tmp_path):
+    from docpilot.db import duplicate_display_groups
+
+    settings = get_settings(tmp_path / "DocPilotData")
+    _seed_archive(settings, count=1200)
+    with connect(settings) as conn:
+        conn.execute("UPDATE documents SET simhash=NULL, sha256='one-large-exact-group'")
+
+    groups = duplicate_display_groups(settings)
+    assert len(groups) == 1
+    assert groups[0]["kind"] == "exact"
+    assert len(groups[0]["documents"]) == 1200
+    assert all("extracted_text" not in item for item in groups[0]["documents"])
