@@ -54,7 +54,7 @@ def test_bulk_metadata_update_and_case_summary(monkeypatch, tmp_path):
 
     third = client.patch(
         f"/api/documents/{third_id}",
-        json={"case_name": "ACME 2026"},
+        json={"case_name": "ACME 2026", "action_required": None},
     )
     assert third.status_code == 200
 
