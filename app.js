@@ -64,7 +64,7 @@ $$('.navBtn').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 $('#nav')?.addEventListener('keydown',e=>{
   if(!['ArrowDown','ArrowUp','ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;
-  const items=$('.navBtn');
+  const items=$$('.navBtn');
   const currentIndex=Math.max(0,items.indexOf(document.activeElement));
   let next=currentIndex;
   if(e.key==='Home')next=0;
