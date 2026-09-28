@@ -164,6 +164,51 @@ def health():
     return {"status": "ok", "mode": "local-first", "version": __version__, "pwa": True, "review_queue": True, "background_notifications": True}
 
 
+def _diagnostic_assessment(report: dict[str, Any]) -> dict[str, Any]:
+    checks: list[dict[str, str]] = []
+    recommendations: list[str] = []
+
+    database_status = str(report.get("database") or "unknown")
+    integrity = str(report.get("database_integrity") or "unknown")
+    schema = int(report.get("schema_version") or 0)
+    supported = int(report.get("supported_schema_version") or 0)
+    free_space = float(report.get("free_space_gb") or 0)
+
+    if database_status == "missing":
+        checks.append({"code": "database", "status": "info", "message": "Database has not been created yet."})
+    elif integrity != "ok":
+        checks.append({"code": "database", "status": "error", "message": f"Database integrity: {integrity}."})
+        recommendations.append("Open Settings → Recovery checkpoints and restore a verified recovery point if the database cannot be used.")
+    else:
+        checks.append({"code": "database", "status": "ok", "message": "Database integrity is OK."})
+
+    if schema > supported:
+        checks.append({"code": "schema", "status": "error", "message": f"Database schema v{schema} is newer than supported v{supported}."})
+        recommendations.append("Update DocPilot before making further database changes.")
+    elif database_status != "missing" and schema < supported:
+        checks.append({"code": "schema", "status": "warning", "message": f"Database schema v{schema} has not reached supported v{supported}."})
+        recommendations.append("Restart DocPilot so the guarded database migration can complete.")
+    else:
+        checks.append({"code": "schema", "status": "ok", "message": f"Schema compatibility is OK (v{schema} / v{supported})."})
+
+    if free_space < 0.25:
+        checks.append({"code": "disk", "status": "error", "message": f"Only {free_space:.2f} GB of free disk space remains."})
+        recommendations.append("Free disk space before importing, OCRing, backing up or updating documents.")
+    elif free_space < 1.0:
+        checks.append({"code": "disk", "status": "warning", "message": f"Free disk space is low: {free_space:.2f} GB."})
+        recommendations.append("Free some disk space before creating large backups or importing many documents.")
+    else:
+        checks.append({"code": "disk", "status": "ok", "message": f"Free disk space: {free_space:.2f} GB."})
+
+    severity = {"ok": 0, "info": 0, "warning": 1, "error": 2}
+    max_level = max((severity.get(item["status"], 0) for item in checks), default=0)
+    overall = "error" if max_level >= 2 else "warning" if max_level == 1 else "ok"
+    if not recommendations:
+        recommendations.append("No immediate maintenance action is required.")
+
+    return {"status": overall, "checks": checks, "recommendations": recommendations}
+
+
 @app.get("/api/diagnostics")
 def diagnostics():
     usage = shutil.disk_usage(settings.root)
@@ -184,13 +229,46 @@ def diagnostics():
         "free_space_gb": round(usage.free / (1024 ** 3), 2),
         "max_upload_mb": settings.max_upload_mb,
     }
+    assessment = _diagnostic_assessment(safe_report)
     return {
         **safe_report,
         "data_root": str(settings.root),
         "database_path": str(db_path),
         "log_path": str(LOG_PATH),
-        "safe_report": safe_report,
+        "safe_report": {**safe_report, "assessment": assessment},
+        "assessment": assessment,
     }
+
+
+@app.get("/api/diagnostics/report")
+def diagnostics_report():
+    data = diagnostics()
+    report = data["safe_report"]
+    assessment = report["assessment"]
+    lines = [
+        "DocPilot safe diagnostic report",
+        f"Version: {report['version']}",
+        f"Mode: {'packaged' if report['packaged'] else 'source'}",
+        f"Platform: {report['platform']}",
+        f"Documents: {report['documents']}",
+        f"Database: {report['database']} / integrity {report['database_integrity']}",
+        f"Schema: v{report['schema_version']} / supported v{report['supported_schema_version']}",
+        f"Migration backups: {report['migration_backups']}",
+        f"Free space: {report['free_space_gb']} GB",
+        f"Overall status: {assessment['status']}",
+        "",
+        "Checks:",
+        *[f"- [{item['status']}] {item['message']}" for item in assessment["checks"]],
+        "",
+        "Recommended next steps:",
+        *[f"- {item}" for item in assessment["recommendations"]],
+        "",
+        "This report intentionally excludes document contents, local file paths and credentials.",
+    ]
+    return PlainTextResponse(
+        "\n".join(lines),
+        headers={"Content-Disposition": 'attachment; filename="docpilot-safe-diagnostics.txt"'},
+    )
 
 
 @app.get("/api/recovery")
