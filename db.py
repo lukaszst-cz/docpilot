@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .config import Settings
+from .db_maintenance import migrate_database
 from .models import FileAnalysis
 
 SCHEMA = """
@@ -95,8 +96,9 @@ CREATE INDEX IF NOT EXISTS idx_integration_links_external
 
 def init_db(settings: Settings) -> Path:
     path = settings.state / "docpilot.sqlite3"
+    existed = path.exists() and path.stat().st_size > 0
     with sqlite3.connect(path) as conn:
-        conn.executescript(SCHEMA)
+        migrate_database(path, conn, SCHEMA, backup_existing=existed)
     return path
 
 

@@ -55,6 +55,7 @@ from .db import (
     update_rule,
     upsert_document,
 )
+from .db_maintenance import database_health
 from .diffing import compare_documents
 from .exporters import backup_zip, full_archive_backup, ics_for_documents, notion_csv, obsidian_zip
 from .semantic import semantic_rank
@@ -165,14 +166,19 @@ def health():
 def diagnostics():
     usage = shutil.disk_usage(settings.root)
     db_path = settings.state / "docpilot.sqlite3"
-    docs = list_documents(settings, limit=5000)
+    summary = dashboard_summary(settings)
+    db_health = database_health(db_path)
     safe_report = {
         "version": __version__,
         "packaged": bool(getattr(sys, "frozen", False)),
         "platform": platform.platform(),
         "python": platform.python_version(),
-        "documents": len(docs),
-        "database": "ok" if db_path.exists() else "missing",
+        "documents": summary["documents"],
+        "database": db_health["status"],
+        "database_integrity": db_health["integrity"],
+        "schema_version": db_health["schema_version"],
+        "supported_schema_version": db_health["supported_schema_version"],
+        "migration_backups": db_health["migration_backups"],
         "free_space_gb": round(usage.free / (1024 ** 3), 2),
         "max_upload_mb": settings.max_upload_mb,
     }
