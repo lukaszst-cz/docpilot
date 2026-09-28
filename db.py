@@ -62,6 +62,22 @@ CREATE TABLE IF NOT EXISTS audit (
     event TEXT NOT NULL,
     payload_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS integration_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    scope_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL,
+    attempted INTEGER NOT NULL DEFAULT 0,
+    succeeded INTEGER NOT NULL DEFAULT 0,
+    skipped INTEGER NOT NULL DEFAULT 0,
+    failed INTEGER NOT NULL DEFAULT 0,
+    errors_json TEXT NOT NULL DEFAULT '[]',
+    started_at TEXT NOT NULL,
+    completed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_integration_runs_provider_started
+    ON integration_runs(provider, started_at DESC);
 """
 
 
@@ -94,6 +110,127 @@ def audit(settings: Settings, event: str, payload: dict[str, Any]) -> None:
             "INSERT INTO audit(created_at,event,payload_json) VALUES(?,?,?)",
             (datetime.now(timezone.utc).isoformat(), event, _dumps(payload)),
         )
+
+
+def start_integration_run(
+    settings: Settings,
+    provider: str,
+    operation: str,
+    scope: dict[str, Any] | None = None,
+) -> int:
+    started_at = datetime.now(timezone.utc).isoformat()
+    with connect(settings) as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO integration_runs(
+                provider,operation,scope_json,status,started_at
+            ) VALUES(?,?,?,?,?)
+            """,
+            (provider, operation, _dumps(scope or {}), "running", started_at),
+        )
+        return int(cur.lastrowid)
+
+
+def finish_integration_run(
+    settings: Settings,
+    run_id: int,
+    *,
+    status: str,
+    attempted: int = 0,
+    succeeded: int = 0,
+    skipped: int = 0,
+    failed: int = 0,
+    errors: list[str] | None = None,
+) -> dict[str, Any]:
+    completed_at = datetime.now(timezone.utc).isoformat()
+    with connect(settings) as conn:
+        conn.execute(
+            """
+            UPDATE integration_runs
+            SET status=?,attempted=?,succeeded=?,skipped=?,failed=?,errors_json=?,completed_at=?
+            WHERE id=?
+            """,
+            (
+                status,
+                int(attempted),
+                int(succeeded),
+                int(skipped),
+                int(failed),
+                _dumps(errors or []),
+                completed_at,
+                run_id,
+            ),
+        )
+        row = conn.execute("SELECT * FROM integration_runs WHERE id=?", (run_id,)).fetchone()
+    if not row:
+        raise KeyError(run_id)
+    data = dict(row)
+    data["scope"] = json.loads(data.pop("scope_json"))
+    data["errors"] = json.loads(data.pop("errors_json"))
+    return data
+
+
+def list_integration_runs(
+    settings: Settings,
+    *,
+    provider: str = "",
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    safe_limit = min(max(int(limit), 1), 200)
+    with connect(settings) as conn:
+        if provider.strip():
+            rows = conn.execute(
+                "SELECT * FROM integration_runs WHERE provider=? ORDER BY id DESC LIMIT ?",
+                (provider.strip(), safe_limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM integration_runs ORDER BY id DESC LIMIT ?",
+                (safe_limit,),
+            ).fetchall()
+    out = []
+    for row in rows:
+        data = dict(row)
+        data["scope"] = json.loads(data.pop("scope_json"))
+        data["errors"] = json.loads(data.pop("errors_json"))
+        out.append(data)
+    return out
+
+
+def list_documents_for_integration(
+    settings: Settings,
+    *,
+    limit: int = 100,
+    profile: str = "",
+    case_name: str = "",
+    action_required: str = "",
+    category: str = "",
+) -> tuple[list[dict[str, Any]], int]:
+    clauses: list[str] = []
+    params: list[Any] = []
+
+    if profile.strip():
+        clauses.append("profile=?")
+        params.append(profile.strip())
+    if case_name.strip():
+        clauses.append("case_name=?")
+        params.append(case_name.strip())
+    if action_required.strip():
+        clauses.append("action_required=?")
+        params.append(action_required.strip())
+    if category.strip():
+        clauses.append("category LIKE ?")
+        params.append(f"{category.strip()}%")
+
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    safe_limit = min(max(int(limit), 1), 500)
+    with connect(settings) as conn:
+        total = int(conn.execute(f"SELECT COUNT(*) FROM documents{where}", params).fetchone()[0])
+        rows = conn.execute(
+            f"SELECT * FROM documents{where} ORDER BY updated_at DESC, id DESC LIMIT ?",
+            (*params, safe_limit),
+        ).fetchall()
+    return [row_to_document(row) for row in rows], total
 
 
 def upsert_document(
