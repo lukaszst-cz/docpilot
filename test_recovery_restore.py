@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -63,6 +64,8 @@ def test_restore_can_recover_from_corrupt_active_database(tmp_path):
     _set_marker(settings, "good")
     checkpoint = create_database_checkpoint(db_path)
 
+    for suffix in ("-wal", "-shm"):
+        Path(str(db_path) + suffix).unlink(missing_ok=True)
     db_path.write_bytes(b"corrupt-current-database")
 
     result = restore_database_from_point(db_path, checkpoint["name"], SCHEMA)
