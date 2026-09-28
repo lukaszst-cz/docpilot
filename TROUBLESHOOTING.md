@@ -20,10 +20,9 @@ W **Settings → Runtime & PWA** DocPilot pokazuje:
 
 Jeżeli pojawi się komunikat o rozjeździe wersji:
 
-1. zamknij wszystkie okna DocPilot i PWA;
-2. uruchom zwykły DocPilot na Windows;
-3. otwórz ponownie PWA lub stronę w przeglądarce;
-4. wykonaj zwykłe odświeżenie.
+1. użyj przycisku **Update PWA shell** w sekcji **Runtime & PWA**;
+2. DocPilot sprawdzi aktualizację service workera i przeładuje klienta;
+3. jeżeli problem nadal występuje, zamknij wszystkie okna DocPilot/PWA i uruchom aplikację ponownie.
 
 Nie trzeba usuwać lokalnego archiwum ani bazy danych.
 
@@ -63,6 +62,8 @@ Zwolnij miejsce przed dużym backupem, aktualizacją albo masowym importem.
 4. Po uruchomieniu sprawdź **Settings → Data & diagnostics**.
 
 Instalator jest testowany pod kątem zachowania lokalnych danych podczas aktualizacji. Standardowy uninstall również nie usuwa katalogu danych użytkownika.
+
+Przy pierwszym uruchomieniu po zmianie wersji DocPilot tworzy dodatkowy zweryfikowany recovery checkpoint bazy. Jego stan jest widoczny w **Settings → Data & diagnostics → Upgrade recovery**. Jeżeli widnieje tam `error`, utwórz ręczny checkpoint przed kolejną dużą operacją albo aktualizacją.
 
 ## 7. Windows SmartScreen ostrzega przed instalatorem
 
