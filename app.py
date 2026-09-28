@@ -275,6 +275,25 @@ def diagnostics():
     db_path = settings.state / "docpilot.sqlite3"
     summary = dashboard_summary(settings)
     db_health = database_health(db_path)
+
+    recovery_points = list_recovery_points(settings.state)
+    usable_recovery = [
+        point
+        for point in recovery_points
+        if str(point.get("integrity") or "").lower() == "ok"
+        and int(point.get("schema_version") or 0) <= int(db_health["supported_schema_version"])
+    ]
+    latest_recovery = usable_recovery[0] if usable_recovery else None
+
+    if str(db_health["integrity"]).lower() != "ok":
+        recovery_status = "database-problem"
+        recovery_message = "Database integrity needs attention. Use a verified recovery point only if the current database cannot be used safely."
+    elif not usable_recovery:
+        recovery_status = "checkpoint-recommended"
+        recovery_message = "Database is healthy, but no verified recovery point is available. Create a checkpoint before major maintenance, bulk changes or an update."
+    else:
+        recovery_status = "ready"
+        recovery_message = "Database is healthy and at least one verified recovery point is available."
     safe_report = {
         "version": __version__,
         "packaged": bool(getattr(sys, "frozen", False)),
@@ -286,6 +305,11 @@ def diagnostics():
         "schema_version": db_health["schema_version"],
         "supported_schema_version": db_health["supported_schema_version"],
         "migration_backups": db_health["migration_backups"],
+        "recovery_points": len(recovery_points),
+        "verified_recovery_points": len(usable_recovery),
+        "recovery_status": recovery_status,
+        "recovery_message": recovery_message,
+        "latest_recovery_point": latest_recovery["modified_at"] if latest_recovery else None,
         "free_space_gb": round(usage.free / (1024 ** 3), 2),
         "max_upload_mb": settings.max_upload_mb,
         "portable_config_format": PORTABLE_CONFIG_FORMAT_VERSION,
@@ -321,6 +345,9 @@ def diagnostics_report():
         f"Database: {report['database']} / integrity {report['database_integrity']}",
         f"Schema: v{report['schema_version']} / supported v{report['supported_schema_version']}",
         f"Migration backups: {report['migration_backups']}",
+        f"Recovery readiness: {report['recovery_status']}",
+        f"Verified recovery points: {report['verified_recovery_points']}",
+        f"Latest recovery point: {report['latest_recovery_point'] or 'none'}",
         f"Upgrade recovery: {report['upgrade_recovery']['status']}",
         f"Upgrade checkpoint: {report['upgrade_recovery'].get('checkpoint') or 'none'}",
         f"Free space: {report['free_space_gb']} GB",
