@@ -73,7 +73,7 @@ DocPilot nie powinien być traktowany jako źródło prawdy o ważnym terminie, 
 
 Redakcja danych w skanach i PDF-ach działa, ale przed wysłaniem takiego pliku trzeba go obejrzeć ręcznie.
 
-Integracje z Gmail/Outlook, Notion i Google Calendar są opcjonalne i nadal traktuję je jako funkcje dodatkowe.
+Integracje z Gmail/Outlook, Notion i Google Calendar są opcjonalne. Przed synchronizacją można sprawdzić zakres danych, a wynik każdej operacji jest zapisywany w historii. Pierwszą synchronizację z usługą zewnętrzną najlepiej wykonać na małym zakresie i sprawdzić rezultat.
 
 MCP jest przeznaczone dla osób, które wiedzą, po co chcą go użyć. Do zwykłego korzystania z DocPilot nie jest potrzebne.
 
@@ -126,9 +126,22 @@ Najważniejsze zmiany:
 
 Zmiana samej wartości profilu w indeksie nie przenosi istniejącego pliku na dysku. Fizyczna przestrzeń profilu jest używana podczas operacji **organize**.
 
+## Co zmienia 3.0
+
+DocPilot 3.0 porządkuje integracje tak, żeby były przewidywalne i możliwe do kontrolowania przed wysłaniem danych poza komputer.
+
+Najważniejsze zmiany:
+- przed synchronizacją z Notion lub Google Calendar można ograniczyć zakres po profilu, sprawie, akcji i kategorii oraz podejrzeć przykładowe rekordy;
+- każda synchronizacja i import poczty zapisują osobną historię z liczbą prób, sukcesów, pominięć, błędów i użytym zakresem;
+- Notion i Google Calendar pamiętają powiązanie dokumentu z obiektem zewnętrznym, dzięki czemu niezmienione rekordy są pomijane, a zmienione aktualizowane zamiast tworzyć kolejne kopie;
+- Portable Configuration przenosi reguły, własne typy dokumentów i bezpieczne ustawienia między instalacjami, bez haseł, tokenów OAuth i ścieżek charakterystycznych dla jednego komputera;
+- integracje korzystają ze wspólnego registry adapterów, więc kolejny konektor może deklarować własny status, zakres i sposób synchronizacji bez dopisywania go na sztywno do głównego kodu aplikacji.
+
+Podstawowy workflow nadal pozostaje lokalny. Dane trafiają do usługi zewnętrznej dopiero po wybraniu i uruchomieniu odpowiedniej integracji.
+
 ## Status wydania
 
-Kod gałęzi `main` jest przygotowany jako **v2.0.0**. Publiczne pliki są publikowane z oznaczonego wydania, a linki w sekcji „Pobierz” zawsze prowadzą do najnowszego opublikowanego release.
+Kod gałęzi `main` jest przygotowany jako **v3.0.0**. Publiczne pliki są publikowane z oznaczonego wydania, a linki w sekcji „Pobierz” zawsze prowadzą do najnowszego opublikowanego release.
 
 Wydanie Windows przechodzi automatyczne testy, kontrolę składni frontendu, smoke testy typowych dokumentów i codziennego workflow, budowę aplikacji i modułu powiadomień, OCR obrazu i skanowanego PDF-u, self-test gotowego EXE, czystą instalację i uninstall z zachowaniem danych, upgrade z v0.5.1 na istniejącej bazie SQLite, budowę instalatora i Portable ZIP oraz wygenerowanie sum SHA-256.
 
