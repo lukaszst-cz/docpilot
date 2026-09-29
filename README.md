@@ -10,32 +10,20 @@ Najważniejsza zasada jest prosta: **DocPilot najpierw pokazuje propozycję, a d
 
 ![DocPilot demo](demo.gif)
 
-## Pobierz
+## Pobierz dla Windows
+
+**Stabilne wydanie: DocPilot v4.0.0**
+
+- [Pobierz instalator Windows x64 (.exe)](https://github.com/lukaszst-cz/docpilot/releases/download/v4.0.0/DocPilot-Setup-Windows-x64.exe)
+- [Pobierz wersję Portable Windows x64 (.zip)](https://github.com/lukaszst-cz/docpilot/releases/download/v4.0.0/DocPilot-Portable-Windows-x64.zip)
+- [SHA256SUMS.txt](https://github.com/lukaszst-cz/docpilot/releases/download/v4.0.0/SHA256SUMS.txt)
+- [Pełna strona wydania v4.0.0](https://github.com/lukaszst-cz/docpilot/releases/tag/v4.0.0)
 
 Strona projektu:
 
 https://lukaszst-cz.github.io/operations-office-portfolio/docpilot/
 
-Instalator Windows:
-
-https://github.com/lukaszst-cz/docpilot/releases/latest/download/DocPilot-Setup-Windows-x64.exe
-
-Portable ZIP:
-
-https://github.com/lukaszst-cz/docpilot/releases/latest/download/DocPilot-Portable-Windows-x64.zip
-
-Sumy SHA-256:
-
-https://github.com/lukaszst-cz/docpilot/releases/latest/download/SHA256SUMS.txt
-
-Najnowsze pełne wydanie:
-
-https://github.com/lukaszst-cz/docpilot/releases/latest
-
-Do wyboru są:
-- **Setup EXE** — zwykły instalator dla Windows;
-- **Portable ZIP** — wersja bez instalacji;
-- **SHA256SUMS.txt** — sumy kontrolne plików.
+Do zwykłej instalacji wybierz **Setup EXE**. Wersja **Portable ZIP** działa bez instalowania programu.
 
 Instalator nie jest jeszcze podpisany komercyjnym certyfikatem code-signing, dlatego Windows może wyświetlić ostrzeżenie SmartScreen.
 
