@@ -180,3 +180,11 @@ Nie dodawaj do publicznego zgłoszenia prywatnych dokumentów, danych osobowych 
 ## Licencja
 
 MIT — szczegóły w pliku `LICENSE`.
+
+
+## Zgłaszanie błędów i bezpieczeństwo
+
+- [Zgłoś błąd](https://github.com/lukaszst-cz/docpilot/issues/new?template=bug_report.yml)
+- [Zaproponuj funkcję](https://github.com/lukaszst-cz/docpilot/issues/new?template=feature_request.yml)
+- [Zasady bezpieczeństwa](SECURITY.md)
+- [Jak współtworzyć projekt](CONTRIBUTING.md)
