@@ -188,3 +188,13 @@ MIT — szczegóły w pliku `LICENSE`.
 - [Zaproponuj funkcję](https://github.com/lukaszst-cz/docpilot/issues/new?template=feature_request.yml)
 - [Zasady bezpieczeństwa](SECURITY.md)
 - [Jak współtworzyć projekt](CONTRIBUTING.md)
+
+---
+
+## ☕ Wsparcie / Support
+
+Jeśli ten projekt Ci się podoba lub jest dla Ciebie przydatny, możesz dobrowolnie wesprzeć jego dalszy rozwój.  
+If you like this project or find it useful, you can support its further development.
+
+**[☕ Postaw Naleśnikowi++ kawę / Buy Me a Coffee](https://buymeacoffee.com/nalesnik_plus_plus)**
+
