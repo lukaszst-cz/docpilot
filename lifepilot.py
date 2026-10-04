@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import zipfile
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -342,6 +343,186 @@ def build_proof_pack(
         archive.writestr("SHA256SUMS.txt", "\n".join(checksums) + "\n")
         archive.writestr("README.txt", readme)
     return destination
+
+
+def _zip_member_sha256(archive: zipfile.ZipFile, name: str) -> str:
+    digest = hashlib.sha256()
+    with archive.open(name, "r") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify_proof_pack(
+    path: Path,
+    *,
+    max_total_bytes: int = 200 * 1024 * 1024,
+    max_entries: int = 100,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "format": "lifepilot-proof-pack-verification",
+        "version": 1,
+        "valid": False,
+        "checks": [],
+        "errors": [],
+        "warnings": [],
+        "manifest": None,
+        "original": None,
+        "integrity": {
+            "checksums_verified": False,
+            "source_matches_manifest": None,
+            "source_matches_index": None,
+        },
+    }
+    if not path.exists() or not path.is_file():
+        result["errors"].append("ProofPack file does not exist.")
+        return result
+    if not zipfile.is_zipfile(path):
+        result["errors"].append("File is not a valid ZIP archive.")
+        return result
+
+    try:
+        with zipfile.ZipFile(path, "r") as archive:
+            infos = archive.infolist()
+            names = [info.filename for info in infos]
+            if len(infos) > max_entries:
+                result["errors"].append(f"Archive contains too many entries ({len(infos)} > {max_entries}).")
+                return result
+            if len(names) != len(set(names)):
+                result["errors"].append("Archive contains duplicate filenames.")
+                return result
+
+            unsafe = [
+                name for name in names
+                if name.startswith(("/", "\\"))
+                or re.match(r"^[A-Za-z]:", name)
+                or ".." in Path(name.replace("\\", "/")).parts
+            ]
+            if unsafe:
+                result["errors"].append("Archive contains unsafe member paths.")
+                return result
+
+            total_size = sum(max(0, int(info.file_size)) for info in infos)
+            if total_size > max_total_bytes:
+                result["errors"].append(
+                    f"Archive expands beyond the verification limit ({total_size} > {max_total_bytes} bytes)."
+                )
+                return result
+
+            required = {"manifest.json", "next-action.json", "timeline.json", "SHA256SUMS.txt", "README.txt"}
+            missing = sorted(required.difference(names))
+            if missing:
+                result["errors"].append("Missing required files: " + ", ".join(missing))
+                return result
+
+            originals = [name for name in names if name.startswith("original/") and not name.endswith("/")]
+            if len(originals) != 1:
+                result["errors"].append("ProofPack must contain exactly one original document.")
+                return result
+            original_name = originals[0]
+            result["original"] = original_name
+
+            sums_info = archive.getinfo("SHA256SUMS.txt")
+            if sums_info.file_size > 128 * 1024:
+                result["errors"].append("SHA256SUMS.txt is unexpectedly large.")
+                return result
+            sums_text = archive.read("SHA256SUMS.txt").decode("utf-8", errors="strict")
+            expected: dict[str, str] = {}
+            for raw_line in sums_text.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                match = re.fullmatch(r"([0-9a-fA-F]{64})\s{2}(.+)", line)
+                if not match:
+                    result["errors"].append("SHA256SUMS.txt contains an invalid line.")
+                    continue
+                digest, name = match.group(1).lower(), match.group(2)
+                if name in expected:
+                    result["errors"].append(f"Duplicate checksum entry: {name}")
+                    continue
+                expected[name] = digest
+
+            required_checked = {original_name, "manifest.json", "next-action.json", "timeline.json"}
+            missing_sums = sorted(required_checked.difference(expected))
+            if missing_sums:
+                result["errors"].append("Missing checksum entries: " + ", ".join(missing_sums))
+
+            for name, expected_digest in expected.items():
+                if name not in names:
+                    result["errors"].append(f"Checksum references missing file: {name}")
+                    continue
+                actual_digest = _zip_member_sha256(archive, name)
+                ok = actual_digest == expected_digest
+                result["checks"].append(
+                    {
+                        "name": name,
+                        "expected_sha256": expected_digest,
+                        "actual_sha256": actual_digest,
+                        "ok": ok,
+                    }
+                )
+                if not ok:
+                    result["errors"].append(f"Checksum mismatch: {name}")
+
+            result["integrity"]["checksums_verified"] = bool(expected) and not any(
+                not check["ok"] for check in result["checks"]
+            )
+
+            manifest_info = archive.getinfo("manifest.json")
+            if manifest_info.file_size > 2 * 1024 * 1024:
+                result["errors"].append("manifest.json is unexpectedly large.")
+                return result
+            try:
+                manifest = json.loads(archive.read("manifest.json"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                result["errors"].append("manifest.json is not valid UTF-8 JSON.")
+                return result
+            if not isinstance(manifest, dict):
+                result["errors"].append("manifest.json must contain a JSON object.")
+                return result
+            result["manifest"] = {
+                "format": manifest.get("format"),
+                "version": manifest.get("version"),
+                "generated_at": manifest.get("generated_at"),
+                "source_name": (manifest.get("document") or {}).get("source_name"),
+                "document_type": (manifest.get("metadata") or {}).get("document_type"),
+                "case_name": (manifest.get("document") or {}).get("case_name"),
+            }
+            if manifest.get("format") != "lifepilot-proof-pack":
+                result["errors"].append("Unexpected ProofPack manifest format.")
+            if manifest.get("version") != 1:
+                result["warnings"].append(f"Manifest version {manifest.get('version')} is not the expected v1.")
+
+            original_digest = next(
+                (check["actual_sha256"] for check in result["checks"] if check["name"] == original_name and check["ok"]),
+                None,
+            )
+            integrity = manifest.get("integrity") if isinstance(manifest.get("integrity"), dict) else {}
+            manifest_computed = str(integrity.get("computed_digest") or "").lower() or None
+            indexed_digest = str(integrity.get("digest") or "").lower() or None
+            if original_digest and manifest_computed:
+                source_matches_manifest = original_digest == manifest_computed
+                result["integrity"]["source_matches_manifest"] = source_matches_manifest
+                if not source_matches_manifest:
+                    result["errors"].append("Original document does not match manifest computed_digest.")
+            elif not manifest_computed:
+                result["warnings"].append("Manifest does not contain computed_digest.")
+
+            if original_digest and indexed_digest:
+                source_matches_index = original_digest == indexed_digest
+                result["integrity"]["source_matches_index"] = source_matches_index
+                if not source_matches_index:
+                    result["warnings"].append(
+                        "Original is internally valid but differs from the SHA-256 recorded in the document index."
+                    )
+            elif not indexed_digest:
+                result["warnings"].append("Manifest does not contain the indexed SHA-256 digest.")
+
+    except (OSError, zipfile.BadZipFile, RuntimeError) as exc:
+        result["errors"].append(f"Could not verify ProofPack: {exc}")
+
+    result["valid"] = not result["errors"]
+    return result
 
 
 def lifepilot_queue(
