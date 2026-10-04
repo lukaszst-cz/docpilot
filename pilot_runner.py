@@ -176,7 +176,14 @@ def _markdown(public_payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def run_pilot(\n    source_dir: Path,\n    output_dir: Path,\n    *,\n    today: date | None = None,\n    include_private: bool = False,\n) -> PilotResult:\n    source_dir = source_dir.expanduser().resolve()
+def run_pilot(
+    source_dir: Path,
+    output_dir: Path,
+    *,
+    today: date | None = None,
+    include_private: bool = False,
+) -> PilotResult:
+    source_dir = source_dir.expanduser().resolve()
     output_dir = output_dir.expanduser().resolve()
     if not source_dir.exists() or not source_dir.is_dir():
         raise ValueError(f"Pilot source directory does not exist: {source_dir}")
