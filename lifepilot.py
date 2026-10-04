@@ -203,12 +203,14 @@ _HISTORY_EVENT_LABELS = {
     "lifepilot-case-summary-exported": "Wyeksportowano podsumowanie sprawy",
     "lifepilot-case-readiness-checked": "Sprawdzono gotowość sprawy",
     "lifepilot-casepack-exported": "Utworzono CasePack",
+    "lifepilot-document-history-exported": "Wyeksportowano historię dokumentu",
+    "lifepilot-case-history-exported": "Wyeksportowano historię sprawy",
 }
 
 
 def _history_safe_fields(payload: dict[str, Any]) -> dict[str, Any]:
     safe: dict[str, Any] = {}
-    for key in ("fields", "changes", "decision_before", "decision_after", "done_at", "status", "documents", "issues", "available_originals", "missing_originals"):
+    for key in ("fields", "changes", "decision_before", "decision_after", "done_at", "status", "documents", "issues", "available_originals", "missing_originals", "events"):
         if key in payload:
             safe[key] = payload.get(key)
     for key in ("case_name", "case_before", "case_after"):
