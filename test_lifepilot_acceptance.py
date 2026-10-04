@@ -1,9 +1,18 @@
+from copy import deepcopy
 from datetime import date
 
 from PIL import Image
 
 from docpilot.analyze import analyze_file
-from docpilot.lifepilot import next_action_for_document
+from docpilot.lifepilot import (
+    build_case_pack,
+    case_pack_preview,
+    case_readiness,
+    decision_field_changes,
+    decision_summary,
+    next_action_for_document,
+    verify_case_pack,
+)
 
 
 def _write(tmp_path, name: str, text: str):
@@ -124,3 +133,116 @@ def test_acceptance_ambiguous_deadline_fails_toward_review(tmp_path):
     result = _life(analysis)
     assert analysis.metadata.confidence < 0.65
     assert result["priority"] == "review"
+
+
+def _indexed_document(analysis, doc_id: int, case_name: str):
+    payload = analysis.model_dump(mode="json")
+    return {
+        "id": doc_id,
+        "path": payload["source_path"],
+        "source_name": payload["source_name"],
+        "sha256": payload["sha256"],
+        "size_bytes": payload["size_bytes"],
+        "metadata": payload["metadata"],
+        "case_name": case_name,
+        "action_required": payload["action_required"],
+        "category": payload["suggested_category"],
+        "profile": "Home",
+        "updated_at": "2026-10-04T12:00:00+00:00",
+    }
+
+
+def test_acceptance_multiple_dates_use_explicit_deadline_phrase(tmp_path):
+    analysis = _write(
+        tmp_path,
+        "multi-date-invoice.txt",
+        "ACME Sp. z o.o.\nFaktura VAT nr FV/20/2026\n"
+        "Data wystawienia: 01.10.2026\nData sprzedazy: 30.09.2026\n"
+        "Termin platnosci: 14.10.2026\nDo zaplaty 450,00 PLN",
+    )
+    assert analysis.metadata.document_date.isoformat() == "2026-10-01"
+    assert analysis.metadata.deadline.isoformat() == "2026-10-14"
+    result = _life(analysis)
+    assert result["due_date"] == "2026-10-14"
+    assert result["action_code"] == "to-pay"
+
+
+def test_acceptance_two_document_case_and_missing_original_remain_explicit(tmp_path):
+    invoice = _write(
+        tmp_path,
+        "case-invoice.txt",
+        "ACME Sp. z o.o.\nFaktura VAT\nData: 01.10.2026\n"
+        "Termin platnosci: 06.10.2026\nDo zaplaty 199,99 PLN",
+    )
+    letter = _write(
+        tmp_path,
+        "case-letter.txt",
+        "Urzad Testowy\nWezwanie do zlozenia wyjasnien\nData: 02.10.2026\n"
+        "Odpowiedz do 10.10.2026",
+    )
+    docs = [
+        _indexed_document(invoice, 101, "Pilot Case"),
+        _indexed_document(letter, 102, "Pilot Case"),
+    ]
+
+    preview = case_pack_preview("Pilot Case", docs)
+    assert preview["document_count"] == 2
+    assert preview["available_originals"] == 2
+    assert preview["missing_originals"] == 0
+
+    intact_pack = tmp_path / "pilot-case-intact.zip"
+    build_case_pack(intact_pack, "Pilot Case", docs)
+    intact = verify_case_pack(intact_pack)
+    assert intact["valid"] is True
+    assert intact["integrity"]["documents_verified"] == 2
+
+    (tmp_path / "case-letter.txt").unlink()
+    readiness = case_readiness("Pilot Case", docs, today=date(2026, 10, 4))
+    assert readiness["status"] == "incomplete"
+    assert readiness["counts"]["missing_originals"] == 1
+
+    missing_preview = case_pack_preview("Pilot Case", docs)
+    assert missing_preview["document_count"] == 2
+    assert missing_preview["available_originals"] == 1
+    assert missing_preview["missing_originals"] == 1
+
+    incomplete_pack = tmp_path / "pilot-case-missing.zip"
+    build_case_pack(incomplete_pack, "Pilot Case", docs)
+    verified = verify_case_pack(incomplete_pack)
+    assert verified["valid"] is True
+    assert verified["integrity"]["documents_verified"] == 1
+    assert verified["integrity"]["missing_originals"] == 1
+
+
+def test_acceptance_manual_correction_recomputes_decision_and_records_before_after(tmp_path):
+    analysis = _write(
+        tmp_path,
+        "uncertain-letter.txt",
+        "Pismo informacyjne\nData: 01.10.2026\nTermin: 10.10.2026\n"
+        "Brak informacji czego dotyczy termin.",
+    )
+    before = _indexed_document(analysis, 201, "Pilot Correction")
+    before_decision = decision_summary(before, today=date(2026, 10, 4))
+    assert before_decision["priority"] == "review"
+
+    after = deepcopy(before)
+    after["metadata"]["document_type"] = "official-letter"
+    after["metadata"]["deadline"] = "2026-10-10"
+    after["metadata"]["confidence"] = 0.95
+    after["metadata"]["manual_verified"] = True
+    after["action_required"] = "to-reply"
+
+    after_decision = decision_summary(after, today=date(2026, 10, 4))
+    changes = decision_field_changes(
+        before,
+        after,
+        {"document_type", "deadline", "action_required"},
+    )
+    assert before_decision != after_decision
+    assert after_decision["action_code"] == "to-reply"
+    assert after_decision["due_date"] == "2026-10-10"
+    assert {item["field"] for item in changes} == {
+        "document_type",
+        "deadline",
+        "action_required",
+    }

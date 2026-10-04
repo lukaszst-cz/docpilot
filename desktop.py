@@ -104,6 +104,14 @@ def _lifepilot_functional_self_test() -> None:
             if (readiness_payload.get("counts") or {}).get("missing_originals") != 0:
                 raise RuntimeError("LifePilot self-test unexpectedly reported a missing original.")
 
+            proofpack_response = app_module.lifepilot_proofpack(doc_id)
+            proofpack_path = Path(str(proofpack_response.path))
+            if not proofpack_path.exists() or proofpack_path.stat().st_size <= 0:
+                raise RuntimeError("LifePilot self-test ProofPack was not created.")
+            proofpack_verification = verify_lifepilot_pack(proofpack_path)
+            if not proofpack_verification.get("valid") or proofpack_verification.get("pack_type") != "proofpack":
+                raise RuntimeError("LifePilot self-test ProofPack verification did not pass.")
+
             casepack_response = app_module.lifepilot_casepack("Release Self Test")
             casepack_path = Path(str(casepack_response.path))
             if not casepack_path.exists() or casepack_path.stat().st_size <= 0:
@@ -111,6 +119,16 @@ def _lifepilot_functional_self_test() -> None:
             verification = verify_lifepilot_pack(casepack_path)
             if not verification.get("valid") or verification.get("pack_type") != "casepack":
                 raise RuntimeError("LifePilot self-test CasePack verification did not pass.")
+
+            source.unlink()
+            missing_readiness = app_module.lifepilot_case_readiness("Release Self Test")
+            if missing_readiness.get("status") != "incomplete":
+                raise RuntimeError("LifePilot self-test did not mark a missing-original case as incomplete.")
+            if (missing_readiness.get("counts") or {}).get("missing_originals") != 1:
+                raise RuntimeError("LifePilot self-test missing-original count is incorrect.")
+            missing_preview = app_module.lifepilot_casepack_preview("Release Self Test")
+            if missing_preview.get("missing_originals") != 1:
+                raise RuntimeError("LifePilot self-test CasePack preview did not expose the missing original.")
 
             marked = app_module.lifepilot_mark_done(doc_id)
             if not marked.get("done"):

@@ -43,6 +43,7 @@ docpilot = "docpilot.cli:main"
 docpilot-desktop = "docpilot.desktop:main"
 docpilot-mcp = "docpilot.mcp_server:main"
 docpilot-notifier = "docpilot.notifier:main"
+docpilot-pilot = "docpilot.pilot_runner:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["docpilot"]

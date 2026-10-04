@@ -147,24 +147,24 @@ jobs:
           # Keep the following upgrade test independent from the clean-install test.
           Remove-Item -Path $dataRoot -Recurse -Force
 
-      - name: Upgrade smoke test from v0.5.1
+      - name: Upgrade smoke test from stable v4.0.0
         shell: pwsh
         run: |
-          $oldInstaller = Join-Path $env:TEMP 'DocPilot-Setup-v0.5.1.exe'
-          Invoke-WebRequest -Uri 'https://github.com/lukaszst-cz/docpilot/releases/download/v0.5.1/DocPilot-Setup-Windows-x64.exe' -OutFile $oldInstaller
+          $oldInstaller = Join-Path $env:TEMP 'DocPilot-Setup-v4.0.0.exe'
+          Invoke-WebRequest -Uri 'https://github.com/lukaszst-cz/docpilot/releases/download/v4.0.0/DocPilot-Setup-Windows-x64.exe' -OutFile $oldInstaller
 
           $silentArgs = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-')
           $old = Start-Process -FilePath $oldInstaller -ArgumentList $silentArgs -Wait -PassThru
-          if ($old.ExitCode -ne 0) { throw "v0.5.1 installer failed with exit code $($old.ExitCode)." }
+          if ($old.ExitCode -ne 0) { throw "v4.0.0 installer failed with exit code $($old.ExitCode)." }
 
           $oldExe = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
-          if (!(Test-Path $oldExe)) { throw 'v0.5.1 DocPilot.exe was not installed.' }
+          if (!(Test-Path $oldExe)) { throw 'v4.0.0 DocPilot.exe was not installed.' }
           $oldSelfTest = Start-Process -FilePath $oldExe -ArgumentList '--self-test' -Wait -PassThru
-          if ($oldSelfTest.ExitCode -ne 0) { throw "v0.5.1 self-test failed with exit code $($oldSelfTest.ExitCode)." }
+          if ($oldSelfTest.ExitCode -ne 0) { throw "v4.0.0 self-test failed with exit code $($oldSelfTest.ExitCode)." }
 
           $dataRoot = Join-Path $env:LOCALAPPDATA 'DocPilot\Data'
           $legacyDb = Join-Path $dataRoot 'state\docpilot.sqlite3'
-          if (!(Test-Path $legacyDb)) { throw 'v0.5.1 did not initialize its SQLite database.' }
+          if (!(Test-Path $legacyDb)) { throw 'v4.0.0 did not initialize its SQLite database.' }
 
           $marker = Join-Path $dataRoot 'upgrade-smoke-test.txt'
           'keep-me' | Set-Content -Path $marker -Encoding UTF8

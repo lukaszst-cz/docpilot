@@ -17,7 +17,7 @@ Celem tej macierzy jest sprawdzanie zachowania LifePilot na reprezentatywnych kl
 | Dokument bez terminu | bez fałszywego deadline; zwykłe archiwum |
 | Niejednoznaczny „Termin:” | brak zgadywania deadline → ręczna weryfikacja |
 
-Automatyczny zestaw znajduje się w `test_lifepilot_acceptance.py`.
+Automatyczny zestaw znajduje się w `test_lifepilot_acceptance.py`. Preview 4.9 rozszerza go również o: wiele dat z jawnym terminem, sprawę z 2 dokumentami, CasePack z brakującym oryginałem oraz korektę pól z ponownym przeliczeniem decyzji.
 
 ## Zasada bezpieczeństwa
 
@@ -36,3 +36,26 @@ Syntetyczne testy nie zastępują kontrolowanego pilota. Przed publiczną betą 
 - dokumenty wielojęzyczne.
 
 Wyniki realnego pilota powinny być zapisywane bez dołączania prywatnych oryginałów do publicznego repozytorium.
+
+
+## Lokalny Pilot Runner
+
+Do kontrolowanego pilota na dokumentach, których nie wolno dodawać do publicznego repo, służy lokalne polecenie:
+
+```powershell
+docpilot-pilot "C:\ścieżka\do\folderu-z-próbkami" --output "C:\ścieżka\do\wyników"
+```
+
+Domyślnie tworzone są tylko:
+- `pilot-public.json` — zredukowane techniczne wyniki bez nazw plików, ścieżek, pełnego OCR, wartości issuerów, kwot i hashy;
+- `pilot-report.md` — tabela techniczna + ręczna checklista porównania z oryginałem.
+
+Dokładny lokalny raport można włączyć jawnie:
+
+```powershell
+docpilot-pilot "C:\ścieżka\do\folderu-z-próbkami" --output "C:\ścieżka\do\wyników" --include-private
+```
+
+Wtedy powstaje dodatkowy `pilot-private.json`. Może zawierać względne nazwy plików, issuerów, kwoty i SHA-256. **Nie publikować go w publicznym repozytorium.**
+
+Katalog `lifepilot-pilot-results/` jest ignorowany przez Git, ale to nie zastępuje ręcznej kontroli raportu przed jakąkolwiek publikacją.
