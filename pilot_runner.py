@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -270,17 +272,80 @@ def run_pilot(
     )
 
 
+def _pick_windows_source_dir() -> Path | None:
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except ImportError as exc:
+        raise RuntimeError("Windows folder picker is unavailable.") from exc
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        root.attributes("-topmost", True)
+        selected = filedialog.askdirectory(
+            parent=root,
+            title="LifePilot Pilot — wybierz folder z dokumentami",
+            mustexist=True,
+        )
+    finally:
+        root.destroy()
+    return Path(selected) if selected else None
+
+
+def _default_windows_output_dir() -> Path:
+    local_app_data = Path(os.environ.get("LOCALAPPDATA") or (Path.home() / "AppData" / "Local"))
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return local_app_data / "DocPilot" / "PilotResults" / stamp
+
+
+def _show_windows_result(result: PilotResult) -> None:
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            root.attributes("-topmost", True)
+            messagebox.showinfo(
+                "LifePilot Pilot",
+                (
+                    f"Pilot zakończony.\n\n"
+                    f"Przetworzono: {result.processed}\n"
+                    f"Błędy: {result.failed}\n\n"
+                    f"Raport: {result.markdown_report}"
+                ),
+                parent=root,
+            )
+        finally:
+            root.destroy()
+    except Exception:
+        pass
+
+    if sys.platform == "win32":
+        try:
+            os.startfile(str(result.markdown_report.parent))
+        except OSError:
+            pass
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="docpilot-pilot",
         description="Run a local LifePilot acceptance pass without uploading source documents.",
     )
-    parser.add_argument("source_dir", type=Path, help="Folder containing local pilot documents.")
+    parser.add_argument(
+        "source_dir",
+        type=Path,
+        nargs="?",
+        help="Folder containing local pilot documents. Omit on Windows to use the folder picker.",
+    )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("lifepilot-pilot-results"),
-        help="Output folder outside the source folder (default: ./lifepilot-pilot-results).",
+        default=None,
+        help="Output folder outside the source folder. CLI default: ./lifepilot-pilot-results.",
     )
     parser.add_argument(
         "--include-private",
@@ -292,10 +357,29 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    source_dir = args.source_dir
+    interactive = False
+
+    if source_dir is None:
+        if sys.platform != "win32":
+            raise SystemExit("source_dir is required outside Windows launcher mode.")
+        try:
+            source_dir = _pick_windows_source_dir()
+        except RuntimeError as exc:
+            raise SystemExit(str(exc))
+        if source_dir is None:
+            return 0
+        interactive = True
+
+    output_dir = args.output
+    if output_dir is None:
+        output_dir = _default_windows_output_dir() if interactive else Path("lifepilot-pilot-results")
+
     try:
-        result = run_pilot(args.source_dir, args.output, include_private=args.include_private)
+        result = run_pilot(source_dir, output_dir, include_private=args.include_private)
     except (OSError, ValueError) as exc:
         raise SystemExit(str(exc))
+
     print(f"LifePilot pilot: {result.processed} processed, {result.failed} failed")
     if result.private_report is not None:
         print(f"Private report: {result.private_report}")
@@ -303,6 +387,9 @@ def main(argv: list[str] | None = None) -> int:
         print("Private report: not created (use --include-private to opt in)")
     print(f"Public report:  {result.public_report}")
     print(f"Markdown:       {result.markdown_report}")
+
+    if interactive:
+        _show_windows_result(result)
     return 0 if result.failed == 0 else 2
 
 
