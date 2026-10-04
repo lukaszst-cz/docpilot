@@ -359,3 +359,31 @@ def test_case_pack_verifier_detects_tampered_original(tmp_path):
     result = verify_case_pack(tampered)
     assert result["valid"] is False
     assert any("Checksum mismatch" in error for error in result["errors"])
+
+
+def test_case_pack_verifier_rejects_unreferenced_original(tmp_path):
+    source = tmp_path / "evidence.txt"
+    source.write_text("original evidence", encoding="utf-8")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    docs = [
+        _doc(
+            id=21,
+            path=str(source),
+            source_name=source.name,
+            sha256=digest,
+            case_name="Extra File Case",
+            metadata={"document_type": "document", "document_date": "2026-10-04", "confidence": 0.95},
+        )
+    ]
+    pack = tmp_path / "casepack.zip"
+    build_case_pack(pack, "Extra File Case", docs)
+
+    injected = tmp_path / "casepack-injected.zip"
+    with zipfile.ZipFile(pack, "r") as source_zip, zipfile.ZipFile(injected, "w", compression=zipfile.ZIP_DEFLATED) as target_zip:
+        for info in source_zip.infolist():
+            target_zip.writestr(info.filename, source_zip.read(info.filename))
+        target_zip.writestr("documents/999-extra.txt", b"unexpected")
+
+    result = verify_case_pack(injected)
+    assert result["valid"] is False
+    assert any("unreferenced originals" in error.lower() for error in result["errors"])
