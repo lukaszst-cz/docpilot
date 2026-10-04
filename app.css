@@ -52,3 +52,10 @@ input[type=checkbox]{width:auto;margin:0}
 .documentNav>.inline{flex:1 1 360px}
 .documentNav>.inline:last-child{justify-content:flex-end;flex:0 1 auto}
 @media(max-width:800px){.documentNav{align-items:stretch}.documentNav>.inline,.documentNav>.inline:last-child{width:100%;flex-basis:100%;justify-content:stretch}.documentNav input,.documentNav button{width:100%}}
+
+
+.lifePilotCard{margin:16px 0 18px;padding:18px;border:1px solid #38506d;border-radius:15px;background:linear-gradient(135deg,rgba(25,39,57,.98),rgba(15,20,27,.98))}
+.lifePilotCard h3{margin:7px 0 8px;font-size:20px}
+.lifePilotCard p{line-height:1.55}
+.lifePilotActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.lifePilotPrivacy{margin:10px 0 0;font-size:12px}
