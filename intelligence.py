@@ -126,7 +126,7 @@ def action_required(analysis: FileAnalysis) -> str | None:
     if md.deadline:
         if md.document_type == "invoice" or any(k in text for k in ("do zapłaty", "termin płatności", "payment due")):
             return "to-pay"
-        if any(k in text for k in ("odpowiedź", "response", "ustosunk", "wyjaśn")):
+        if any(k in text for k in ("odpowiedź", "odpowiedz", "response", "ustosunk", "wyjaśn", "wyjasn")):
             return "to-reply"
         return "to-review"
     if any(k in text for k in ("podpis", "signature", "sign here")):
@@ -200,7 +200,7 @@ def enrich_fields(analysis: FileAnalysis) -> dict[str, Any]:
         year = md.document_date.year + (md.document_date.month - 1 + months) // 12
         month = (md.document_date.month - 1 + months) % 12 + 1
         day = min(md.document_date.day, 28)
-        fields["warranty_until"] = date(year, month, day).isoformat()
+        fields["warranty_until"] = date(year, month, day)
     else:
         fields["warranty_until"] = None
     return fields
