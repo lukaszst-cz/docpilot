@@ -340,6 +340,12 @@ def main() -> None:
             raise SystemExit(1)
         raise SystemExit(0)
 
+    if "--pilot" in sys.argv:
+        from docpilot.pilot_runner import main as pilot_main
+
+        index = sys.argv.index("--pilot")
+        raise SystemExit(pilot_main(sys.argv[index + 1 :]))
+
     thread = threading.Thread(target=_serve, daemon=True)
     thread.start()
     if not _wait_until_ready():
