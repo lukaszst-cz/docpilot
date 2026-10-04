@@ -14,8 +14,8 @@
 <body>
   <a class="skipLink" href="#mainContent">Skip to content</a>
   <div class="appShell">
-    <aside class="sidebar" aria-label="DocPilot navigation">
-      <div class="brand"><div class="brandIcon">DP</div><div><strong>DocPilot</strong><small>Local-first</small></div></div>
+    <aside class="sidebar" aria-label="LifeAdmin navigation">
+      <div class="brand"><div class="brandIcon">LA</div><div><strong>LifeAdmin</strong><small>powered by DocPilot</small></div></div>
       <nav id="nav" aria-label="Primary">
         <button data-view="dashboard" class="navBtn active" aria-current="page">Dashboard</button>
         <button data-view="lifepilot" class="navBtn">LifePilot · Co teraz?</button>
@@ -39,7 +39,7 @@
 
     <main class="main" id="mainContent" tabindex="-1">
       <header class="topbar">
-        <div><h1 id="viewTitle" tabindex="-1">Dashboard</h1><p id="viewSubtitle">Documents + Deadlines + Actions + Archive</p></div>
+        <div><h1 id="viewTitle" tabindex="-1">Dashboard</h1><p id="viewSubtitle">Jedna aplikacja do ogarniania dorosłego życia.</p></div>
         <div class="topActions"><a class="buttonLink secondary" href="/lifepilot" target="_blank" rel="noopener">O LifePilot</a><a class="buttonLink secondary" href="https://github.com/lukaszst-cz/docpilot/issues/new/choose" target="_blank" rel="noopener">Feedback</a><button id="quickImportBtn">+ Add document</button></div>
       </header>
       <div id="appNotice" class="appNotice hidden" role="status" aria-live="polite"></div>
@@ -64,8 +64,8 @@
         <section class="card welcomeCard" id="welcomeCard">
           <div>
             <span class="badge">START HERE</span>
-            <span class="badge">LIFEPILOT PREVIEW</span><h2>See DocPilot work in under a minute</h2>
-            <p>Start with a safe built-in example or use your own document. The demo contains synthetic data only and does not touch your files.</p>
+            <span class="badge">LIFEADMIN</span> <span class="badge">LIFEPILOT PREVIEW</span><h2>Wrzuć dokument, reszta robi się sama.</h2>
+            <p>LifeAdmin układa dokument w odpowiednim obszarze życia, a LifePilot podpowiada „Co teraz?”. Całość działa na lokalnym silniku DocPilot.</p>
           </div>
           <div class="stepGrid">
             <div class="step"><b>1</b><span>Add a document</span></div>
@@ -80,6 +80,10 @@
           </div>
         </section>
         <div class="stats" id="stats"></div>
+        <section class="lifeAdminSection">
+          <div class="cardHead"><div><span class="badge">LIFEADMIN</span><h2>Twoje obszary życia</h2><p class="muted">Samochód, dom, dzieci, zakupy i dokumenty — bez przekopywania się przez foldery.</p></div></div>
+          <div id="lifeAreaGrid" class="lifeAreaGrid"></div>
+        </section>
         <div class="twoCol">
           <section class="card"><div class="cardHead"><h2>Deadline Radar</h2><button class="linkBtn" data-go="deadlines">View all</button></div><div id="dashboardDeadlines"></div></section>
           <section class="card"><div class="cardHead"><h2>Action Required</h2></div><div id="dashboardActions"></div></section>
@@ -115,8 +119,8 @@
       <section id="view-inbox" class="view">
         <section class="card drop" id="dropZone">
           <div class="dropIcon">📂</div>
-          <h2>Smart Inbox</h2>
-          <p>Select a real file to analyze and rename/move it, or drag & drop to import a safe copy.</p>
+          <h2>Wrzuć dokument</h2>
+          <p>LifeAdmin rozpozna obszar życia i termin, a LifePilot podpowie następną akcję. Oryginalny plik zmieniamy dopiero po Twoim zatwierdzeniu.</p>
           <button id="browseBtn">Select file on this PC</button>
           <div class="or">or drag & drop a copy here</div>
         </section>

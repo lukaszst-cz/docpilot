@@ -88,3 +88,24 @@ input[type=checkbox]{width:auto;margin:0}
 .lifeDecision summary{cursor:pointer;font-weight:700}
 .lifeDecision ul{margin:9px 0 0;padding-left:20px}
 .lifeDecision li{margin:4px 0;color:#b8c3d0}
+
+
+/* LifeAdmin product layer */
+.lifeAdminSection{margin:18px 0}
+.lifeAdminSection>.cardHead{margin-bottom:12px}
+.lifeAreaGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.lifeAreaCard{min-width:0;padding:16px;border:1px solid var(--line);border-radius:14px;background:#111820}
+.lifeAreaTop{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.lifeAreaTop>div{min-width:0}
+.lifeAreaTop strong,.lifeAreaTop small{display:block}
+.lifeAreaTop small{margin-top:3px;color:var(--muted)}
+.lifeAreaIcon{font-size:24px;line-height:1}
+.lifeAreaMeta{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:12px}
+.lifeResult{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+.lifeResult>div{padding:12px;border:1px solid var(--line);border-radius:12px;background:#0e151d}
+.lifeResult small,.lifeResult strong{display:block}
+.lifeResult small{margin-bottom:5px;color:var(--muted)}
+.lifeResult strong{overflow-wrap:anywhere}
+@media(max-width:1050px){.lifeAreaGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.lifeAreaGrid,.lifeResult{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.lifeAreaGrid,.lifeResult{grid-template-columns:1fr}}

@@ -271,3 +271,17 @@ def test_lifepilot_ui_exposes_queue_product_page_and_safe_actions():
     assert "DANE SPRAWDZONE" in script
     assert "LifePilot notifications" in script
     assert "LifePilot background notifications" in html
+
+
+def test_lifeadmin_dashboard_and_analysis_are_exposed():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+    css = (ROOT / "app.css").read_text(encoding="utf-8")
+
+    assert 'id="lifeAreaGrid"' in html
+    assert "Jedna aplikacja do ogarniania dorosłego życia." in html
+    assert "/api/lifeadmin" in script
+    assert "md.life_area" in script
+    assert "md.life_action" in script
+    assert ".lifeAreaGrid" in css
+    assert ".lifeResult" in css
