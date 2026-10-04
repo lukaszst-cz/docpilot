@@ -56,6 +56,7 @@ class ApplyRequest(BaseModel):
     case_name: str | None = None
     action_required: str | None = None
     smart_structure: bool = True
+    metadata_overrides: dict[str, object] = Field(default_factory=dict)
 
 
 class LifePilotCorrectionRequest(BaseModel):
