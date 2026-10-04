@@ -73,6 +73,7 @@ from .integrations import (
 )
 from .integration_registry import get_integration_adapter, integration_catalog
 from .lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview
+from .lifeadmin import summarize_documents
 from .notifier import collect_due, install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest, LifePilotCorrectionRequest
 from .redaction import redact_file
@@ -565,7 +566,7 @@ def _pick_folder_fallback(title: str = "Select a folder for DocPilot") -> str | 
     return value or None
 
 
-def _analyze_and_index(path: Path, *, profile: str = "Home") -> dict[str, Any]:
+def _analyze_and_index(path: Path, *, profile: str = "Home", suggest_profile: bool = True) -> dict[str, Any]:
     custom_types = list_custom_types(settings)
     analysis = analyze_file(path, custom_types=custom_types)
     doc = {
@@ -575,13 +576,26 @@ def _analyze_and_index(path: Path, *, profile: str = "Home") -> dict[str, Any]:
         "tags": analysis.tags,
         "extracted_text": analysis.extracted_text,
     }
-    ruled = apply_rules(doc, list_rules(settings))
+    rules = list_rules(settings)
+    ruled = apply_rules(doc, rules)
     analysis.suggested_category = ruled["category"] or analysis.suggested_category
     analysis.tags = ruled["tags"]
+    matched_rule_ids = {item.get("id") for item in ruled.get("matched_rules", [])}
+    explicit_rule_profile = next(
+        (
+            rule.get("target_profile")
+            for rule in reversed(rules)
+            if rule.get("id") in matched_rule_ids and rule.get("target_profile")
+        ),
+        None,
+    )
+    suggested_profile = explicit_rule_profile or (
+        analysis.suggested_profile if suggest_profile and profile == "Home" else profile
+    )
     doc_id = upsert_document(
         settings,
         analysis,
-        profile=ruled["profile"] or profile,
+        profile=suggested_profile,
         case_name=analysis.suggested_case,
         tags=analysis.tags,
         action_required=analysis.action_required,
@@ -591,7 +605,7 @@ def _analyze_and_index(path: Path, *, profile: str = "Home") -> dict[str, Any]:
     )
     data = analysis.model_dump(mode="json")
     data["id"] = doc_id
-    data["profile"] = ruled["profile"] or profile
+    data["profile"] = suggested_profile
     data["matched_rules"] = ruled.get("matched_rules", [])
     stored = get_document(settings, doc_id)
     if stored:
@@ -862,7 +876,7 @@ def apply(request: ApplyRequest):
             profile=request.profile,
         )
         delete_document_by_path(settings, request.source_path)
-        indexed = _analyze_and_index(Path(change.destination), profile=request.profile)
+        indexed = _analyze_and_index(Path(change.destination), profile=request.profile, suggest_profile=False)
         if request.case_name or request.action_required:
             update_document_fields(
                 settings,
@@ -942,6 +956,11 @@ def dashboard():
     summary = dashboard_summary(settings)
     summary["duplicate_groups"] = duplicate_group_count(settings)
     return summary
+
+
+@app.get("/api/lifeadmin")
+def lifeadmin_dashboard():
+    return summarize_documents(list_documents(settings, 5000))
 
 
 @app.get("/api/documents")
@@ -1144,7 +1163,7 @@ def _index_folder(folder: Path, limit: int = 100, profile: str = "Home") -> dict
     results, errors = [], []
     for path in files:
         try:
-            results.append(_analyze_and_index(path, profile=profile))
+            results.append(_analyze_and_index(path, profile=profile, suggest_profile=False))
         except Exception as exc:
             errors.append({"path": str(path), "error": str(exc)})
     audit(settings, "batch-index", {"folder": str(folder), "count": len(results), "errors": len(errors)})

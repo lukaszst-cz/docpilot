@@ -693,6 +693,7 @@ def update_document_metadata(settings: Settings, doc_id: int, **fields: Any) -> 
     allowed = {
         "document_type", "issuer", "amount", "currency", "document_date",
         "deadline", "warranty_until", "manual_verified", "manual_verified_at",
+        "life_area", "life_event", "life_action", "reminder_date",
     }
     actual = {key: value for key, value in fields.items() if key in allowed}
     if not actual:
@@ -707,6 +708,23 @@ def update_document_metadata(settings: Settings, doc_id: int, **fields: Any) -> 
         if hasattr(value, "isoformat"):
             value = value.isoformat()
         metadata[key] = value
+
+    life_inputs = {"document_type", "deadline", "warranty_until"}
+    if life_inputs.intersection(actual):
+        from .lifeadmin import infer_life_context
+        context = infer_life_context(
+            str(metadata.get("document_type") or "document"),
+            str(document.get("extracted_text") or ""),
+            str(document.get("source_name") or ""),
+            deadline=metadata.get("deadline"),
+            warranty_until=metadata.get("warranty_until"),
+        )
+        metadata.update({
+            "life_area": context["area"],
+            "life_event": context["event"],
+            "life_action": context["action"],
+            "reminder_date": context["reminder_date"],
+        })
 
     now = datetime.now(timezone.utc).isoformat()
     with connect(settings) as conn:

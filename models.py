@@ -25,6 +25,10 @@ class ExtractedMetadata(BaseModel):
     warranty_until: date | None = None
     notice_period: str | None = None
     auto_renewal: bool = False
+    life_area: str | None = None
+    life_event: str | None = None
+    life_action: str | None = None
+    reminder_date: date | None = None
 
 
 class FileAnalysis(BaseModel):
@@ -45,6 +49,7 @@ class FileAnalysis(BaseModel):
     sensitive: list[dict[str, str]] = []
     simhash: str | None = None
     warnings: list[str] = []
+    suggested_profile: str = "Home"
 
 
 class ApplyRequest(BaseModel):

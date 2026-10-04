@@ -17,6 +17,7 @@ from .intelligence import (
     suggest_case,
     tags_for,
 )
+from .lifeadmin import infer_life_context
 from .models import ExtractedMetadata, FileAnalysis
 
 _AMOUNT_RE = re.compile(r"(?<!\d)(\d{1,3}(?:[ .]\d{3})*(?:[,.]\d{2}))\s?(PLN|zł|EUR|€|USD|\$)", re.I)
@@ -27,6 +28,7 @@ _DEADLINE_PHRASES = (
     "due date", "payment due", "deadline", "odpowiedź do", "odpowiedz do", "response by",
     "ważne do", "wazne do", "valid until", "obowiązuje do", "obowiazuje do", "expires",
     "wygaśnięcie", "wygasniecie", "expiration", "przegląd do", "przeglad do",
+    "zwrot do", "return by", "gwarancja do", "warranty until", "wazny do",
 )
 
 TYPE_RULES = [
@@ -71,6 +73,18 @@ def analyze_file(path: Path, custom_types: list[dict] | None = None) -> FileAnal
     for key, value in enriched.items():
         if hasattr(metadata, key):
             setattr(metadata, key, value)
+    context = infer_life_context(
+        metadata.document_type,
+        text,
+        path.name,
+        deadline=metadata.deadline,
+        warranty_until=metadata.warranty_until,
+    )
+    metadata.life_area = context["area"]
+    metadata.life_event = context["event"]
+    metadata.life_action = context["action"]
+    metadata.reminder_date = context["reminder_date"]
+    base.suggested_profile = context["profile"]
     base.suggested_filename = suggest_filename(path, metadata)
     base.tags = tags_for(base)
     base.suggested_case = suggest_case(base)
