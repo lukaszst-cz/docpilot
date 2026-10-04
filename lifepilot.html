@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b0e12">
-  <meta name="description" content="LifePilot — local-first warstwa DocPilot, która rozpoznaje dokument, wskazuje co zrobić dalej, pilnuje terminu i tworzy ProofPack.">
+  <meta name="description" content="LifePilot — local-first warstwa DocPilot: co to jest, co zrobić, do kiedy, historia decyzji oraz zweryfikowany ProofPack/CasePack.">
   <meta property="og:title" content="LifePilot — dokument → decyzja → termin → dowód">
   <meta property="og:description" content="Wrzuć dokument. LifePilot powie Ci, co to jest, co trzeba zrobić, do kiedy i zachowa wszystko na później.">
   <meta property="og:type" content="website">
@@ -76,12 +76,15 @@
   <section class="lifeSection">
     <h2>Co działa już teraz?</h2>
     <div class="lifeCards three">
-      <article class="lifeCard"><h3>🧭 Co teraz?</h3><p>Karta pojawia się bezpośrednio po analizie i pokazuje rekomendowany następny krok.</p></article>
-      <article class="lifeCard"><h3>⏰ Priorytet i termin</h3><p>Przeterminowane, dzisiejsze, pilne, bliskie i zwykłe sprawy są rozróżniane na podstawie wykrytego terminu.</p></article>
-      <article class="lifeCard"><h3>📦 ProofPack ZIP</h3><p>Pakiet zawiera oryginał, manifest, timeline, next-action oraz SHA256SUMS.</p></article>
-      <article class="lifeCard"><h3>📅 Kalendarz</h3><p>Pojedynczy wykryty termin można pobrać jako plik .ics.</p></article>
-      <article class="lifeCard"><h3>🔐 Local-first</h3><p>Podstawowy obieg dokumentu, OCR, indeks i rekomendacja działają na komputerze użytkownika.</p></article>
-      <article class="lifeCard"><h3>🛡️ Human-in-the-loop</h3><p>Niska pewność ekstrakcji nie prowadzi do automatycznej decyzji — najpierw pojawia się prośba o ręczną kontrolę.</p></article>
+      <article class="lifeCard"><h3>🧭 Co teraz?</h3><p>Centralna kolejka rozróżnia aktywne, dzisiejsze, pilne, wymagające sprawdzenia, bliskie i załatwione pozycje.</p></article>
+      <article class="lifeCard"><h3>✅ Sprawdzone dane</h3><p>Kluczowe pola można poprawić ręcznie. LifePilot zapisuje źródło weryfikacji i przelicza rekomendację po korekcie.</p></article>
+      <article class="lifeCard"><h3>🔎 Dlaczego?</h3><p>Rekomendacja pokazuje podstawę decyzji: typ dokumentu, termin, akcję i poziom pewności automatycznego odczytu.</p></article>
+      <article class="lifeCard"><h3>📦 ProofPack</h3><p>Pakiet pojedynczego dokumentu zawiera oryginał, manifest, timeline, next-action i SHA-256 oraz ma lokalny verifier.</p></article>
+      <article class="lifeCard"><h3>🗂️ CasePack</h3><p>Cała sprawa może zostać spakowana z dostępnymi oryginałami, manifestami, chronologią, podsumowaniem i SHA256SUMS.</p></article>
+      <article class="lifeCard"><h3>🧪 Case Readiness</h3><p>Preflight pokazuje: Gotowa / Wymaga sprawdzenia / Niekompletna, bez sztucznego procentowego score.</p></article>
+      <article class="lifeCard"><h3>🕘 Decision Trail</h3><p>Historia dokumentu i sprawy pokazuje korekty, zmianę rekomendacji, status załatwione oraz wybrane eksporty bez OCR i ścieżek lokalnych.</p></article>
+      <article class="lifeCard"><h3>🔔 Powiadomienia</h3><p>Windows notifier korzysta z priorytetów LifePilot, respektuje status załatwione i deduplikuje ten sam stan dokumentu.</p></article>
+      <article class="lifeCard"><h3>🧱 Release self-test</h3><p>Gotowy EXE przechodzi izolowany przepływ LifePilot: analiza, korekta, historia, readiness, CasePack, weryfikacja i kolejka.</p></article>
     </div>
   </section>
 
@@ -108,8 +111,8 @@
   <section class="lifeSection">
     <div class="lifeCard lifeStatus">
       <span class="badge">STATUS</span>
-      <h2>LifePilot jest obecnie warstwą preview rozwijaną na stabilnym fundamencie DocPilot v4.0.0.</h2>
-      <p>DocPilot v4.0.0 pozostaje opublikowanym stabilnym wydaniem Windows. Funkcje LifePilot są rozwijane i testowane w kodzie projektu; kolejne publiczne wydanie Windows powinno otrzymać je dopiero po przejściu pełnego procesu release: testów, smoke testów gotowego EXE, clean install, upgrade i weryfikacji pakietów.</p>
+      <h2>LifePilot Preview 4.8 jest rozwijany na stabilnym fundamencie DocPilot v4.0.0.</h2>
+      <p>DocPilot v4.0.0 pozostaje opublikowanym stabilnym wydaniem Windows. Linia LifePilot przechodzi osobne CI oraz pełny Windows gate: build EXE, funkcjonalny self-test gotowego pakietu, portable ZIP, installer, clean install/uninstall, upgrade smoke i checksumy. Publiczne stabilne wydanie LifePilot wymaga jeszcze kontrolowanego pilota na rzeczywistych lub zanonimizowanych dokumentach oraz końcowego przeglądu UX.</p>
       <div class="lifeCta">
         <a class="buttonLink" href="https://github.com/lukaszst-cz/docpilot" target="_blank" rel="noopener">Repozytorium DocPilot / LifePilot ↗</a>
         <a class="buttonLink secondary" href="https://github.com/lukaszst-cz/czy-to-sciema" target="_blank" rel="noopener">CzyToŚciema? ↗</a>
@@ -119,7 +122,7 @@
 
   <section class="lifeSection">
     <h2>Co dalej?</h2>
-    <p>Kierunek jest celowo prosty: mniej ekranów i mniej decyzji technicznych. Następne etapy to lepsza lista „dzisiaj / pilne / później”, podgląd ProofPack przed eksportem, ręczne potwierdzanie wykonania czynności, dalsze testy realnych dokumentów oraz opcjonalny, jawny most do CzyToŚciema? bez automatycznego przekazywania prywatnej treści.</p>
+    <p>Kierunek pozostaje prosty: mniej ekranów i mniej decyzji technicznych. Najważniejszy pozostały krok to kontrolowany pilot na rzeczywistych lub zanonimizowanych klasach dokumentów, końcowe poprawki UX Windows oraz decyzja o osobnym stabilnym wydaniu. Integracja z CzyToŚciema? pozostaje jawna i rozdzielona — bez automatycznego przekazywania prywatnej treści dokumentu.</p>
   </section>
 
   <section class="lifeSection">
