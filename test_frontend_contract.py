@@ -284,3 +284,9 @@ def test_lifepilot_ui_exposes_queue_product_page_and_safe_actions():
     assert "Sprawdź gotowość" in script
     assert "Case Readiness" in script
     assert "caseReadinessPreview" in script
+    assert "renderDecisionTrailHtml" in script
+    assert "lifeHistoryBtn" in script
+    assert "/history/export" in script
+    assert "/api/lifepilot/case-history" in script
+    assert "caseHistoryPreview" in script
+    assert "Historia decyzji" in script
