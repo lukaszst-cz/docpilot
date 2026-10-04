@@ -73,7 +73,7 @@ from .integrations import (
 )
 from .integration_registry import get_integration_adapter, integration_catalog
 from .lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview
-from .notifier import install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
+from .notifier import collect_due, install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest, LifePilotCorrectionRequest
 from .redaction import redact_file
 from .rules import apply_rules
@@ -1388,7 +1388,14 @@ def clean_scan_select():
 @app.get("/api/notifications/status")
 def notification_status():
     configured = get_setting(settings, "background_notifications", "0") == "1"
-    return {"enabled": configured, "days_ahead": int(get_setting(settings, "notification_days", "3") or 3)}
+    days = int(get_setting(settings, "notification_days", "3") or 3)
+    pending = len(collect_due(days, settings=settings))
+    return {
+        "enabled": configured,
+        "days_ahead": days,
+        "pending": pending,
+        "mode": "lifepilot-priority",
+    }
 
 
 @app.post("/api/notifications/enable")
@@ -1404,7 +1411,7 @@ def notification_enable(payload: dict = Body(default={})):
             install_notifier_startup()
         set_setting(settings, "background_notifications", "1")
         set_setting(settings, "notification_days", str(days))
-        shown = notify_once(days)
+        shown = notify_once(days, settings=settings)
         audit(settings, "notifications-enabled", {"days_ahead": days})
         return {"enabled": True, "days_ahead": days, "test_notifications": shown}
     except Exception as exc:
@@ -1424,7 +1431,7 @@ def notification_disable():
 @app.post("/api/notifications/test")
 def notification_test(payload: dict = Body(default={})):
     days = max(0, min(int(payload.get("days_ahead") or 3), 30))
-    return {"shown": notify_once(days)}
+    return {"shown": notify_once(days, settings=settings)}
 
 
 def _integration_scope(payload: dict[str, Any]) -> dict[str, Any]:
