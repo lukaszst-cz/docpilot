@@ -23,7 +23,7 @@ def test_pilot_runner_writes_private_and_public_reports_without_public_leakage(t
         encoding="utf-8",
     )
 
-    result = run_pilot(source, output, today=date(2026, 10, 4))
+    result = run_pilot(source, output, today=date(2026, 10, 4), include_private=True)
     assert result.processed == 2
     assert result.failed == 0
 
@@ -67,7 +67,7 @@ def test_pilot_runner_is_deterministic_and_ignores_unsupported_files(tmp_path):
     (source / "a.txt").write_text("Notatka A bez terminu.", encoding="utf-8")
     (source / "ignored.exe").write_bytes(b"not a document")
 
-    run_pilot(source, output, today=date(2026, 10, 4))
+    run_pilot(source, output, today=date(2026, 10, 4), include_private=True)
     private = json.loads((output / "pilot-private.json").read_text(encoding="utf-8"))
 
     assert [item["relative_name"] for item in private["samples"]] == ["a.txt", "B.txt"]
@@ -79,3 +79,20 @@ def test_pilot_runner_rejects_output_inside_source(tmp_path):
     source.mkdir()
     with pytest.raises(ValueError, match="outside the source directory"):
         run_pilot(source, source / "results", today=date(2026, 10, 4))
+
+
+def test_pilot_runner_does_not_write_private_report_by_default(tmp_path):
+    source = tmp_path / "samples-default"
+    output = tmp_path / "results-default"
+    source.mkdir()
+    (source / "sensitive-name.txt").write_text(
+        "ACME Secret\nFaktura VAT\nTermin platnosci: 06.10.2026\nDo zaplaty 123,45 PLN",
+        encoding="utf-8",
+    )
+
+    result = run_pilot(source, output, today=date(2026, 10, 4))
+
+    assert result.private_report is None
+    assert not (output / "pilot-private.json").exists()
+    assert (output / "pilot-public.json").exists()
+    assert (output / "pilot-report.md").exists()
