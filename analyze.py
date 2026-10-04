@@ -23,9 +23,10 @@ _AMOUNT_RE = re.compile(r"(?<!\d)(\d{1,3}(?:[ .]\d{3})*(?:[,.]\d{2}))\s?(PLN|zł
 _REFERENCE_RE = re.compile(r"(?:nr|numer|invoice|faktura|policy|polisa|reference|ref\.?)[\s:#-]*([A-Z0-9][A-Z0-9./_-]{3,})", re.I)
 _DATE_RE = re.compile(r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2})\b")
 _DEADLINE_PHRASES = (
-    "termin płatności", "płatne do", "zapłacić do", "due date", "payment due",
-    "deadline", "odpowiedź do", "response by", "ważne do", "valid until",
-    "obowiązuje do", "expires", "wygaśnięcie", "expiration", "przegląd do",
+    "termin płatności", "termin platnosci", "płatne do", "platne do", "zapłacić do", "zaplacic do",
+    "due date", "payment due", "deadline", "odpowiedź do", "odpowiedz do", "response by",
+    "ważne do", "wazne do", "valid until", "obowiązuje do", "obowiazuje do", "expires",
+    "wygaśnięcie", "wygasniecie", "expiration", "przegląd do", "przeglad do",
 )
 
 TYPE_RULES = [
