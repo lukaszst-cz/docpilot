@@ -275,3 +275,8 @@ def test_lifepilot_ui_exposes_queue_product_page_and_safe_actions():
     assert 'id="proofVerifyBtn"' in html
     assert "/api/lifepilot/proofpack/verify" in script
     assert "Sprawdź integralność" in script
+    assert "ProofPack / CasePack" in html
+    assert "/api/lifepilot/casepack-preview" in script
+    assert "/api/lifepilot/casepack?case_name=" in script
+    assert "CasePack ZIP" in script
+    assert "document.querySelectorAll('.casePackPreview')" in script

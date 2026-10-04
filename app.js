@@ -313,9 +313,16 @@ async function verifyProofPackFromUi(){
     const errors=(data.errors||[]).map(item=>`<li class="dangerText">${esc(item)}</li>`).join('');
     const warnings=(data.warnings||[]).map(item=>`<li>${esc(item)}</li>`).join('');
     const integrity=data.integrity||{};
-    result.innerHTML=`<div class="proofPreviewHead"><strong>Wynik weryfikacji</strong><span class="badge ${statusClass}">${status}</span></div>
-      <div class="meta"><span>Sumy: ${integrity.checksums_verified?'zgodne':'niepotwierdzone'}</span><span>Oryginał ↔ manifest: ${integrity.source_matches_manifest===true?'zgodny':integrity.source_matches_manifest===false?'niezgodny':'brak danych'}</span><span>Oryginał ↔ indeks: ${integrity.source_matches_index===true?'zgodny':integrity.source_matches_index===false?'różni się':'brak danych'}</span></div>
-      ${data.manifest?`<p><strong>${esc(data.manifest.source_name||'ProofPack')}</strong> · ${esc(data.manifest.document_type||'document')} ${data.manifest.case_name?`· ${esc(data.manifest.case_name)}`:''}</p>`:''}
+    const casePack=data.pack_type==='casepack';
+    const integrityMeta=casePack
+      ? `<span>Sumy: ${integrity.checksums_verified?'zgodne':'niepotwierdzone'}</span><span>Dokumenty zweryfikowane: ${integrity.documents_verified||0}</span><span>Zgodne z indeksem: ${integrity.documents_matching_index||0}</span><span>Rozjazd z indeksem: ${integrity.documents_index_mismatch||0}</span><span>Brakujące oryginały: ${integrity.missing_originals||0}</span>`
+      : `<span>Sumy: ${integrity.checksums_verified?'zgodne':'niepotwierdzone'}</span><span>Oryginał ↔ manifest: ${integrity.source_matches_manifest===true?'zgodny':integrity.source_matches_manifest===false?'niezgodny':'brak danych'}</span><span>Oryginał ↔ indeks: ${integrity.source_matches_index===true?'zgodny':integrity.source_matches_index===false?'różni się':'brak danych'}</span>`;
+    const manifestLabel=casePack
+      ? `${esc(data.manifest?.case_name||'CasePack')} · ${data.manifest?.document_count||0} dokumentów`
+      : `${esc(data.manifest?.source_name||'ProofPack')} · ${esc(data.manifest?.document_type||'document')}${data.manifest?.case_name?` · ${esc(data.manifest.case_name)}`:''}`;
+    result.innerHTML=`<div class="proofPreviewHead"><strong>Wynik weryfikacji · ${casePack?'CasePack':'ProofPack'}</strong><span class="badge ${statusClass}">${status}</span></div>
+      <div class="meta">${integrityMeta}</div>
+      ${data.manifest?`<p><strong>${manifestLabel}</strong></p>`:''}
       ${checks?`<h4>Kontrole SHA-256</h4><ul>${checks}</ul>`:''}
       ${errors?`<h4>Błędy</h4><ul>${errors}</ul>`:''}
       ${warnings?`<h4>Ostrzeżenia</h4><ul>${warnings}</ul>`:''}
@@ -628,8 +635,9 @@ async function loadCases(){
   $('#caseList').innerHTML=cs.length?cs.map((c,index)=>`<div class="listItem caseCard">
     <div class="listItemHead"><div><h3>${esc(c.name)}</h3><div class="meta"><span>${c.document_count} documents</span><span>${c.open_actions} open actions</span><span>${esc((c.profiles||[]).join(', '))}</span>${c.next_deadline?`<span>next deadline ${fmtDate(c.next_deadline)}</span>`:''}${c.overdue_deadlines?`<span class="dangerText">${c.overdue_deadlines} overdue</span>`:''}</div></div><span class="badge">${c.document_count}</span></div>
     <div class="caseTimeline">${c.timeline.map(t=>`<div class="caseTimelineRow"><div><strong>${fmtDate((t.date||'').slice(0,10))}</strong><div>${esc(t.name)}</div><div class="meta"><span>${esc(t.document_type||'document')}</span><span>${esc(t.category||'')}</span><span>${esc(t.profile||'Home')}</span>${t.action?`<span>${esc(t.action)}</span>`:''}${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div></div><button class="secondary caseOpen" data-path="${esc(t.path)}">Open</button></div>`).join('')}</div>
-    <div class="lifePilotActions"><button class="secondary caseSummaryPreview" data-case="${esc(c.name)}" data-target="caseSummary-${index}">Podgląd podsumowania</button><a class="buttonLink secondary" href="/api/lifepilot/case-summary/export?case_name=${encodeURIComponent(c.name)}">Pobierz podsumowanie .md</a></div>
+    <div class="lifePilotActions"><button class="secondary caseSummaryPreview" data-case="${esc(c.name)}" data-target="caseSummary-${index}">Podgląd podsumowania</button><button class="secondary casePackPreview" data-case="${esc(c.name)}" data-target="casePack-${index}">Co będzie w CasePack?</button><a class="buttonLink secondary" href="/api/lifepilot/case-summary/export?case_name=${encodeURIComponent(c.name)}">Podsumowanie .md</a><a class="buttonLink" href="/api/lifepilot/casepack?case_name=${encodeURIComponent(c.name)}">CasePack ZIP</a></div>
     <div class="proofPackPreview hidden" id="caseSummary-${index}"></div>
+    <div class="proofPackPreview hidden" id="casePack-${index}"></div>
   </div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>';
   $$('.caseOpen').forEach(button=>button.addEventListener('click',()=>reveal(button.dataset.path)));
   $$('.caseSummaryPreview').forEach(button=>button.addEventListener('click',async()=>{
@@ -641,6 +649,17 @@ async function loadCases(){
     try{
       const summary=await api(`/api/lifepilot/case-summary?case_name=${encodeURIComponent(button.dataset.case||'')}`);
       box.innerHTML=`<div class="proofPreviewHead"><strong>LifePilot — podsumowanie sprawy</strong><span class="badge">${summary.document_count} dokumentów</span></div><div class="meta"><span>Otwarte działania: ${summary.open_actions}</span><span>Najbliższy termin: ${summary.next_deadline?fmtDate(summary.next_deadline):'brak'}</span><span>Wysyłka do chmury: nie</span></div><div class="caseSummaryPreview">${(summary.timeline||[]).map(item=>`<div class="caseSummaryRow"><strong>${esc(item.document_date||'brak daty')} — ${esc(item.name||'Dokument')}</strong><div class="meta"><span>${esc(item.document_type||'document')}</span>${item.issuer?`<span>${esc(item.issuer)}</span>`:''}${item.deadline?`<span>termin ${fmtDate(item.deadline)}</span>`:''}${item.action_required?`<span>${esc(item.action_required)}</span>`:''}</div></div>`).join('')}</div><p class="muted">Podgląd nie zawiera pełnego OCR ani lokalnych ścieżek plików.</p>`;
+    }catch(e){box.innerHTML=`<p class="dangerText">${esc(e.message)}</p>`}
+  }));
+  document.querySelectorAll('.casePackPreview').forEach(button=>button.addEventListener('click',async()=>{
+    const box=$(`#${button.dataset.target}`);
+    if(!box)return;
+    if(!box.classList.contains('hidden')){box.classList.add('hidden');return}
+    box.classList.remove('hidden');
+    box.innerHTML='<p class="muted">Sprawdzam zawartość CasePack…</p>';
+    try{
+      const preview=await api(`/api/lifepilot/casepack-preview?case_name=${encodeURIComponent(button.dataset.case||'')}`);
+      box.innerHTML=`<div class="proofPreviewHead"><strong>CasePack przed pobraniem</strong><span class="badge">${preview.document_count} dokumentów</span></div><div class="meta"><span>Oryginały dostępne: ${preview.available_originals}</span><span>Brakujące: ${preview.missing_originals}</span><span>Rozmiar oryginałów: ${Math.round((preview.total_original_bytes||0)/1024/1024*10)/10} MB</span><span>Wysyłka do chmury: nie</span></div><ul>${(preview.documents||[]).map(item=>`<li>${item.available?'✓':'⚠'} ${esc(item.name||'Dokument')} ${item.available?'':'— brak lokalnego oryginału'}</li>`).join('')}</ul><p class="muted">Brakujący oryginał zostanie jawnie zapisany w manifeście CasePack, a nie pominięty po cichu.</p>`;
     }catch(e){box.innerHTML=`<p class="dangerText">${esc(e.message)}</p>`}
   }));
 }

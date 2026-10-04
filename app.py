@@ -72,7 +72,7 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
-from .lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview, verify_proof_pack
+from .lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview, verify_lifepilot_pack
 from .notifier import collect_due, install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest, LifePilotCorrectionRequest
 from .redaction import redact_file
@@ -713,23 +713,69 @@ def lifepilot_case_summary_export(case_name: str):
     )
 
 
+@app.get("/api/lifepilot/casepack-preview")
+def lifepilot_casepack_preview(case_name: str):
+    name = str(case_name or "").strip()
+    if not name:
+        raise HTTPException(400, "case_name is required")
+    documents = list_case_documents(settings, limit=5000)
+    preview = case_pack_preview(name, documents)
+    if not preview["document_count"]:
+        raise HTTPException(404, "Case not found")
+    return preview
+
+
+@app.get("/api/lifepilot/casepack")
+def lifepilot_casepack(case_name: str):
+    name = str(case_name or "").strip()
+    if not name:
+        raise HTTPException(400, "case_name is required")
+    documents = list_case_documents(settings, limit=5000)
+    preview = case_pack_preview(name, documents)
+    if not preview["document_count"]:
+        raise HTTPException(404, "Case not found")
+
+    filename = f"LifePilot-CasePack-{safe_name(name)}.zip"
+    destination = settings.exports / filename
+    try:
+        build_case_pack(destination, name, documents)
+    except (OSError, ValueError, RuntimeError) as exc:
+        logger.exception("case pack export failed")
+        raise HTTPException(400, f"Could not create CasePack: {exc}")
+
+    audit(
+        settings,
+        "lifepilot-casepack-exported",
+        {
+            "case_name": name,
+            "documents": preview["document_count"],
+            "available_originals": preview["available_originals"],
+            "missing_originals": preview["missing_originals"],
+        },
+    )
+    return FileResponse(destination, media_type="application/zip", filename=filename)
+
+
 @app.post("/api/lifepilot/proofpack/verify")
 def lifepilot_verify_proofpack(upload: UploadFile = File(...)):
-    original_name = safe_name(upload.filename or "proofpack.zip")
-    handle = tempfile.NamedTemporaryFile(prefix="lifepilot-proofpack-", suffix=".zip", delete=False)
+    original_name = safe_name(upload.filename or "lifepilot-pack.zip")
+    handle = tempfile.NamedTemporaryFile(prefix="lifepilot-pack-", suffix=".zip", delete=False)
     handle.close()
     temporary = Path(handle.name)
     try:
-        _save_upload_with_limit(upload, temporary, settings.max_upload_mb * 1024 * 1024)
-        result = verify_proof_pack(
+        upload_limit_mb = max(settings.max_upload_mb * 8, 512)
+        _save_upload_with_limit(upload, temporary, upload_limit_mb * 1024 * 1024)
+        result = verify_lifepilot_pack(
             temporary,
-            max_total_bytes=max(settings.max_upload_mb * 4, 200) * 1024 * 1024,
+            proof_max_total_bytes=max(settings.max_upload_mb * 4, 200) * 1024 * 1024,
+            case_max_total_bytes=max(settings.max_upload_mb * 12, 1024) * 1024 * 1024,
         )
         audit(
             settings,
-            "lifepilot-proofpack-verified",
+            "lifepilot-pack-verified",
             {
                 "source_name": original_name,
+                "pack_type": result.get("pack_type"),
                 "valid": result.get("valid"),
                 "errors": len(result.get("errors") or []),
                 "warnings": len(result.get("warnings") or []),

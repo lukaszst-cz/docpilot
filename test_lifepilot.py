@@ -3,7 +3,7 @@ import hashlib
 import json
 import zipfile
 
-from docpilot.lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, legacy_attention_signature, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview, verify_proof_pack
+from docpilot.lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_summary_markdown, legacy_attention_signature, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview, verify_case_pack, verify_lifepilot_pack, verify_proof_pack
 
 
 def _doc(**overrides):
@@ -259,3 +259,131 @@ def test_verify_proof_pack_rejects_duplicate_or_unsafe_members(tmp_path):
     result = verify_proof_pack(unsafe)
     assert result["valid"] is False
     assert any("unsafe member paths" in error.lower() for error in result["errors"])
+
+
+def test_case_pack_build_preview_and_verification_include_missing_originals(tmp_path):
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.write_text("first evidence", encoding="utf-8")
+    second.write_text("second evidence", encoding="utf-8")
+
+    first_digest = hashlib.sha256(first.read_bytes()).hexdigest()
+    second_digest = hashlib.sha256(second.read_bytes()).hexdigest()
+    docs = [
+        _doc(
+            id=1,
+            path=str(first),
+            source_name=first.name,
+            sha256=first_digest,
+            case_name="Case Alpha",
+            metadata={"document_type": "invoice", "document_date": "2026-10-01", "confidence": 0.95},
+        ),
+        _doc(
+            id=2,
+            path=str(second),
+            source_name=second.name,
+            sha256=second_digest,
+            case_name="Case Alpha",
+            metadata={"document_type": "official-letter", "document_date": "2026-10-02", "confidence": 0.95},
+        ),
+        _doc(
+            id=3,
+            path=str(tmp_path / "missing.pdf"),
+            source_name="missing.pdf",
+            sha256="missing-index-hash",
+            case_name="Case Alpha",
+            metadata={"document_type": "document", "document_date": "2026-10-03", "confidence": 0.95},
+        ),
+        _doc(id=4, case_name="Other Case"),
+    ]
+
+    preview = case_pack_preview("Case Alpha", docs)
+    assert preview["document_count"] == 3
+    assert preview["available_originals"] == 2
+    assert preview["missing_originals"] == 1
+    assert preview["privacy"]["includes_local_paths"] is False
+    assert all("path" not in item for item in preview["documents"])
+
+    destination = tmp_path / "CasePack.zip"
+    build_case_pack(destination, "Case Alpha", docs)
+    with zipfile.ZipFile(destination) as archive:
+        names = set(archive.namelist())
+        assert "case-manifest.json" in names
+        assert "timeline.json" in names
+        assert "case-summary.md" in names
+        assert "SHA256SUMS.txt" in names
+        assert len([name for name in names if name.startswith("documents/")]) == 2
+        manifest_text = archive.read("case-manifest.json").decode("utf-8")
+        assert str(tmp_path) not in manifest_text
+        manifest = json.loads(manifest_text)
+        assert manifest["document_count"] == 3
+        assert len(manifest["missing_originals"]) == 1
+
+    verified = verify_case_pack(destination)
+    assert verified["valid"] is True
+    assert verified["integrity"]["checksums_verified"] is True
+    assert verified["integrity"]["documents_verified"] == 2
+    assert verified["integrity"]["documents_matching_index"] == 2
+    assert verified["integrity"]["missing_originals"] == 1
+
+    generic = verify_lifepilot_pack(destination)
+    assert generic["valid"] is True
+    assert generic["pack_type"] == "casepack"
+
+
+def test_case_pack_verifier_detects_tampered_original(tmp_path):
+    source = tmp_path / "evidence.txt"
+    source.write_text("original evidence", encoding="utf-8")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    docs = [
+        _doc(
+            id=11,
+            path=str(source),
+            source_name=source.name,
+            sha256=digest,
+            case_name="Tamper Case",
+            metadata={"document_type": "document", "document_date": "2026-10-04", "confidence": 0.95},
+        )
+    ]
+    pack = tmp_path / "casepack.zip"
+    build_case_pack(pack, "Tamper Case", docs)
+
+    tampered = tmp_path / "casepack-tampered.zip"
+    with zipfile.ZipFile(pack, "r") as source_zip, zipfile.ZipFile(tampered, "w", compression=zipfile.ZIP_DEFLATED) as target_zip:
+        for info in source_zip.infolist():
+            data = source_zip.read(info.filename)
+            if info.filename.startswith("documents/"):
+                data += b"tampered"
+            target_zip.writestr(info.filename, data)
+
+    result = verify_case_pack(tampered)
+    assert result["valid"] is False
+    assert any("Checksum mismatch" in error for error in result["errors"])
+
+
+def test_case_pack_verifier_rejects_unreferenced_original(tmp_path):
+    source = tmp_path / "evidence.txt"
+    source.write_text("original evidence", encoding="utf-8")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    docs = [
+        _doc(
+            id=21,
+            path=str(source),
+            source_name=source.name,
+            sha256=digest,
+            case_name="Extra File Case",
+            metadata={"document_type": "document", "document_date": "2026-10-04", "confidence": 0.95},
+        )
+    ]
+    pack = tmp_path / "casepack.zip"
+    build_case_pack(pack, "Extra File Case", docs)
+
+    injected = tmp_path / "casepack-injected.zip"
+    with zipfile.ZipFile(pack, "r") as source_zip, zipfile.ZipFile(injected, "w", compression=zipfile.ZIP_DEFLATED) as target_zip:
+        for info in source_zip.infolist():
+            target_zip.writestr(info.filename, source_zip.read(info.filename))
+        target_zip.writestr("documents/999-extra.txt", b"unexpected")
+
+    result = verify_case_pack(injected)
+    assert result["valid"] is False
+    assert any("unreferenced originals" in error.lower() for error in result["errors"])
