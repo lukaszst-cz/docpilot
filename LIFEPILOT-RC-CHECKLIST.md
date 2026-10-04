@@ -25,6 +25,22 @@ Ten dokument określa, co musi być spełnione przed oznaczeniem LifePilot jako 
 
 Potwierdzenie automatycznych bramek 4.8: GitHub Actions `Windows Release` run **37206846769** — pełny `success` (packaged self-test, clean install/uninstall, upgrade, checksumy i artefakty).
 
+### Preview 4.9 — pilot hardening
+
+- [x] Lokalny `docpilot-pilot` z public-safe raportem domyślnym.
+- [x] Dokładny raport pilota wyłącznie po jawnym `--include-private`.
+- [x] Rozszerzona macierz: wiele dat, 2-dokumentowa sprawa, missing-original CasePack, korekta + ponowne przeliczenie.
+- [x] Funkcjonalny ProofPack + verifier w finalnym `DocPilot.exe --self-test`.
+- [x] Missing-original → Case Readiness = Niekompletna w finalnym self-teście.
+- [x] Missing-original widoczny w CasePack preview w finalnym self-teście.
+- [x] Clean install/uninstall po Preview 4.9.
+- [x] Upgrade smoke z faktycznie stabilnego publicznego **DocPilot v4.0.0**.
+- [x] Funkcjonalny self-test po upgrade z v4.0.0.
+- [x] Checksumy i workflow artifacts.
+
+Potwierdzenie bramek 4.9: GitHub Actions `Windows Release` run **37209580044** — pełny `success`.
+
+
 ## B. Pilot rzeczywistych / zanonimizowanych dokumentów
 
 Kanoniczne zadanie: GitHub issue #62.
