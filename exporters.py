@@ -4,7 +4,7 @@ import csv
 import io
 import json
 import zipfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -17,9 +17,17 @@ def ics_for_documents(documents: list[dict]) -> str:
             continue
         uid = f"docpilot-{doc.get('id')}@local"
         summary = f"DocPilot: {doc.get('action_required') or 'deadline'} — {doc.get('source_name')}"
+        start_date = date.fromisoformat(str(deadline)[:10])
+        end_date = start_date + timedelta(days=1)
         lines += [
-            "BEGIN:VEVENT", f"UID:{uid}", f"DTSTART;VALUE=DATE:{deadline.replace('-', '')}",
-            f"SUMMARY:{_ics_escape(summary)}", f"DESCRIPTION:{_ics_escape(doc.get('path',''))}", "END:VEVENT"
+            "BEGIN:VEVENT",
+            f"UID:{uid}",
+            f"DTSTART;VALUE=DATE:{start_date.strftime('%Y%m%d')}",
+            f"DTEND;VALUE=DATE:{end_date.strftime('%Y%m%d')}",
+            f"SUMMARY:{_ics_escape(summary)}",
+            "DESCRIPTION:Termin z LifePilot. Sprawdź szczegóły w oryginalnym dokumencie.",
+            "TRANSP:TRANSPARENT",
+            "END:VEVENT",
         ]
     lines.append("END:VCALENDAR")
     return "\r\n".join(lines) + "\r\n"
