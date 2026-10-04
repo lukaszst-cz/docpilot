@@ -351,3 +351,70 @@ def test_case_readiness_api_respects_handled_state_and_missing_original(monkeypa
     assert missing.status_code == 200
     assert missing.json()["status"] == "incomplete"
     assert missing.json()["counts"]["missing_originals"] == 1
+
+
+def test_decision_trail_api_records_safe_before_after_and_exports_markdown(monkeypatch, tmp_path):
+    app_module = importlib.import_module("docpilot.app")
+    temp_settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", temp_settings)
+    client = TestClient(app_module.app)
+
+    analyzed = client.post(
+        "/api/analyze",
+        files={
+            "upload": (
+                "history.txt",
+                b"ACME Faktura VAT\nTermin platnosci: 06.10.2026\n100 PLN",
+                "text/plain",
+            )
+        },
+    )
+    assert analyzed.status_code == 200
+    payload = analyzed.json()
+    doc_id = payload["id"]
+
+    corrected = client.patch(
+        f"/api/lifepilot/{doc_id}/fields",
+        json={
+            "case_name": "History Case",
+            "deadline": "2026-10-10",
+            "action_required": "to-reply",
+            "issuer": "ACME Corrected",
+        },
+    )
+    assert corrected.status_code == 200
+
+    history = client.get(f"/api/lifepilot/{doc_id}/history")
+    assert history.status_code == 200
+    data = history.json()
+    assert data["scope"] == "document"
+    correction = next(item for item in data["events"] if item["event"] == "lifepilot-fields-corrected")
+    assert correction["details"]["changes"]
+    assert correction["details"]["decision_before"]
+    assert correction["details"]["decision_after"]
+
+    serialized = json.dumps(data, ensure_ascii=False)
+    assert str(tmp_path) not in serialized
+    assert payload["source_path"] not in serialized
+    assert "extracted_text" not in serialized
+
+    marked = client.post(f"/api/lifepilot/{doc_id}/done")
+    assert marked.status_code == 200
+
+    case_history = client.get("/api/lifepilot/case-history", params={"case_name": "History Case"})
+    assert case_history.status_code == 200
+    case_data = case_history.json()
+    assert case_data["scope"] == "case"
+    assert any(item["event"] == "lifepilot-mark-done" for item in case_data["events"])
+    assert str(tmp_path) not in json.dumps(case_data, ensure_ascii=False)
+
+    document_export = client.get(f"/api/lifepilot/{doc_id}/history/export")
+    assert document_export.status_code == 200
+    assert document_export.headers["content-type"].startswith("text/markdown")
+    assert "Historia" in document_export.text
+    assert str(tmp_path) not in document_export.text
+
+    case_export = client.get("/api/lifepilot/case-history/export", params={"case_name": "History Case"})
+    assert case_export.status_code == 200
+    assert "Historia" in case_export.text
+    assert str(tmp_path) not in case_export.text
