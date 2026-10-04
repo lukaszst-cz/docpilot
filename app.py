@@ -71,6 +71,7 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
+from .lifepilot import build_lifepilot_view
 from .notifier import install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest
 from .redaction import redact_file
@@ -582,6 +583,9 @@ def _analyze_and_index(path: Path, *, profile: str = "Home") -> dict[str, Any]:
     data["id"] = doc_id
     data["profile"] = ruled["profile"] or profile
     data["matched_rules"] = ruled.get("matched_rules", [])
+    stored = get_document(settings, doc_id)
+    if stored:
+        data["lifepilot"] = build_lifepilot_view(stored)
     return data
 
 
@@ -637,6 +641,14 @@ def analyze(upload: UploadFile = File(...)):
     data["source_mode"] = "copy"
     audit(settings, "imported-copy", {"path": str(destination), "id": data["id"]})
     return data
+
+
+@app.get("/api/lifepilot/{doc_id}")
+def lifepilot_view(doc_id: int):
+    document = get_document(settings, doc_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+    return build_lifepilot_view(document)
 
 
 @app.post("/api/apply")
