@@ -3,7 +3,7 @@ import hashlib
 import json
 import zipfile
 
-from docpilot.lifepilot import build_lifepilot_view, build_proof_pack, next_action_for_document, proof_pack_manifest
+from docpilot.lifepilot import build_lifepilot_view, build_proof_pack, lifepilot_queue, next_action_for_document, proof_pack_manifest
 
 
 def _doc(**overrides):
@@ -81,3 +81,17 @@ def test_build_proof_pack_contains_original_manifest_timeline_and_checksums(tmp_
         assert "C:/Docs" not in archive.read("manifest.json").decode("utf-8")
         sums = archive.read("SHA256SUMS.txt").decode("utf-8")
         assert digest in sums
+
+
+def test_lifepilot_queue_prioritizes_overdue_today_urgent_review_and_soon():
+    docs = [
+        _doc(id=1, source_name="soon.txt", metadata={"confidence": 0.95, "deadline": "2026-10-14"}),
+        _doc(id=2, source_name="overdue.txt", metadata={"confidence": 0.95, "deadline": "2026-10-01"}),
+        _doc(id=3, source_name="review.txt", action_required="to-review", metadata={"confidence": 0.4}),
+        _doc(id=4, source_name="today.txt", metadata={"confidence": 0.95, "deadline": "2026-10-04"}),
+        _doc(id=5, source_name="urgent.txt", metadata={"confidence": 0.95, "deadline": "2026-10-06"}),
+        _doc(id=6, source_name="archive.txt", action_required=None, metadata={"confidence": 0.95}),
+    ]
+    queue = lifepilot_queue(docs, today=date(2026, 10, 4))
+    assert [item["id"] for item in queue] == [2, 4, 5, 3, 1]
+    assert all(item["id"] != 6 for item in queue)
