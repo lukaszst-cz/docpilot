@@ -83,3 +83,8 @@ input[type=checkbox]{width:auto;margin:0}
 .caseSummaryPreview{margin-top:10px}
 .caseSummaryRow{padding:10px 0;border-top:1px solid var(--line)}
 .caseSummaryRow:first-child{border-top:0}
+
+.lifeDecision{margin:10px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.018)}
+.lifeDecision summary{cursor:pointer;font-weight:700}
+.lifeDecision ul{margin:9px 0 0;padding-left:20px}
+.lifeDecision li{margin:4px 0;color:#b8c3d0}
