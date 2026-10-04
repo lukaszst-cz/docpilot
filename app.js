@@ -302,11 +302,104 @@ async function loadDashboard(){const d=await api('/api/dashboard');const welcome
 const drop=$('#dropZone'), browse=$('#browseBtn');browse.addEventListener('click',selectLocalFile);['dragenter','dragover'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)analyzeCopy(f)});
 async function selectLocalFile(){if(pickerBusy)return;pickerBusy=true;browse.disabled=true;browse.textContent='Opening Windows picker…';try{const d=await api('/api/select-local',{method:'POST'});if(!d.cancelled){current=d;showAnalysis(d)}}catch(e){showAppNotice(e.message)}finally{pickerBusy=false;browse.disabled=false;browse.textContent='Select file on this PC'}}
 async function analyzeCopy(file){const fd=new FormData();fd.append('upload',file);try{const d=await api('/api/analyze',{method:'POST',body:fd});current=d;showAnalysis(d)}catch(e){showAppNotice(e.message)}}
-function showAnalysis(d){drop.classList.add('hidden');$('#successPanel').classList.add('hidden');const md=d.metadata||{};const sensitive=(d.sensitive||[]).map(x=>`${x.type}: ${x.value}`).join(' · ');const matchedRules=(d.matched_rules||[]).map(x=>x.name||'Rule').join(' · ');const lp=d.lifepilot||{},next=lp.next_action||{};const lpBadge=next.priority==='overdue'?'red':(next.priority==='urgent'||next.priority==='today'||next.priority==='review')?'warn':'';const lifeCard=next.title?`<div class="lifePilotCard"><div class="listItemHead"><div><span class="badge">LIFEPILOT · CO TERAZ?</span><h3>${esc(next.title)}</h3></div><span class="badge ${lpBadge}">${esc(next.priority||'normal')}</span></div><p>${esc(next.reason||'')}</p>${next.due_date?`<div class="meta"><span>Termin: ${fmtDate(next.due_date)}</span></div>`:''}${(next.steps||[]).length?`<div class="meta"><span>${esc(next.steps.join(' · '))}</span></div>`:''}<div class="lifePilotActions"><a class="buttonLink" href="/api/lifepilot/${d.id}/proofpack">Pobierz ProofPack ZIP</a>${next.due_date?`<a class="buttonLink secondary" href="/api/lifepilot/${d.id}/calendar">Dodaj termin (.ics)</a>`:''}<button class="secondary" id="lifeOpenSource">Otwórz dokument</button><a class="buttonLink secondary" href="https://lukaszst-cz.github.io/czy-to-sciema/" target="_blank" rel="noopener">Sprawdź jako ściemę ↗</a><a class="buttonLink secondary" href="/lifepilot" target="_blank" rel="noopener">O LifePilot</a></div><p class="muted lifePilotPrivacy">CzyToŚciema? otwiera się osobno. LifePilot nie wysyła tam automatycznie treści dokumentu.</p></div>`:'';$('#analysisPanel').classList.remove('hidden');$('#analysisPanel').innerHTML=`<div class="cardHead"><div><span class="badge">ANALYZED</span><h2>${esc(d.source_name)}</h2></div><span>${Math.round((md.confidence||0)*100)}% confidence</span></div><div class="modeNotice ${d.source_mode==='original'?'original':'copy'}">${d.source_mode==='original'?'REAL FILE MODE — Apply can rename or move the original.':'COPY MODE — drag & drop imported a safe copy.'}</div><div class="sourcePath">${esc(d.source_path)}</div>${matchedRules?`<div class="meta"><span>Matched rules: ${esc(matchedRules)}</span></div>`:'' }${lifeCard}<div class="grid"><label>Type<input id="docType" value="${esc(md.document_type||'')}" disabled></label><label>Issuer<input value="${esc(md.issuer||'')}" disabled></label><label>Amount<input value="${esc(money(md))}" disabled></label><label>Deadline<input value="${esc(md.deadline||md.warranty_until||'')}" disabled></label><label>Language<input value="${esc(md.language||'unknown')}" disabled></label><label>Health<input value="${d.health_score}/100" disabled></label><label class="wide">Category<input id="category" value="${esc(d.suggested_category)}"></label><label class="wide">Suggested filename<input id="suggestedFilename" value="${esc(d.suggested_filename)}"></label><label>Profile<select id="profile"><option>Home</option><option>Company</option><option>Child</option><option>Vehicle</option><option>Legal Cases</option></select></label><label>Action<select id="actionRequired"><option value="">None</option><option value="to-pay">To pay</option><option value="to-reply">To reply</option><option value="to-sign">To sign</option><option value="to-review">To review</option><option value="to-archive">To archive</option></select></label><label class="wide">Case<input id="caseName" value="${esc(d.suggested_case||'')}"></label><label class="wide">Apply action<select id="applyMode"><option value="rename">Rename original in the same folder</option><option value="organize">Move + rename into DocPilot archive</option></select></label><label class="wide"><input id="smartStructure" type="checkbox" checked style="width:auto;margin-right:8px"> Smart folder structure (category / year / issuer) when organizing</label></div>${sensitive?`<p class="badge warn">Sensitive data detected</p><p class="muted">${esc(sensitive)}</p>`:''}${(d.health_notes||[]).length?`<p class="muted">Health: ${esc(d.health_notes.join(' · '))}</p>`:''}<div class="actions"><button class="secondary" id="cancelAnalyze">Analyze another</button><button id="applyBtn">Apply</button></div>`;$('#profile').value=d.profile||'Home';$('#actionRequired').value=d.action_required||'';if(d.source_mode!=='original'){$('#applyMode').value='organize';$('#applyMode').disabled=true}$('#cancelAnalyze').addEventListener('click',resetInbox);$('#applyBtn').addEventListener('click',applyCurrent);$('#lifeOpenSource')?.addEventListener('click',async()=>{try{await api('/api/open-folder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:d.source_path})})}catch(e){showAppNotice(e.message)}})}
+function lifePilotCorrectionPayload(){
+  const rawAmount=$('#lifeAmount')?.value?.trim()||'';
+  const amount=rawAmount===''?null:Number(rawAmount);
+  if(rawAmount!==''&&!Number.isFinite(amount))throw new Error('Kwota musi być liczbą.');
+  return {
+    document_type:$('#docType')?.value?.trim()||'document',
+    issuer:$('#lifeIssuer')?.value?.trim()||null,
+    amount,
+    currency:$('#lifeCurrency')?.value?.trim().toUpperCase()||null,
+    document_date:$('#lifeDocumentDate')?.value||null,
+    deadline:$('#lifeDeadline')?.value||null,
+    warranty_until:$('#lifeWarrantyUntil')?.value||null,
+    case_name:$('#caseName')?.value?.trim()||null,
+    action_required:$('#actionRequired')?.value||null
+  };
+}
+
+function lifePilotCorrectionsDirty(){
+  if(!current)return false;
+  const md=current.metadata||{};
+  let payload;
+  try{payload=lifePilotCorrectionPayload()}catch{return true}
+  const normalize=value=>value==null||value===''?null:String(value);
+  const currentAmount=md.amount==null?null:Number(md.amount);
+  return (
+    normalize(payload.document_type)!==normalize(md.document_type||'document')||
+    normalize(payload.issuer)!==normalize(md.issuer)||
+    payload.amount!==currentAmount||
+    normalize(payload.currency)!==normalize(md.currency)||
+    normalize(payload.document_date)!==normalize(md.document_date)||
+    normalize(payload.deadline)!==normalize(md.deadline)||
+    normalize(payload.warranty_until)!==normalize(md.warranty_until)||
+    normalize(payload.case_name)!==normalize(current.suggested_case)||
+    normalize(payload.action_required)!==normalize(current.action_required)
+  );
+}
+
+async function saveLifePilotCorrections({quiet=false}={}){
+  if(!current?.id)return;
+  const payload=lifePilotCorrectionPayload();
+  const updated=await api(`/api/lifepilot/${current.id}/fields`,{
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+  current={
+    ...current,
+    metadata:updated.metadata||current.metadata,
+    suggested_case:updated.case_name,
+    action_required:updated.action_required,
+    suggested_category:updated.category||current.suggested_category,
+    profile:updated.profile||current.profile,
+    lifepilot:updated.lifepilot||current.lifepilot
+  };
+  showAnalysis(current);
+  if(!quiet)showAppNotice('Sprawdzone dane zapisane. LifePilot przeliczył „Co teraz?”.','ok');
+}
+
+function showAnalysis(d){
+  drop.classList.add('hidden');
+  $('#successPanel').classList.add('hidden');
+  const md=d.metadata||{};
+  const sensitive=(d.sensitive||[]).map(x=>`${x.type}: ${x.value}`).join(' · ');
+  const matchedRules=(d.matched_rules||[]).map(x=>x.name||'Rule').join(' · ');
+  const lp=d.lifepilot||{},next=lp.next_action||{};
+  const lpBadge=next.priority==='overdue'?'red':(next.priority==='urgent'||next.priority==='today'||next.priority==='review')?'warn':'';
+  const verified=md.manual_verified?'<span class="badge">DANE SPRAWDZONE RĘCZNIE</span>':'';
+  const lifeCard=next.title?`<div class="lifePilotCard"><div class="listItemHead"><div><span class="badge">LIFEPILOT · CO TERAZ?</span><h3>${esc(next.title)}</h3></div><span class="badge ${lpBadge}">${esc(next.priority||'normal')}</span></div><p>${esc(next.reason||'')}</p>${next.due_date?`<div class="meta"><span>Termin: ${fmtDate(next.due_date)}</span></div>`:''}${(next.steps||[]).length?`<div class="meta"><span>${esc(next.steps.join(' · '))}</span></div>`:''}<div class="lifePilotActions"><a class="buttonLink" href="/api/lifepilot/${d.id}/proofpack">Pobierz ProofPack ZIP</a>${next.due_date?`<a class="buttonLink secondary" href="/api/lifepilot/${d.id}/calendar">Dodaj termin (.ics)</a>`:''}<button class="secondary" id="lifeOpenSource">Otwórz dokument</button><a class="buttonLink secondary" href="https://lukaszst-cz.github.io/czy-to-sciema/" target="_blank" rel="noopener">Sprawdź jako ściemę ↗</a><a class="buttonLink secondary" href="/lifepilot" target="_blank" rel="noopener">O LifePilot</a></div><p class="muted lifePilotPrivacy">CzyToŚciema? otwiera się osobno. LifePilot nie wysyła tam automatycznie treści dokumentu.</p></div>`:'' ;
+  $('#analysisPanel').classList.remove('hidden');
+  $('#analysisPanel').innerHTML=`<div class="cardHead"><div><span class="badge">ANALYZED</span> ${verified}<h2>${esc(d.source_name)}</h2></div><span>${Math.round((md.confidence||0)*100)}% confidence</span></div><div class="modeNotice ${d.source_mode==='original'?'original':'copy'}">${d.source_mode==='original'?'REAL FILE MODE — Apply can rename or move the original.':'COPY MODE — drag & drop imported a safe copy.'}</div><div class="sourcePath">${esc(d.source_path)}</div>${matchedRules?`<div class="meta"><span>Matched rules: ${esc(matchedRules)}</span></div>`:'' }${lifeCard}<div class="lifeCorrectionIntro"><strong>Sprawdź kluczowe dane</strong><p class="muted">Te pola wpływają na rekomendację LifePilot. Popraw je na podstawie oryginału i zapisz.</p></div><div class="grid"><label>Type<input id="docType" value="${esc(md.document_type||'document')}"></label><label>Issuer<input id="lifeIssuer" value="${esc(md.issuer||'')}"></label><label>Amount<input id="lifeAmount" inputmode="decimal" value="${md.amount==null?'':esc(md.amount)}"></label><label>Currency<input id="lifeCurrency" maxlength="3" value="${esc(md.currency||'')}"></label><label>Document date<input id="lifeDocumentDate" type="date" value="${esc(md.document_date||'')}"></label><label>Deadline<input id="lifeDeadline" type="date" value="${esc(md.deadline||'')}"></label><label>Warranty until<input id="lifeWarrantyUntil" type="date" value="${esc(md.warranty_until||'')}"></label><label>Language<input value="${esc(md.language||'unknown')}" disabled></label><label>Health<input value="${d.health_score}/100" disabled></label><label class="wide">Category<input id="category" value="${esc(d.suggested_category)}"></label><label class="wide">Suggested filename<input id="suggestedFilename" value="${esc(d.suggested_filename)}"></label><label>Profile<select id="profile"><option>Home</option><option>Company</option><option>Child</option><option>Vehicle</option><option>Legal Cases</option></select></label><label>Action<select id="actionRequired"><option value="">None</option><option value="to-pay">To pay</option><option value="to-reply">To reply</option><option value="to-sign">To sign</option><option value="to-review">To review</option><option value="to-renew">To renew</option><option value="to-archive">To archive</option></select></label><label class="wide">Case<input id="caseName" value="${esc(d.suggested_case||'')}"></label><label class="wide">Apply action<select id="applyMode"><option value="rename">Rename original in the same folder</option><option value="organize">Move + rename into DocPilot archive</option></select></label><label class="wide"><input id="smartStructure" type="checkbox" checked style="width:auto;margin-right:8px"> Smart folder structure (category / year / issuer) when organizing</label></div><div class="actions lifeVerifyActions"><button class="secondary" id="saveLifeFields">Zapisz sprawdzone dane</button></div>${sensitive?`<p class="badge warn">Sensitive data detected</p><p class="muted">${esc(sensitive)}</p>`:''}${(d.health_notes||[]).length?`<p class="muted">Health: ${esc(d.health_notes.join(' · '))}</p>`:''}<div class="actions"><button class="secondary" id="cancelAnalyze">Analyze another</button><button id="applyBtn">Apply</button></div>`;
+  $('#profile').value=d.profile||'Home';
+  $('#actionRequired').value=d.action_required||'';
+  if(d.source_mode!=='original'){$('#applyMode').value='organize';$('#applyMode').disabled=true}
+  $('#cancelAnalyze').addEventListener('click',resetInbox);
+  $('#applyBtn').addEventListener('click',applyCurrent);
+  $('#saveLifeFields').addEventListener('click',async()=>{
+    const button=$('#saveLifeFields');button.disabled=true;button.textContent='Zapisuję…';
+    try{await saveLifePilotCorrections()}catch(e){showAppNotice(e.message);button.disabled=false;button.textContent='Zapisz sprawdzone dane'}
+  });
+  $('#lifeOpenSource')?.addEventListener('click',async()=>{try{await api('/api/open-folder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:d.source_path})})}catch(e){showAppNotice(e.message)}})
+}
 function resetInbox(){current=null;currentChange=null;$('#analysisPanel').classList.add('hidden');$('#successPanel').classList.add('hidden');drop.classList.remove('hidden')}
 async function applyCurrent(){
+  if(lifePilotCorrectionsDirty()){
+    try{await saveLifePilotCorrections({quiet:true})}
+    catch(e){showAppNotice(e.message);return}
+  }
   const mode=$('#applyMode').value;
-  const p={source_path:current.source_path,category:$('#category').value,filename:$('#suggestedFilename').value,mode,profile:$('#profile').value,case_name:$('#caseName').value||null,action_required:$('#actionRequired').value||null,smart_structure:$('#smartStructure')?.checked!==false};
+  const verifiedMetadata=current.metadata?.manual_verified?{
+    document_type:current.metadata.document_type,
+    issuer:current.metadata.issuer,
+    amount:current.metadata.amount,
+    currency:current.metadata.currency,
+    document_date:current.metadata.document_date,
+    deadline:current.metadata.deadline,
+    warranty_until:current.metadata.warranty_until
+  }:{};
+  const p={source_path:current.source_path,category:$('#category').value,filename:$('#suggestedFilename').value,mode,profile:$('#profile').value,case_name:$('#caseName').value||null,action_required:$('#actionRequired').value||null,smart_structure:$('#smartStructure')?.checked!==false,metadata_overrides:verifiedMetadata};
 
   if(current.source_mode==='original'){
     const action=mode==='rename'?'rename the original file':'move the original file into the DocPilot archive';
