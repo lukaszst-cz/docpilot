@@ -316,3 +316,29 @@ Pozycje oznaczone jako **załatwione** nie są ponownie liczone jako otwarte dzi
 Terminy i otwarte działania są warstwą uwagi, ale same nie zmieniają sprawy na „Niekompletną”. Eksport CasePack pozostaje decyzją użytkownika.
 
 **Case Readiness nie jest oceną prawną ani merytoryczną sprawy.** Dotyczy wyłącznie kompletności, integralności i jakości technicznego przygotowania materiału.
+
+## LifePilot Preview 4.7 — Decision Trail
+
+Decision Trail wykorzystuje istniejący lokalny audyt DocPilot zamiast tworzyć drugi system historii.
+
+Dla dokumentu LifePilot pokazuje m.in.:
+- analizę/import dokumentu;
+- ręczne korekty pól wpływających na decyzję;
+- zmiany wartości **przed → po** dla nowych korekt;
+- zmianę rekomendacji **przed → po** dla nowych korekt;
+- oznaczenie jako załatwione i ponowne otwarcie;
+- eksport ProofPack;
+- eksport historii.
+
+Dla całej sprawy Decision Trail łączy zdarzenia aktualnych dokumentów oraz wpisy, w których dana sprawa występowała jako `case_before` albo `case_after`. Obejmuje też Case Readiness, CasePack i eksport podsumowania sprawy.
+
+### Prywatność historii
+
+Warstwa historii jawnie filtruje payload audytu. Do Decision Trail nie trafiają:
+- pełny tekst OCR;
+- lokalne ścieżki plików;
+- dowolne nieznane pola z surowego audytu.
+
+Starsze wpisy pozostają widoczne w zakresie danych, które były wtedy rzeczywiście zapisane. LifePilot nie rekonstruuje ani nie dopisuje historycznych wartości, których audyt wcześniej nie przechowywał.
+
+Historia dokumentu i sprawy może być eksportowana do Markdown.
