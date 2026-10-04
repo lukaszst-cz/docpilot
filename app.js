@@ -3,7 +3,7 @@ const $$ = s => [...document.querySelectorAll(s)];
 let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set(), documentsPageOffset = 0, documentsPageTotal = 0, documentsFilterValue = '', pendingPortableConfig = null;
 const documentsPageLimit = 100;
 const titles = {
-  dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
+  dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], lifepilot:['LifePilot · Co teraz?','Prioritized next actions from your local documents'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
   documents:['Documents','Your local document index'], deadlines:['Deadline Radar','Payments, replies, expirations and warranties'],
   duplicates:['Duplicates','Exact and near-duplicate detection'], cases:['Cases & Timeline','Group related documents into one story'],
   search:['Search & Q&A','Search locally by meaning and ask factual questions'], tools:['Tools','Diff, batch import, redaction and document health'],
@@ -124,6 +124,7 @@ function go(name,{focus=true}={}){
   $('#viewSubtitle').textContent=titles[name][1];
   if(focus)requestAnimationFrame(()=>$('#viewTitle')?.focus({preventScroll:true}));
   if(name==='dashboard')runLoad(loadDashboard);
+  if(name==='lifepilot')runLoad(loadLifePilot);
   if(name==='review')runLoad(loadReview);
   if(name==='documents')runLoad(loadDocuments);
   if(name==='deadlines')runLoad(loadDeadlines);
@@ -213,6 +214,29 @@ async function loadRuntimeStatus(){
 }
 
 async function api(url,opts={}){const r=await fetch(url,{cache:'no-store',...opts});if(!r.ok){let detail='';try{const j=await r.json();detail=j.detail||''}catch{}const err=new Error(friendlyApiMessage(r.status,detail));err.status=r.status;throw err}return r.headers.get('content-type')?.includes('application/json')?r.json():r.text()}
+
+async function loadLifePilot(){
+  const target=$('#lifepilotQueue');
+  if(!target)return;
+  const items=await api('/api/lifepilot/queue?limit=250');
+  if(!items.length){
+    target.innerHTML='<p class="muted">Brak pilnych lub wymagających działania dokumentów. To dobry znak.</p>';
+    return;
+  }
+  target.innerHTML=items.map(item=>{
+    const next=item.next_action||{};
+    const badge=next.priority==='overdue'?'red':(next.priority==='urgent'||next.priority==='today'||next.priority==='review')?'warn':'';
+    return `<div class="lifeQueueItem"><div class="listItemHead"><div><span class="badge">${esc((next.priority||'normal').toUpperCase())}</span><h3>${esc(item.source_name||'Dokument')}</h3></div><span class="badge ${badge}">${esc(next.title||'Sprawdź dokument')}</span></div><p>${esc(next.reason||'')}</p><div class="meta">${item.case_name?`<span>Sprawa: ${esc(item.case_name)}</span>`:''}${item.category?`<span>${esc(item.category)}</span>`:''}${next.due_date?`<span>Termin: ${fmtDate(next.due_date)}</span>`:''}</div><div class="lifePilotActions"><button class="secondary lifeOpenInDocs" data-name="${esc(item.source_name||'')}">Otwórz w Documents</button><a class="buttonLink" href="/api/lifepilot/${item.id}/proofpack">ProofPack ZIP</a>${next.due_date?`<a class="buttonLink secondary" href="/api/lifepilot/${item.id}/calendar">Termin .ics</a>`:''}</div></div>`;
+  }).join('');
+  $('.lifeOpenInDocs').forEach(button=>button.addEventListener('click',()=>{
+    documentsFilterValue=button.dataset.name||'';
+    documentsPageOffset=0;
+    const input=$('#documentsFilter');
+    if(input)input.value=documentsFilterValue;
+    go('documents');
+  }));
+}
+$('#refreshLifePilotBtn')?.addEventListener('click',()=>runLoad(loadLifePilot));
 
 async function loadDashboard(){const d=await api('/api/dashboard');const welcome=$('#welcomeCard');const setupActive=setupState&&!setupState.complete&&!setupState.has_documents;if(welcome)welcome.classList.toggle('hidden',d.documents>0||setupActive);$('#stats').innerHTML=[['Documents',d.documents],['Deadlines',d.deadline_count],['Actions',d.actions],['Duplicate groups',d.duplicate_groups],['Cases',d.cases],['Health alerts',d.unhealthy]].map(([a,b])=>`<div class="stat"><strong>${b}</strong><span>${a}</span></div>`).join('');$('#dashboardDeadlines').innerHTML=d.deadlines.length?d.deadlines.slice(0,8).map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No detected deadlines yet.</p>';$('#dashboardActions').innerHTML=d.actions?`<div class="stat"><strong>${d.actions}</strong><span>documents require an action</span></div><p class="muted">Use Documents and Deadline Radar to review them.</p>`:'<p class="muted">Nothing marked as action-required.</p>';$('#featureGrid').innerHTML=[['LifePilot','one clear next action'],['ProofPack','original + timeline + SHA-256'],['OCR','PL/EN local OCR'],['Smart Inbox','classify + rename'],['Deadline Radar','dates + actions'],['Duplicates','SHA-256 + near match'],['Cases','timeline'],['Search','local vector + Q&A'],['Review Queue','human-in-the-loop'],['Redaction','text + scanned PDF'],['PWA','installable UI']].map(([a,b])=>`<div class="feature"><strong>${a}</strong><small>${b}</small></div>`).join('')}
 
