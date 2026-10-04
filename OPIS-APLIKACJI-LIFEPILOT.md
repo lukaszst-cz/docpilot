@@ -97,7 +97,11 @@ W kodzie projektu działa już:
 - Decision Trail dla dokumentu i całej sprawy: historia korekt, zmian rekomendacji, oznaczeń „załatwione”, eksportów ProofPack/CasePack i kontroli gotowości;
 - eksport historii do Markdown bez pełnego OCR i lokalnych ścieżek plików;
 - funkcjonalny self-test gotowego EXE: analiza → korekta → Decision Trail → Case Readiness → CasePack → weryfikacja → „załatwione” → kolejka;
-- izolowany self-test w katalogu tymczasowym, bez używania danych użytkownika i bez zależności developerskich;\n- lokalny Pilot Runner (`docpilot-pilot`) do kontrolowanego pilota na prywatnym folderze dokumentów;\n- public-safe raport pilota domyślnie bez nazw plików, ścieżek, pełnego OCR, wartości issuerów, kwot i SHA-256;\n- dokładny raport prywatny wyłącznie po jawnym `--include-private`;\n- packaged self-test ProofPack oraz scenariusza brakującego oryginału;
+- izolowany self-test w katalogu tymczasowym, bez używania danych użytkownika i bez zależności developerskich;
+- lokalny Pilot Runner (`docpilot-pilot`) do kontrolowanego pilota na prywatnym folderze dokumentów;
+- public-safe raport pilota domyślnie bez nazw plików, ścieżek, pełnego OCR, wartości issuerów, kwot i SHA-256;
+- dokładny raport prywatny wyłącznie po jawnym `--include-private`;
+- packaged self-test ProofPack oraz scenariusza brakującego oryginału;
 - Windows upgrade smoke z faktycznie stabilnego publicznego DocPilot v4.0.0;
 - recovery smoke w finalnym runtime: checkpoint → kontrolowana zmiana → restore → ponowna kontrola integralności bazy;
 - testy granic priorytetu terminów oraz eksportu .ics na datach zmiany czasu Europe/Warsaw;
