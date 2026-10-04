@@ -18,7 +18,7 @@ _SUPPORTED_SUFFIXES = {
 
 @dataclass(frozen=True)
 class PilotResult:
-    private_report: Path
+    private_report: Path | None
     public_report: Path
     markdown_report: Path
     processed: int
@@ -176,8 +176,7 @@ def _markdown(public_payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def run_pilot(source_dir: Path, output_dir: Path, *, today: date | None = None) -> PilotResult:
-    source_dir = source_dir.expanduser().resolve()
+def run_pilot(\n    source_dir: Path,\n    output_dir: Path,\n    *,\n    today: date | None = None,\n    include_private: bool = False,\n) -> PilotResult:\n    source_dir = source_dir.expanduser().resolve()
     output_dir = output_dir.expanduser().resolve()
     if not source_dir.exists() or not source_dir.is_dir():
         raise ValueError(f"Pilot source directory does not exist: {source_dir}")
@@ -245,10 +244,14 @@ def run_pilot(source_dir: Path, output_dir: Path, *, today: date | None = None) 
         },
     }
 
-    private_path = output_dir / "pilot-private.json"
+    private_path = output_dir / "pilot-private.json" if include_private else None
     public_path = output_dir / "pilot-public.json"
     markdown_path = output_dir / "pilot-report.md"
-    private_path.write_text(json.dumps(_json_safe(private_payload), ensure_ascii=False, indent=2), encoding="utf-8")
+    if private_path is not None:
+        private_path.write_text(
+            json.dumps(_json_safe(private_payload), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
     public_path.write_text(json.dumps(_json_safe(public_payload), ensure_ascii=False, indent=2), encoding="utf-8")
     markdown_path.write_text(_markdown(public_payload), encoding="utf-8")
     return PilotResult(
@@ -272,17 +275,25 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("lifepilot-pilot-results"),
         help="Output folder outside the source folder (default: ./lifepilot-pilot-results).",
     )
+    parser.add_argument(
+        "--include-private",
+        action="store_true",
+        help="Also write pilot-private.json with filenames, extracted metadata values and hashes. Keep it local.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        result = run_pilot(args.source_dir, args.output)
+        result = run_pilot(args.source_dir, args.output, include_private=args.include_private)
     except (OSError, ValueError) as exc:
         raise SystemExit(str(exc))
     print(f"LifePilot pilot: {result.processed} processed, {result.failed} failed")
-    print(f"Private report: {result.private_report}")
+    if result.private_report is not None:
+        print(f"Private report: {result.private_report}")
+    else:
+        print("Private report: not created (use --include-private to opt in)")
     print(f"Public report:  {result.public_report}")
     print(f"Markdown:       {result.markdown_report}")
     return 0 if result.failed == 0 else 2
