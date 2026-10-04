@@ -43,6 +43,8 @@ def test_lifepilot_api_exposes_next_action_proofpack_calendar_and_about(monkeypa
     marked = client.post(f"/api/lifepilot/{doc_id}/done")
     assert marked.status_code == 200
     assert all(item["id"] != doc_id for item in client.get("/api/lifepilot/queue").json())
+    with_done = client.get("/api/lifepilot/queue?include_done=true").json()
+    assert any(item["id"] == doc_id and item["done"] is True for item in with_done)
     reopened = client.post(f"/api/lifepilot/{doc_id}/reopen")
     assert reopened.status_code == 200
     assert any(item["id"] == doc_id for item in client.get("/api/lifepilot/queue").json())
