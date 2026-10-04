@@ -59,7 +59,7 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 
 ## F. Pilot dokumentów
 
-Do pilota lokalnego użyj `docpilot-pilot`. Domyślny raport jest zredukowany prywatnościowo; dokładny raport lokalny wymaga jawnego `--include-private`.
+Na zainstalowanym Windows uruchom z menu Start **LifePilot Pilot**, wybierz folder dokumentów i poczekaj na raport. Launcher korzysta z tego samego lokalnego silnika co `docpilot-pilot`. Domyślnie tworzy tylko `pilot-public.json` i `pilot-report.md`; dokładny `pilot-private.json` wymaga jawnego `--include-private` w wersji CLI.
 
 
 
