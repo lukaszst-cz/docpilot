@@ -51,7 +51,7 @@ def test_collect_notification_items_uses_lifepilot_horizon_and_handled_state():
         today=today,
     )
 
-    assert [item["id"] for item in items] == [1, 2, 6]
+    assert [item["id"] for item in items] == [1, 6, 2]
     assert all(item["id"] != 5 for item in items)
     assert all(item["id"] != 3 for item in items)
     assert all(item["id"] != 4 for item in items)
