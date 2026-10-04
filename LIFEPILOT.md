@@ -292,3 +292,27 @@ Jeżeli oryginału brakuje na dysku, CasePack **nie ukrywa tego faktu**. Dokumen
 Ten sam lokalny ekran weryfikacji rozpoznaje teraz automatycznie ProofPack albo CasePack. Dla CasePack raportuje m.in. liczbę zweryfikowanych dokumentów, zgodność z wcześniejszym SHA-256 indeksu oraz brakujące oryginały.
 
 CasePack jest narzędziem porządkującym i integralnościowym. Nie jest kwalifikowanym podpisem elektronicznym, pieczęcią ani zaufanym znacznikiem czasu.
+
+## LifePilot Preview 4.6 — Case Readiness
+
+Case Readiness to lokalny preflight sprawy przed dalszą pracą lub eksportem CasePack.
+
+LifePilot nie wylicza sztucznego procentowego „score”. Używa trzech czytelnych stanów:
+- **Gotowa** — nie wykryto problemów kompletności ani integralności;
+- **Wymaga sprawdzenia** — np. niski confidence bez ręcznej weryfikacji, brak SHA-256 albo rozjazd aktualnego pliku z indeksem;
+- **Niekompletna** — co najmniej jeden lokalny oryginał jest niedostępny.
+
+Preflight sprawdza m.in.:
+- dostępność lokalnych oryginałów;
+- obecność SHA-256;
+- zgodność aktualnego pliku z wcześniej zapisanym hashem;
+- niską pewność OCR bez ręcznej weryfikacji;
+- liczbę ręcznie sprawdzonych dokumentów;
+- otwarte działania;
+- terminy po czasie i zbliżające się terminy.
+
+Pozycje oznaczone jako **załatwione** nie są ponownie liczone jako otwarte działania ani pilne terminy.
+
+Terminy i otwarte działania są warstwą uwagi, ale same nie zmieniają sprawy na „Niekompletną”. Eksport CasePack pozostaje decyzją użytkownika.
+
+**Case Readiness nie jest oceną prawną ani merytoryczną sprawy.** Dotyczy wyłącznie kompletności, integralności i jakości technicznego przygotowania materiału.
