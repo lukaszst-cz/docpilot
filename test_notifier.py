@@ -51,13 +51,14 @@ def test_collect_notification_items_uses_lifepilot_horizon_and_handled_state():
         today=today,
     )
 
-    assert [item["id"] for item in items] == [1, 6, 2]
+    assert [item["id"] for item in items] == [1, 2, 6]
     assert all(item["id"] != 5 for item in items)
     assert all(item["id"] != 3 for item in items)
     assert all(item["id"] != 4 for item in items)
     review = next(item for item in items if item["id"] == 6)
-    assert review["priority"] == "review"
+    assert review["priority"] == "urgent"
     assert "sprawdź" in review["title"].lower()
+    assert review["verification"]["source"] == "automatic"
 
 
 def test_notify_once_deduplicates_same_state_but_allows_meaningful_change(monkeypatch, tmp_path):
