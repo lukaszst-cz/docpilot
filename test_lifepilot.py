@@ -3,7 +3,7 @@ import hashlib
 import json
 import zipfile
 
-from docpilot.lifepilot import build_lifepilot_view, build_proof_pack, lifepilot_queue, next_action_for_document, proof_pack_manifest
+from docpilot.lifepilot import attention_signature, build_lifepilot_view, build_proof_pack, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview
 
 
 def _doc(**overrides):
@@ -95,3 +95,25 @@ def test_lifepilot_queue_prioritizes_overdue_today_urgent_review_and_soon():
     queue = lifepilot_queue(docs, today=date(2026, 10, 4))
     assert [item["id"] for item in queue] == [2, 4, 5, 3, 1]
     assert all(item["id"] != 6 for item in queue)
+
+
+def test_attention_signature_changes_when_actionable_state_changes():
+    original = _doc(updated_at="2026-10-04T10:00:00Z")
+    same = _doc(updated_at="2026-10-04T10:00:00Z")
+    changed = _doc(updated_at="2026-10-04T10:01:00Z")
+    assert attention_signature(original) == attention_signature(same)
+    assert attention_signature(original) != attention_signature(changed)
+
+
+def test_proof_pack_preview_is_private_and_reports_expected_files(tmp_path):
+    source = tmp_path / "evidence.txt"
+    source.write_text("hello", encoding="utf-8")
+    doc = _doc(path=str(source), source_name=source.name)
+    preview = proof_pack_preview(doc, timeline_documents=[doc, _doc(id=8)])
+    names = {item["name"] for item in preview["files"]}
+    assert "original/evidence.txt" in names
+    assert {"manifest.json", "next-action.json", "timeline.json", "SHA256SUMS.txt", "README.txt"} <= names
+    assert preview["timeline_items"] == 2
+    assert preview["privacy"]["includes_extracted_text"] is False
+    assert preview["privacy"]["includes_local_path_in_manifest"] is False
+    assert preview["privacy"]["uploads_anything"] is False
