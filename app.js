@@ -14,6 +14,30 @@ const titles = {
 function esc(v=''){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function fmtDate(v){if(!v)return '—'; try{return new Date(v+'T00:00:00').toLocaleDateString();}catch{return v}}
 function fmtDateTime(v){if(!v)return '—';try{return new Date(v).toLocaleString()}catch{return v}}
+function renderDecisionTrailHtml(trail){
+  const events=trail?.events||[];
+  const current=trail?.current_decision||null;
+  const currentHtml=current
+    ? '<div class="decisionTrailCurrent"><strong>Aktualna rekomendacja</strong><div class="meta"><span>'+esc(current.title||'—')+'</span><span>'+esc(current.priority||'normal')+'</span>'+(current.due_date?'<span>Termin: '+fmtDate(current.due_date)+'</span>':'')+'</div></div>'
+    : '';
+  const rows=events.map(event=>{
+    const details=event.details||{};
+    const changes=Array.isArray(details.changes)?details.changes:[];
+    const changesHtml=changes.length
+      ? '<ul>'+changes.map(change=>'<li><strong>'+esc(change.label||change.field||'Pole')+'</strong>: '+esc(change.before??'—')+' → '+esc(change.after??'—')+'</li>').join('')+'</ul>'
+      : '';
+    const before=details.decision_before||null, after=details.decision_after||null;
+    const decisionHtml=before&&after&&JSON.stringify(before)!==JSON.stringify(after)
+      ? '<div class="meta"><span>Rekomendacja: '+esc(before.title||'—')+' / '+esc(before.priority||'—')+' → '+esc(after.title||'—')+' / '+esc(after.priority||'—')+'</span></div>'
+      : '';
+    const statusHtml=details.status?'<div class="meta"><span>Status: '+esc(details.status)+'</span></div>':'';
+    const fieldsHtml=!changes.length&&Array.isArray(details.fields)&&details.fields.length
+      ? '<div class="meta"><span>Zmienione pola: '+esc(details.fields.join(', '))+'</span></div>'
+      : '';
+    return '<div class="decisionTrailRow"><strong>'+fmtDateTime(event.created_at)+' — '+esc(event.label||event.event||'Zdarzenie')+'</strong>'+changesHtml+decisionHtml+statusHtml+fieldsHtml+'</div>';
+  }).join('');
+  return currentHtml+(rows||'<p class="muted">Brak zapisanych zdarzeń w obsługiwanym zakresie audytu.</p>')+'<p class="muted">Historia nie zawiera pełnego OCR ani lokalnych ścieżek plików.</p>';
+}
 function money(md){return md?.amount==null?'—':`${md.amount} ${md.currency||''}`.trim()}
 
 function friendlyApiMessage(status, detail=''){
