@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+import hashlib
+import json
+import zipfile
+from datetime import date, datetime, timezone
+from pathlib import Path
 from typing import Any
 
 
@@ -10,6 +14,7 @@ _ACTION_LABELS = {
     "to-sign": "Sprawdź i podpisz dokument",
     "to-review": "Sprawdź dokument ręcznie",
     "to-renew": "Sprawdź odnowienie lub przedłużenie",
+    "to-archive": "Zatwierdź i zachowaj dokument",
 }
 
 
@@ -86,20 +91,25 @@ def next_action_for_document(document: dict[str, Any], *, today: date | None = N
         "reason": reason,
         "steps": steps,
         "action_code": action or None,
+        "available_actions": {
+            "proof_pack": True,
+            "calendar": bool(deadline),
+            "open_source": bool(document.get("path")),
+            "scam_check": True,
+        },
     }
 
 
-def proof_pack_manifest(document: dict[str, Any]) -> dict[str, Any]:
+def proof_pack_manifest(document: dict[str, Any], *, computed_digest: str | None = None) -> dict[str, Any]:
     metadata = document.get("metadata") or {}
-    digest = document.get("sha256")
+    indexed_digest = document.get("sha256")
     return {
         "format": "lifepilot-proof-pack",
         "version": 1,
-        "generated_at": datetime.now().astimezone().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "document": {
             "id": document.get("id"),
             "source_name": document.get("source_name"),
-            "path": document.get("path"),
             "size_bytes": document.get("size_bytes"),
             "category": document.get("category"),
             "profile": document.get("profile"),
@@ -118,14 +128,140 @@ def proof_pack_manifest(document: dict[str, Any]) -> dict[str, Any]:
         },
         "integrity": {
             "algorithm": "sha256",
-            "digest": digest,
-            "available": bool(digest),
+            "digest": indexed_digest,
+            "computed_digest": computed_digest,
+            "matches_index": (
+                bool(indexed_digest and computed_digest) and str(indexed_digest).lower() == str(computed_digest).lower()
+                if computed_digest
+                else None
+            ),
+            "available": bool(indexed_digest),
         },
         "privacy": {
             "includes_extracted_text": False,
-            "includes_file_bytes": False,
+            "includes_local_path": False,
         },
     }
+
+
+def _safe_name(value: str) -> str:
+    cleaned = "".join(c if c.isalnum() or c in "-_." else "-" for c in str(value))
+    return cleaned[:120] or "document"
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def proof_pack_timeline(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for document in documents:
+        metadata = document.get("metadata") or {}
+        items.append(
+            {
+                "id": document.get("id"),
+                "source_name": document.get("source_name"),
+                "sha256": document.get("sha256"),
+                "document_type": metadata.get("document_type"),
+                "document_date": metadata.get("document_date"),
+                "deadline": metadata.get("deadline") or metadata.get("warranty_until"),
+                "case_name": document.get("case_name"),
+                "category": document.get("category"),
+                "action_required": document.get("action_required"),
+            }
+        )
+    return items
+
+
+def build_proof_pack(
+    destination: Path,
+    document: dict[str, Any],
+    *,
+    timeline_documents: list[dict[str, Any]] | None = None,
+) -> Path:
+    source = Path(str(document.get("path") or ""))
+    if not source.exists() or not source.is_file():
+        raise FileNotFoundError(f"Source document not found: {source}")
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    source_digest = _sha256_file(source)
+    manifest = proof_pack_manifest(document, computed_digest=source_digest)
+    next_action = next_action_for_document(document)
+    timeline = proof_pack_timeline(timeline_documents or [document])
+
+    manifest_bytes = json.dumps(manifest, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+    action_bytes = json.dumps(next_action, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+    timeline_bytes = json.dumps(timeline, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+    original_arcname = f"original/{_safe_name(source.name)}"
+
+    checksums = [
+        f"{source_digest}  {original_arcname}",
+        f"{_sha256_bytes(manifest_bytes)}  manifest.json",
+        f"{_sha256_bytes(action_bytes)}  next-action.json",
+        f"{_sha256_bytes(timeline_bytes)}  timeline.json",
+    ]
+    readme = (
+        "LifePilot ProofPack v1\n"
+        "======================\n\n"
+        "Pakiet utworzono lokalnie na podstawie dokumentu zindeksowanego w DocPilot/LifePilot.\n"
+        "Zawiera kopię dokumentu, manifest metadanych, rekomendowaną następną czynność,\n"
+        "chronologię sprawy (jeśli była dostępna) oraz sumy SHA-256.\n\n"
+        "ProofPack pomaga zachować spójny zestaw materiałów, ale nie jest kwalifikowanym\n"
+        "podpisem elektronicznym, kwalifikowaną pieczęcią ani zaufanym znacznikiem czasu.\n"
+        "Dla ważnych spraw zawsze zachowaj oryginały i zweryfikuj kluczowe dane.\n"
+    )
+
+    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.write(source, original_arcname)
+        archive.writestr("manifest.json", manifest_bytes)
+        archive.writestr("next-action.json", action_bytes)
+        archive.writestr("timeline.json", timeline_bytes)
+        archive.writestr("SHA256SUMS.txt", "\n".join(checksums) + "\n")
+        archive.writestr("README.txt", readme)
+    return destination
+
+
+def lifepilot_queue(
+    documents: list[dict[str, Any]],
+    *,
+    today: date | None = None,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    today = today or date.today()
+    priority_order = {"overdue": 0, "today": 1, "urgent": 2, "review": 3, "soon": 4, "normal": 5}
+    items: list[dict[str, Any]] = []
+    for document in documents:
+        next_action = next_action_for_document(document, today=today)
+        if next_action["priority"] == "normal" and not document.get("action_required") and not next_action.get("due_date"):
+            continue
+        items.append(
+            {
+                "id": document.get("id"),
+                "source_name": document.get("source_name"),
+                "case_name": document.get("case_name"),
+                "category": document.get("category"),
+                "profile": document.get("profile"),
+                "action_required": document.get("action_required"),
+                "next_action": next_action,
+            }
+        )
+    items.sort(
+        key=lambda item: (
+            priority_order.get(item["next_action"].get("priority"), 99),
+            item["next_action"].get("due_date") or "9999-12-31",
+            str(item.get("source_name") or "").lower(),
+            int(item.get("id") or 0),
+        )
+    )
+    return items[: max(1, min(int(limit), 1000))]
 
 
 def build_lifepilot_view(document: dict[str, Any], *, today: date | None = None) -> dict[str, Any]:

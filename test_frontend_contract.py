@@ -252,3 +252,17 @@ def test_diagnostics_ui_explains_recovery_readiness():
     assert "Full Archive Backup" in readme
     assert "Recovery readiness — co oznacza" in troubleshooting
     assert "database-problem" in troubleshooting
+
+
+def test_lifepilot_ui_exposes_queue_product_page_and_safe_actions():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'data-view="lifepilot"' in html
+    assert 'id="view-lifepilot"' in html
+    assert 'id="lifepilotQueue"' in html
+    assert 'href="/lifepilot"' in html
+    assert "/api/lifepilot/queue?limit=250" in script
+    assert "/proofpack" in script
+    assert "/calendar" in script
+    assert "LifePilot nie wysyła tam automatycznie treści dokumentu." in script

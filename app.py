@@ -71,7 +71,7 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
-from .lifepilot import build_lifepilot_view
+from .lifepilot import build_lifepilot_view, build_proof_pack, lifepilot_queue
 from .notifier import install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest
 from .redaction import redact_file
@@ -177,6 +177,15 @@ WATCHER_THREAD: threading.Thread | None = None
 def index():
     return FileResponse(
         TEMPLATE_DIR / "index.html",
+        media_type="text/html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+    )
+
+
+@app.get("/lifepilot")
+def lifepilot_about():
+    return FileResponse(
+        TEMPLATE_DIR / "lifepilot.html",
         media_type="text/html",
         headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
     )
@@ -643,12 +652,56 @@ def analyze(upload: UploadFile = File(...)):
     return data
 
 
+@app.get("/api/lifepilot/queue")
+def lifepilot_action_queue(limit: int = 200):
+    documents = list_documents(settings, limit=min(max(int(limit), 1), 5000))
+    return lifepilot_queue(documents, limit=limit)
+
+
 @app.get("/api/lifepilot/{doc_id}")
 def lifepilot_view(doc_id: int):
     document = get_document(settings, doc_id)
     if not document:
         raise HTTPException(404, "Document not found")
     return build_lifepilot_view(document)
+
+
+@app.get("/api/lifepilot/{doc_id}/proofpack")
+def lifepilot_proofpack(doc_id: int):
+    document = get_document(settings, doc_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+    case_name = str(document.get("case_name") or "").strip()
+    timeline = [document]
+    if case_name:
+        timeline = [item for item in list_case_documents(settings, limit=5000) if item.get("case_name") == case_name]
+    filename = f"LifePilot-ProofPack-{doc_id}.zip"
+    destination = settings.exports / filename
+    try:
+        build_proof_pack(destination, document, timeline_documents=timeline)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc))
+    except (OSError, ValueError, RuntimeError) as exc:
+        logger.exception("proof pack export failed")
+        raise HTTPException(400, f"Could not create ProofPack: {exc}")
+    audit(settings, "lifepilot-proofpack-exported", {"document_id": doc_id, "case_name": case_name or None})
+    return FileResponse(destination, media_type="application/zip", filename=filename)
+
+
+@app.get("/api/lifepilot/{doc_id}/calendar")
+def lifepilot_calendar(doc_id: int):
+    document = get_document(settings, doc_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+    deadline = (document.get("metadata") or {}).get("deadline") or (document.get("metadata") or {}).get("warranty_until")
+    if not deadline:
+        raise HTTPException(400, "Document has no detected deadline")
+    content = ics_for_documents([document])
+    return PlainTextResponse(
+        content,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="LifePilot-{doc_id}-deadline.ics"'},
+    )
 
 
 @app.post("/api/apply")

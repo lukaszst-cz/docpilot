@@ -1,46 +1,222 @@
-# LifePilot — foundation
+# LifePilot — produkt nadrzędny dla codziennych dokumentów i spraw
 
-LifePilot is an evolution path for DocPilot rather than a replacement.
+## Obietnica produktu
 
-## One-sentence product promise
+> **Wrzuć dokument. LifePilot powie Ci, co to jest, co trzeba zrobić, do kiedy i zachowa wszystko na później.**
 
-> Wrzuć dokument. LifePilot powie Ci, co to jest, co trzeba zrobić, do kiedy i zachowa wszystko na później.
+LifePilot nie jest osobnym silnikiem od zera. Jest warstwą produktową budowaną nad stabilnym, local-first fundamentem DocPilot.
 
-## Product layers
+Celem jest zmniejszenie liczby decyzji, które użytkownik musi podjąć po otrzymaniu dokumentu. Zamiast pytać osobno:
+- co to za dokument;
+- czy trzeba coś zrobić;
+- jaki jest termin;
+- gdzie go zapisać;
+- co zachować jako materiał źródłowy;
+- gdzie później znaleźć kontekst;
 
-1. **DocPilot core** — local-first OCR, metadata, deadlines, cases, search, history and safe file operations.
-2. **CoTeraz?** — turns the document state into one clear next action with priority and due date.
-3. **ProofPack** — creates an evidence-oriented manifest with provenance and SHA-256 integrity data.
-4. **CzyToŚciema?** — optional safety module for suspicious messages, links, screenshots and QR codes. It stays separately deployable and should be integrated only through a narrow contract.
+LifePilot próbuje przeprowadzić ten przepływ jako jeden proces.
 
-## First thin slice
+## Moduły
 
-The first LifePilot slice intentionally does not change the SQLite schema.
+### DocPilot — „Co to jest?”
 
-For every indexed document it can derive:
-- a single recommended next action;
-- priority based on the nearest known deadline;
-- a short explanation;
-- a minimal ProofPack manifest with document identity, selected metadata and SHA-256.
+DocPilot pozostaje warstwą dokumentową:
+- OCR i ekstrakcja tekstu;
+- klasyfikacja;
+- metadane;
+- wykrywanie terminów;
+- lokalny indeks;
+- sprawy i timeline;
+- wyszukiwanie i Q&A;
+- duplikaty;
+- bezpieczne operacje na plikach;
+- backup, recovery i audyt.
 
-The API exposes:
+### CoTeraz? — „Co mam zrobić?”
 
-`GET /api/lifepilot/{document_id}`
+Po analizie dokumentu LifePilot buduje jedną rekomendowaną następną czynność.
 
-The normal analysis response also includes a `lifepilot` object, so a future UI can show the recommendation immediately after upload.
+Priorytety:
+1. overdue — termin już minął;
+2. today — termin przypada dziś;
+3. urgent — do 3 dni;
+4. review — najpierw ręczna weryfikacja, np. słaby OCR;
+5. soon — do 14 dni;
+6. normal — brak pilności.
 
-## Safety rules
+Osobny ekran **LifePilot · Co teraz?** zbiera dokumenty wymagające uwagi i sortuje je zgodnie z tą kolejnością.
 
-- no automatic destructive file action;
-- no claim that OCR or inferred deadlines are authoritative;
-- low-confidence extraction is routed to manual review first;
-- ProofPack v1 is a manifest only; it does not silently copy or upload original file bytes;
-- CzyToŚciema? remains isolated from private document contents unless the user explicitly sends selected content for checking.
+### ProofPack — „Co zachować?”
 
-## Next implementation steps
+ProofPack v1 jest lokalnym archiwum ZIP tworzonym dla jednego dokumentu.
 
-- add a dedicated LifePilot UI card after analysis;
-- add a real ProofPack ZIP export with the original file, manifest, timeline and checksums;
-- add reminders / calendar handoff from the next-action card;
-- add a narrow local contract for optional CzyToŚciema? checks;
-- run pilot tests on invoices, official letters, school documents, insurance correspondence and contracts.
+Zawartość:
+- original/<nazwa> — kopia oryginalnego pliku;
+- manifest.json — wybrane metadane i informacja o integralności;
+- next-action.json — rekomendacja LifePilot;
+- timeline.json — bezpieczna chronologia dokumentów w tej samej sprawie;
+- SHA256SUMS.txt — sumy kontrolne;
+- README.txt — opis i ograniczenia.
+
+ProofPack nie zawiera pełnego tekstu OCR ani lokalnej ścieżki dokumentu w manifeście.
+
+### CzyToŚciema? — „Czy to wygląda podejrzanie?”
+
+CzyToŚciema? pozostaje oddzielną, prostą aplikacją PWA.
+
+LifePilot może otworzyć ją jako opcjonalne narzędzie, ale:
+- nie wysyła automatycznie dokumentu;
+- nie przekazuje automatycznie tekstu OCR;
+- nie zakłada, że brak ostrzeżenia oznacza bezpieczeństwo.
+
+To celowe rozdzielenie granic prywatności i odpowiedzialności.
+
+## Aktualny przepływ użytkownika
+
+1. Użytkownik dodaje dokument do Smart Inbox.
+2. DocPilot lokalnie analizuje plik i zapisuje indeks.
+3. LifePilot buduje kartę **Co teraz?**.
+4. Użytkownik weryfikuje wykryte dane.
+5. Może:
+   - zatwierdzić organizację pliku;
+   - pobrać ProofPack;
+   - pobrać termin jako .ics;
+   - otworzyć dokument;
+   - otworzyć osobno CzyToŚciema?.
+6. Dokument może później pojawić się w centralnej kolejce LifePilot.
+
+## Zasady bezpieczeństwa produktu
+
+### Human-in-the-loop
+
+Automatyczna ekstrakcja nie jest traktowana jako źródło prawdy.
+
+Przy niskiej pewności odczytu LifePilot ma najpierw rekomendować ręczne sprawdzenie danych, a nie wykonanie właściwej czynności.
+
+### Brak automatycznych destrukcyjnych decyzji
+
+LifePilot nie powinien sam:
+- usuwać dokumentów;
+- wykonywać płatności;
+- wysyłać odpowiedzi;
+- przenosić oryginalnych plików bez zatwierdzenia;
+- wysyłać prywatnej treści do zewnętrznej usługi.
+
+### Integralność nie oznacza kwalifikowanego dowodu czasu
+
+SHA-256 pozwala sprawdzić, czy bajty dokumentu odpowiadają zapisanej sumie.
+
+ProofPack:
+- nie jest kwalifikowanym podpisem elektronicznym;
+- nie jest kwalifikowaną pieczęcią;
+- nie jest zaufanym znacznikiem czasu;
+- nie dowodzi samodzielnie, kiedy dokument powstał.
+
+W sprawach formalnych oryginały i źródłowe kanały doręczenia nadal należy zachować.
+
+## Prywatność
+
+Podstawowy przepływ LifePilot korzysta z lokalnego modelu DocPilot:
+- OCR lokalnie;
+- indeks lokalnie;
+- baza SQLite lokalnie;
+- wyszukiwanie lokalnie;
+- ProofPack lokalnie.
+
+Zewnętrzne integracje DocPilot pozostają opcjonalne i są uruchamiane jawnie.
+
+Manifest ProofPack v1 nie zawiera:
+- pełnego tekstu OCR;
+- lokalnej ścieżki pliku;
+- danych logowania;
+- tokenów integracji.
+
+## Kontrakt API preview
+
+### Widok pojedynczego dokumentu
+
+GET /api/lifepilot/{document_id}
+
+Zwraca:
+- next_action;
+- bezpieczny manifest proof_pack.
+
+### Kolejka „Co teraz?”
+
+GET /api/lifepilot/queue?limit=200
+
+Zwraca priorytetyzowane dokumenty wymagające uwagi.
+
+### ProofPack ZIP
+
+GET /api/lifepilot/{document_id}/proofpack
+
+Tworzy lokalny ZIP i zwraca go do pobrania.
+
+### Termin kalendarza
+
+GET /api/lifepilot/{document_id}/calendar
+
+Eksportuje pojedynczy wykryty termin jako iCalendar.
+
+## Status
+
+### Działa w kodzie preview
+
+- karta Co teraz? po analizie;
+- centralna kolejka LifePilot;
+- priorytety terminów;
+- ręczna weryfikacja przy niskiej pewności;
+- ProofPack ZIP;
+- SHA-256 oryginału i plików metadanych;
+- timeline sprawy;
+- pojedynczy .ics;
+- pełna strona „O LifePilot”;
+- testy modułu, API i frontendu.
+
+### Stabilny kanał wydania
+
+Ostatnim stabilnym publicznym wydaniem Windows pozostaje **DocPilot v4.0.0**.
+
+LifePilot powinien wejść do kolejnego publicznego wydania dopiero po:
+1. pełnym CI;
+2. Windows build;
+3. self-test gotowego EXE;
+4. clean install;
+5. upgrade z poprzedniej stabilnej wersji;
+6. sprawdzeniu OCR;
+7. testach ProofPack na zainstalowanej aplikacji;
+8. smoke testach na realnych urządzeniach.
+
+## Kolejne etapy
+
+### Następny rozsądny zakres
+
+- podgląd zawartości ProofPack przed pobraniem;
+- jawne „wykonane / zamknięte” dla pozycji kolejki;
+- lepszy Today view;
+- powiadomienia o najważniejszych akcjach;
+- ręczne poprawianie kluczowych pól bez opuszczania karty;
+- bezpieczny eksport streszczenia sprawy;
+- testy na większej liczbie rzeczywistych klas dokumentów.
+
+### Później
+
+- wersja mobilna / wygodniejszy import ze zdjęcia;
+- rozszerzony przepływ rodzinny;
+- opcjonalne szablony odpowiedzi tworzone na podstawie zweryfikowanych danych;
+- węższe kontrakty integracyjne między produktami;
+- wielojęzyczność warstwy LifePilot.
+
+## Kryterium sukcesu
+
+LifePilot ma być dobry wtedy, gdy użytkownik po wrzuceniu dokumentu **nie musi rozumieć struktury DocPilot ani znać nazw modułów**.
+
+Powinien zobaczyć:
+1. co to jest;
+2. co zrobić;
+3. do kiedy;
+4. gdzie jest oryginał;
+5. jak zachować materiał.
+
+To jest główna miara produktu — nie liczba funkcji.

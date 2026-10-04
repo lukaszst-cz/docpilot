@@ -11,6 +11,7 @@ ROOT = _spec_path.parent if _spec_path.name.lower() == "packaging" else _spec_pa
 datas = [
     (str(ROOT / "sample_invoice.txt"), "docpilot/demo"),
     (str(ROOT / "index.html"), "docpilot/templates"),
+    (str(ROOT / "lifepilot.html"), "docpilot/templates"),
     (str(ROOT / "app.css"), "docpilot/static"),
     (str(ROOT / "app.js"), "docpilot/static"),
     (str(ROOT / "manifest.webmanifest"), "docpilot/static"),
