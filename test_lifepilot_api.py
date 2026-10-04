@@ -1,5 +1,6 @@
 import importlib
 import io
+import json
 import zipfile
 
 from fastapi.testclient import TestClient
@@ -42,9 +43,10 @@ def test_lifepilot_api_exposes_next_action_proofpack_calendar_and_about(monkeypa
     assert any(item["id"] == doc_id for item in queue_before)
     marked = client.post(f"/api/lifepilot/{doc_id}/done")
     assert marked.status_code == 200
+    assert marked.json()["done_at"]
     assert all(item["id"] != doc_id for item in client.get("/api/lifepilot/queue").json())
     with_done = client.get("/api/lifepilot/queue?include_done=true").json()
-    assert any(item["id"] == doc_id and item["done"] is True for item in with_done)
+    assert any(item["id"] == doc_id and item["done"] is True and item["done_at"] for item in with_done)
     reopened = client.post(f"/api/lifepilot/{doc_id}/reopen")
     assert reopened.status_code == 200
     assert any(item["id"] == doc_id for item in client.get("/api/lifepilot/queue").json())
@@ -188,3 +190,31 @@ def test_case_summary_preview_and_markdown_export_are_private(monkeypatch, tmp_p
     assert "second.txt" in exported.text
     assert str(tmp_path) not in exported.text
     assert "Nieczytelny dokument" not in exported.text
+
+
+def test_legacy_handled_signature_remains_compatible(monkeypatch, tmp_path):
+    from docpilot.db import set_setting
+    from docpilot.lifepilot import legacy_attention_signature
+
+    app_module = importlib.import_module("docpilot.app")
+    temp_settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", temp_settings)
+    client = TestClient(app_module.app)
+
+    analyzed = client.post(
+        "/api/analyze",
+        files={"upload": ("legacy.txt", b"ACME Faktura VAT\nTermin platnosci: 06.10.2026\n199,99 PLN", "text/plain")},
+    )
+    assert analyzed.status_code == 200
+    doc_id = analyzed.json()["id"]
+    document = next(item for item in client.get("/api/documents").json() if item["id"] == doc_id)
+    set_setting(
+        temp_settings,
+        "lifepilot.done",
+        json.dumps({str(doc_id): legacy_attention_signature(document)}),
+    )
+
+    queue = client.get("/api/lifepilot/queue?include_done=true").json()
+    legacy = next(item for item in queue if item["id"] == doc_id)
+    assert legacy["done"] is True
+    assert legacy["done_at"] is None
