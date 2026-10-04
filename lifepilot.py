@@ -214,6 +214,23 @@ def _history_safe_fields(payload: dict[str, Any]) -> dict[str, Any]:
     for key in ("case_name", "case_before", "case_after"):
         if key in payload:
             safe[key] = payload.get(key)
+
+    direct_updates = {
+        key: payload.get(key)
+        for key in ("category", "profile", "case_name", "action_required")
+        if key in payload
+    }
+    raw_fields = payload.get("fields")
+    if isinstance(raw_fields, dict):
+        direct_updates.update(
+            {
+                key: raw_fields.get(key)
+                for key in ("category", "profile", "case_name", "action_required")
+                if key in raw_fields
+            }
+        )
+    if direct_updates:
+        safe["updates"] = direct_updates
     return safe
 
 
@@ -373,9 +390,16 @@ def decision_trail_markdown(trail: dict[str, Any]) -> str:
             lines.append(f"- Status: {details.get('status')}")
         if details.get("done_at"):
             lines.append(f"- Załatwione: {details.get('done_at')}")
-        if not changes and not before and not details.get("status") and not details.get("done_at"):
+        updates = details.get("updates")
+        if isinstance(updates, dict) and updates:
+            rendered_updates = ", ".join(
+                f"{_DECISION_FIELDS.get(key, key)}: {value if value not in (None, '') else '—'}"
+                for key, value in updates.items()
+            )
+            lines.append(f"- Aktualizacja: {rendered_updates}")
+        if not changes and not before and not details.get("status") and not details.get("done_at") and not updates:
             fields = details.get("fields")
-            if fields:
+            if isinstance(fields, list) and fields:
                 lines.append("- Zmienione pola: " + ", ".join(str(item) for item in fields))
         lines.append("")
     lines += [
