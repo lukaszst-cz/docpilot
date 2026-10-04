@@ -16,6 +16,7 @@ CORE_MODULES = [
     "exporters.py",
     "extract.py",
     "intelligence.py",
+    "lifepilot.py",
     "models.py",
     "portable_config.py",
     "preprocess.py",
