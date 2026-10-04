@@ -218,3 +218,45 @@ def test_legacy_handled_signature_remains_compatible(monkeypatch, tmp_path):
     legacy = next(item for item in queue if item["id"] == doc_id)
     assert legacy["done"] is True
     assert legacy["done_at"] is None
+
+
+def test_proofpack_verification_api_accepts_generated_pack_and_rejects_tampering(monkeypatch, tmp_path):
+    app_module = importlib.import_module("docpilot.app")
+    temp_settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", temp_settings)
+    client = TestClient(app_module.app)
+
+    analyzed = client.post(
+        "/api/analyze",
+        files={"upload": ("invoice.txt", b"ACME Faktura VAT\nTermin platnosci: 06.10.2026\n199,99 PLN", "text/plain")},
+    )
+    assert analyzed.status_code == 200
+    doc_id = analyzed.json()["id"]
+
+    pack = client.get(f"/api/lifepilot/{doc_id}/proofpack")
+    assert pack.status_code == 200
+
+    verified = client.post(
+        "/api/lifepilot/proofpack/verify",
+        files={"upload": ("LifePilot-ProofPack.zip", pack.content, "application/zip")},
+    )
+    assert verified.status_code == 200
+    assert verified.json()["valid"] is True
+    assert verified.json()["integrity"]["checksums_verified"] is True
+
+    source_buffer = io.BytesIO(pack.content)
+    target_buffer = io.BytesIO()
+    with zipfile.ZipFile(source_buffer, "r") as source_zip, zipfile.ZipFile(target_buffer, "w", compression=zipfile.ZIP_DEFLATED) as target_zip:
+        for info in source_zip.infolist():
+            data = source_zip.read(info.filename)
+            if info.filename.startswith("original/"):
+                data += b"tampered"
+            target_zip.writestr(info.filename, data)
+
+    invalid = client.post(
+        "/api/lifepilot/proofpack/verify",
+        files={"upload": ("tampered.zip", target_buffer.getvalue(), "application/zip")},
+    )
+    assert invalid.status_code == 200
+    assert invalid.json()["valid"] is False
+    assert invalid.json()["errors"]
