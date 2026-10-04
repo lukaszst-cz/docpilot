@@ -177,3 +177,9 @@ def test_lifepilot_packaged_self_test_uses_runtime_only_and_restores_settings():
     _lifepilot_functional_self_test()
 
     assert app_module.settings is original_settings
+
+
+def test_lifepilot_deadline_boundary_self_test_covers_release_edges():
+    from docpilot.desktop import _lifepilot_deadline_boundary_self_test
+
+    _lifepilot_deadline_boundary_self_test()
