@@ -719,7 +719,7 @@ def lifepilot_case_readiness(case_name: str):
     if not name:
         raise HTTPException(400, "case_name is required")
     documents = list_case_documents(settings, limit=5000)
-    readiness = case_readiness(name, documents)
+    readiness = case_readiness(name, documents, handled=_lifepilot_done_map())
     if not readiness["document_count"]:
         raise HTTPException(404, "Case not found")
     audit(
