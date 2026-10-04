@@ -31,10 +31,15 @@ function renderDecisionTrailHtml(trail){
       ? '<div class="meta"><span>Rekomendacja: '+esc(before.title||'—')+' / '+esc(before.priority||'—')+' → '+esc(after.title||'—')+' / '+esc(after.priority||'—')+'</span></div>'
       : '';
     const statusHtml=details.status?'<div class="meta"><span>Status: '+esc(details.status)+'</span></div>':'';
-    const fieldsHtml=!changes.length&&Array.isArray(details.fields)&&details.fields.length
+    const updates=details.updates&&typeof details.updates==='object'?details.updates:{};
+    const updatePairs=Object.entries(updates);
+    const updatesHtml=updatePairs.length
+      ? '<div class="meta"><span>Aktualizacja: '+updatePairs.map(([key,value])=>esc(key)+': '+esc(value??'—')).join(' · ')+'</span></div>'
+      : '';
+    const fieldsHtml=!changes.length&&!updatePairs.length&&Array.isArray(details.fields)&&details.fields.length
       ? '<div class="meta"><span>Zmienione pola: '+esc(details.fields.join(', '))+'</span></div>'
       : '';
-    return '<div class="decisionTrailRow"><strong>'+fmtDateTime(event.created_at)+' — '+esc(event.label||event.event||'Zdarzenie')+'</strong>'+changesHtml+decisionHtml+statusHtml+fieldsHtml+'</div>';
+    return '<div class="decisionTrailRow"><strong>'+fmtDateTime(event.created_at)+' — '+esc(event.label||event.event||'Zdarzenie')+'</strong>'+changesHtml+decisionHtml+statusHtml+updatesHtml+fieldsHtml+'</div>';
   }).join('');
   return currentHtml+(rows||'<p class="muted">Brak zapisanych zdarzeń w obsługiwanym zakresie audytu.</p>')+'<p class="muted">Historia nie zawiera pełnego OCR ani lokalnych ścieżek plików.</p>';
 }
