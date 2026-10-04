@@ -537,6 +537,171 @@ def _case_documents(case_name: str, documents: list[dict[str, Any]]) -> list[dic
     return selected
 
 
+def case_readiness(
+    case_name: str,
+    documents: list[dict[str, Any]],
+    *,
+    today: date | None = None,
+    verify_integrity: bool = True,
+) -> dict[str, Any]:
+    today = today or date.today()
+    selected = _case_documents(case_name, documents)
+    issues: list[dict[str, Any]] = []
+    counts = {
+        "missing_originals": 0,
+        "low_confidence_unverified": 0,
+        "missing_integrity": 0,
+        "integrity_mismatch": 0,
+        "integrity_verified": 0,
+        "manual_verified": 0,
+        "overdue": 0,
+        "due_soon": 0,
+        "open_actions": 0,
+    }
+
+    for document in selected:
+        doc_id = document.get("id")
+        source_name = document.get("source_name") or "Dokument"
+        metadata = document.get("metadata") or {}
+        source = Path(str(document.get("path") or ""))
+        try:
+            source_exists = source.exists() and source.is_file()
+        except OSError:
+            source_exists = False
+
+        if not source_exists:
+            counts["missing_originals"] += 1
+            issues.append(
+                {
+                    "code": "missing-original",
+                    "severity": "blocking",
+                    "document_id": doc_id,
+                    "source_name": source_name,
+                    "title": "Brakuje lokalnego oryginału",
+                    "detail": "Dokument jest w indeksie, ale plik źródłowy nie jest dostępny.",
+                }
+            )
+
+        confidence = float(metadata.get("confidence") or 0)
+        manual_verified = bool(metadata.get("manual_verified"))
+        if manual_verified:
+            counts["manual_verified"] += 1
+        if confidence < 0.65 and not manual_verified:
+            counts["low_confidence_unverified"] += 1
+            issues.append(
+                {
+                    "code": "low-confidence-unverified",
+                    "severity": "review",
+                    "document_id": doc_id,
+                    "source_name": source_name,
+                    "title": "Dane wymagają ręcznego sprawdzenia",
+                    "detail": f"Automatyczne rozpoznanie ma {round(confidence * 100)}% pewności.",
+                }
+            )
+
+        indexed_digest = str(document.get("sha256") or "").lower().strip()
+        if not indexed_digest:
+            counts["missing_integrity"] += 1
+            issues.append(
+                {
+                    "code": "missing-sha256",
+                    "severity": "review",
+                    "document_id": doc_id,
+                    "source_name": source_name,
+                    "title": "Brak zapisanej sumy SHA-256",
+                    "detail": "Integralność pliku nie może zostać porównana z wcześniejszym indeksem.",
+                }
+            )
+        elif source_exists and verify_integrity:
+            try:
+                current_digest = _sha256_file(source).lower()
+            except OSError:
+                current_digest = None
+            if current_digest is None:
+                if not any(
+                    issue["code"] == "missing-original" and issue["document_id"] == doc_id
+                    for issue in issues
+                ):
+                    counts["missing_originals"] += 1
+                    issues.append(
+                        {
+                            "code": "missing-original",
+                            "severity": "blocking",
+                            "document_id": doc_id,
+                            "source_name": source_name,
+                            "title": "Oryginał stał się niedostępny",
+                            "detail": "Plik zniknął lub stał się niedostępny podczas kontroli integralności.",
+                        }
+                    )
+            elif current_digest == indexed_digest:
+                counts["integrity_verified"] += 1
+            else:
+                counts["integrity_mismatch"] += 1
+                issues.append(
+                    {
+                        "code": "integrity-mismatch",
+                        "severity": "review",
+                        "document_id": doc_id,
+                        "source_name": source_name,
+                        "title": "Plik różni się od wersji zindeksowanej",
+                        "detail": "Aktualny SHA-256 nie zgadza się z hashem zapisanym wcześniej w DocPilot.",
+                    }
+                )
+
+        next_action = next_action_for_document(document, today=today)
+        if document.get("action_required") and document.get("action_required") != "to-archive":
+            counts["open_actions"] += 1
+        if next_action.get("priority") == "overdue":
+            counts["overdue"] += 1
+            issues.append(
+                {
+                    "code": "overdue-action",
+                    "severity": "attention",
+                    "document_id": doc_id,
+                    "source_name": source_name,
+                    "title": "Termin minął",
+                    "detail": next_action.get("reason") or "Dokument ma przeterminowany termin.",
+                }
+            )
+        elif next_action.get("priority") in {"today", "urgent", "soon"}:
+            counts["due_soon"] += 1
+
+    if counts["missing_originals"]:
+        status = "incomplete"
+        label = "Niekompletna"
+        recommendation = "Uzupełnij brakujące oryginały albo świadomie eksportuj CasePack z jawną informacją o brakach."
+    elif counts["low_confidence_unverified"] or counts["missing_integrity"] or counts["integrity_mismatch"]:
+        status = "review"
+        label = "Wymaga sprawdzenia"
+        recommendation = "Sprawdź wskazane dokumenty przed potraktowaniem CasePack jako uporządkowanego materiału."
+    else:
+        status = "ready"
+        label = "Gotowa"
+        recommendation = "Warstwa kompletności i integralności nie wykryła problemów blokujących przegląd sprawy."
+
+    return {
+        "format": "lifepilot-case-readiness",
+        "version": 1,
+        "case_name": case_name.strip(),
+        "document_count": len(selected),
+        "status": status,
+        "label": label,
+        "can_export": bool(selected),
+        "counts": counts,
+        "issues": issues,
+        "recommendation": recommendation,
+        "privacy": {
+            "includes_extracted_text": False,
+            "includes_local_paths": False,
+            "uploads_anything": False,
+        },
+        "limitations": [
+            "Gotowość dotyczy kompletności i integralności materiału, nie oceny prawnej lub merytorycznej sprawy.",
+            "Otwarte działania i terminy są informacyjne i same nie blokują eksportu CasePack.",
+        ],
+    }
+
+
 def case_pack_preview(case_name: str, documents: list[dict[str, Any]]) -> dict[str, Any]:
     selected = _case_documents(case_name, documents)
     items = []
