@@ -280,3 +280,7 @@ def test_lifepilot_ui_exposes_queue_product_page_and_safe_actions():
     assert "/api/lifepilot/casepack?case_name=" in script
     assert "CasePack ZIP" in script
     assert "document.querySelectorAll('.casePackPreview')" in script
+    assert "/api/lifepilot/case-readiness" in script
+    assert "Sprawdź gotowość" in script
+    assert "Case Readiness" in script
+    assert "caseReadinessPreview" in script

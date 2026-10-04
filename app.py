@@ -72,7 +72,7 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
-from .lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview, verify_lifepilot_pack
+from .lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_readiness, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview, verify_lifepilot_pack
 from .notifier import collect_due, install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest, LifePilotCorrectionRequest
 from .redaction import redact_file
@@ -711,6 +711,28 @@ def lifepilot_case_summary_export(case_name: str):
         media_type="text/markdown; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.get("/api/lifepilot/case-readiness")
+def lifepilot_case_readiness(case_name: str):
+    name = str(case_name or "").strip()
+    if not name:
+        raise HTTPException(400, "case_name is required")
+    documents = list_case_documents(settings, limit=5000)
+    readiness = case_readiness(name, documents, handled=_lifepilot_done_map())
+    if not readiness["document_count"]:
+        raise HTTPException(404, "Case not found")
+    audit(
+        settings,
+        "lifepilot-case-readiness-checked",
+        {
+            "case_name": name,
+            "status": readiness["status"],
+            "documents": readiness["document_count"],
+            "issues": len(readiness["issues"]),
+        },
+    )
+    return readiness
 
 
 @app.get("/api/lifepilot/casepack-preview")
