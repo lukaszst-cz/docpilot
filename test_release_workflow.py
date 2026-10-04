@@ -50,3 +50,20 @@ def test_windows_release_runs_functional_self_test_on_packaged_installed_and_upg
     assert "create_database_checkpoint" in desktop
     assert "restore_database_from_point" in desktop
     assert "_lifepilot_pack_privacy_self_test" in desktop
+
+
+def test_windows_release_keeps_one_click_lifepilot_pilot_available_and_public_safe():
+    workflow = (ROOT / ".github" / "workflows" / "windows-release.yml").read_text(encoding="utf-8")
+    desktop = (ROOT / "desktop.py").read_text(encoding="utf-8")
+    installer = (ROOT / "packaging" / "installer" / "DocPilot.iss").read_text(encoding="utf-8")
+
+    assert 'if "--pilot" in sys.argv' in desktop
+    assert "pilot_main(sys.argv[index + 1 :])" in desktop
+    assert "Smoke-test packaged LifePilot Pilot" in workflow
+    assert workflow.count("'--pilot'") >= 3
+    assert "pilot-public.json" in workflow
+    assert "pilot-private.json" in workflow
+    assert "created a private report without" in workflow
+    assert "LifePilot Pilot.lnk" in workflow
+    assert 'Name: "{autoprograms}\\LifePilot Pilot"' in installer
+    assert 'Parameters: "--pilot"' in installer
