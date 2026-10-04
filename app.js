@@ -658,7 +658,7 @@ async function loadCases(){
       box.innerHTML=`<div class="proofPreviewHead"><strong>Case Readiness</strong><span class="badge ${badgeClass}">${esc(readiness.label||readiness.status)}</span></div><div class="meta"><span>Dokumenty: ${readiness.document_count}</span><span>Brakujące oryginały: ${counts.missing_originals||0}</span><span>Integralność potwierdzona: ${counts.integrity_verified||0}</span><span>Rozjazd SHA: ${counts.integrity_mismatch||0}</span><span>Dane do sprawdzenia: ${counts.low_confidence_unverified||0}</span><span>Po terminie: ${counts.overdue||0}</span><span>Otwarte działania: ${counts.open_actions||0}</span></div><p><strong>${esc(readiness.recommendation||'')}</strong></p>${issues?`<h4>Co wymaga uwagi</h4><ul>${issues}</ul>`:'<p class="muted">Nie wykryto problemów kompletności ani integralności.</p>'}<p class="muted">To kontrola kompletności materiału, a nie ocena prawna lub merytoryczna sprawy. Eksport CasePack pozostaje możliwy.</p>`;
     }catch(e){box.innerHTML=`<p class="dangerText">${esc(e.message)}</p>`}
   }));
-  $('.caseSummaryPreview').forEach(button=>button.addEventListener('click',async()=>{
+  document.querySelectorAll('.caseSummaryPreview').forEach(button=>button.addEventListener('click',async()=>{
     const box=$(`#${button.dataset.target}`);
     if(!box)return;
     if(!box.classList.contains('hidden')){box.classList.add('hidden');return}
