@@ -72,7 +72,7 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
-from .lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_readiness, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview, verify_lifepilot_pack
+from .lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_readiness, case_summary_markdown, decision_field_changes, decision_summary, decision_trail_for_case, decision_trail_for_document, decision_trail_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview, verify_lifepilot_pack
 from .notifier import collect_due, install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest, LifePilotCorrectionRequest
 from .redaction import redact_file
@@ -682,6 +682,42 @@ def lifepilot_action_queue(limit: int = 200, include_done: bool = False):
     return lifepilot_queue(active, limit=limit)
 
 
+@app.get("/api/lifepilot/case-history")
+def lifepilot_case_history(case_name: str, limit: int = 250):
+    name = str(case_name or "").strip()
+    if not name:
+        raise HTTPException(400, "case_name is required")
+    documents = list_case_documents(settings, limit=5000)
+    trail = decision_trail_for_case(
+        name,
+        documents,
+        list_audit(settings, limit=5000),
+        limit=min(max(int(limit), 1), 1000),
+    )
+    if not trail["document_count"] and not trail["events"]:
+        raise HTTPException(404, "Case not found")
+    return trail
+
+
+@app.get("/api/lifepilot/case-history/export")
+def lifepilot_case_history_export(case_name: str):
+    name = str(case_name or "").strip()
+    if not name:
+        raise HTTPException(400, "case_name is required")
+    documents = list_case_documents(settings, limit=5000)
+    trail = decision_trail_for_case(name, documents, list_audit(settings, limit=5000), limit=1000)
+    if not trail["document_count"] and not trail["events"]:
+        raise HTTPException(404, "Case not found")
+    content = decision_trail_markdown(trail)
+    filename = f"LifePilot-History-{safe_name(name)}.md"
+    audit(settings, "lifepilot-case-history-exported", {"case_name": name, "events": len(trail["events"])})
+    return PlainTextResponse(
+        content,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.get("/api/lifepilot/case-summary")
 def lifepilot_case_summary(case_name: str):
     name = str(case_name or "").strip()
@@ -808,6 +844,38 @@ def lifepilot_verify_proofpack(upload: UploadFile = File(...)):
         temporary.unlink(missing_ok=True)
 
 
+@app.get("/api/lifepilot/{doc_id}/history")
+def lifepilot_document_history(doc_id: int, limit: int = 100):
+    document = get_document(settings, doc_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+    return decision_trail_for_document(
+        document,
+        list_audit(settings, limit=5000),
+        limit=min(max(int(limit), 1), 500),
+    )
+
+
+@app.get("/api/lifepilot/{doc_id}/history/export")
+def lifepilot_document_history_export(doc_id: int):
+    document = get_document(settings, doc_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+    trail = decision_trail_for_document(document, list_audit(settings, limit=5000), limit=500)
+    content = decision_trail_markdown(trail)
+    filename = f"LifePilot-History-{doc_id}.md"
+    audit(
+        settings,
+        "lifepilot-document-history-exported",
+        {"document_id": doc_id, "case_name": document.get("case_name"), "events": len(trail["events"])},
+    )
+    return PlainTextResponse(
+        content,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.get("/api/lifepilot/{doc_id}")
 def lifepilot_view(doc_id: int):
     document = get_document(settings, doc_id)
@@ -823,6 +891,7 @@ def lifepilot_correct_fields(doc_id: int, request: LifePilotCorrectionRequest):
         raise HTTPException(404, "Document not found")
 
     payload = request.model_dump(exclude_unset=True)
+    decision_before = decision_summary(before)
     metadata_keys = {"document_type", "issuer", "amount", "currency", "document_date", "deadline", "warranty_until"}
     metadata_updates = {key: payload[key] for key in metadata_keys if key in payload}
     top_updates = {key: payload[key] for key in ("case_name", "action_required") if key in payload}
@@ -854,6 +923,9 @@ def lifepilot_correct_fields(doc_id: int, request: LifePilotCorrectionRequest):
         {
             "document_id": doc_id,
             "fields": sorted(payload.keys()),
+            "changes": decision_field_changes(before, after or before, set(payload.keys())),
+            "decision_before": decision_before,
+            "decision_after": decision_summary(after or before),
             "case_before": before.get("case_name"),
             "case_after": after.get("case_name") if after else None,
         },
@@ -888,16 +960,36 @@ def lifepilot_mark_done(doc_id: int):
         "done_at": done_at,
     }
     set_setting(settings, "lifepilot.done", json.dumps(done, ensure_ascii=False, sort_keys=True))
-    audit(settings, "lifepilot-mark-done", {"document_id": doc_id, "done_at": done_at})
+    audit(
+        settings,
+        "lifepilot-mark-done",
+        {
+            "document_id": doc_id,
+            "case_name": document.get("case_name"),
+            "done_at": done_at,
+            "decision_after": decision_summary(document),
+        },
+    )
     return {"document_id": doc_id, "done": True, "done_at": done_at}
 
 
 @app.post("/api/lifepilot/{doc_id}/reopen")
 def lifepilot_reopen(doc_id: int):
+    document = get_document(settings, doc_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
     done = _lifepilot_done_map()
     done.pop(str(doc_id), None)
     set_setting(settings, "lifepilot.done", json.dumps(done, ensure_ascii=False, sort_keys=True))
-    audit(settings, "lifepilot-reopen", {"document_id": doc_id})
+    audit(
+        settings,
+        "lifepilot-reopen",
+        {
+            "document_id": doc_id,
+            "case_name": document.get("case_name"),
+            "decision_after": decision_summary(document),
+        },
+    )
     return {"document_id": doc_id, "done": False}
 
 
