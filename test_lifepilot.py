@@ -3,7 +3,7 @@ import hashlib
 import json
 import zipfile
 
-from docpilot.lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_summary_markdown, legacy_attention_signature, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview, verify_case_pack, verify_lifepilot_pack, verify_proof_pack
+from docpilot.lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_readiness, case_summary_markdown, legacy_attention_signature, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview, verify_case_pack, verify_lifepilot_pack, verify_proof_pack
 
 
 def _doc(**overrides):
@@ -387,3 +387,96 @@ def test_case_pack_verifier_rejects_unreferenced_original(tmp_path):
     result = verify_case_pack(injected)
     assert result["valid"] is False
     assert any("unreferenced originals" in error.lower() for error in result["errors"])
+
+
+def test_case_readiness_uses_categorical_status_and_handled_state(tmp_path):
+    ready_source = tmp_path / "ready.txt"
+    ready_source.write_text("ready evidence", encoding="utf-8")
+    ready_digest = hashlib.sha256(ready_source.read_bytes()).hexdigest()
+    ready_doc = _doc(
+        id=31,
+        path=str(ready_source),
+        source_name=ready_source.name,
+        sha256=ready_digest,
+        case_name="Ready Case",
+        action_required="to-pay",
+        metadata={
+            "document_type": "invoice",
+            "deadline": "2026-10-06",
+            "confidence": 0.95,
+        },
+    )
+
+    ready = case_readiness("Ready Case", [ready_doc], today=date(2026, 10, 4))
+    assert ready["status"] == "ready"
+    assert ready["counts"]["integrity_verified"] == 1
+    assert ready["counts"]["open_actions"] == 1
+    assert ready["counts"]["due_soon"] == 1
+
+    handled = {
+        "31": {
+            "version": 2,
+            "signature": attention_signature(ready_doc),
+            "done_at": "2026-10-04T10:00:00+00:00",
+        }
+    }
+    handled_ready = case_readiness(
+        "Ready Case",
+        [ready_doc],
+        today=date(2026, 10, 4),
+        handled=handled,
+    )
+    assert handled_ready["status"] == "ready"
+    assert handled_ready["counts"]["open_actions"] == 0
+    assert handled_ready["counts"]["due_soon"] == 0
+
+    review_source = tmp_path / "review.txt"
+    review_source.write_text("changed evidence", encoding="utf-8")
+    review_doc = _doc(
+        id=32,
+        path=str(review_source),
+        source_name=review_source.name,
+        sha256="0" * 64,
+        case_name="Review Case",
+        action_required="to-review",
+        metadata={"document_type": "document", "confidence": 0.4},
+    )
+    review = case_readiness("Review Case", [review_doc], today=date(2026, 10, 4))
+    assert review["status"] == "review"
+    assert review["counts"]["low_confidence_unverified"] == 1
+    assert review["counts"]["integrity_mismatch"] == 1
+
+    incomplete_doc = _doc(
+        id=33,
+        path=str(tmp_path / "missing.txt"),
+        source_name="missing.txt",
+        sha256="1" * 64,
+        case_name="Incomplete Case",
+        metadata={"document_type": "document", "confidence": 0.95},
+    )
+    incomplete = case_readiness("Incomplete Case", [incomplete_doc], today=date(2026, 10, 4))
+    assert incomplete["status"] == "incomplete"
+    assert incomplete["counts"]["missing_originals"] == 1
+
+
+def test_case_readiness_overdue_is_attention_not_completeness_failure(tmp_path):
+    source = tmp_path / "overdue.txt"
+    source.write_text("overdue but intact", encoding="utf-8")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    doc = _doc(
+        id=34,
+        path=str(source),
+        source_name=source.name,
+        sha256=digest,
+        case_name="Overdue Case",
+        action_required="to-reply",
+        metadata={
+            "document_type": "official-letter",
+            "deadline": "2026-10-01",
+            "confidence": 0.95,
+        },
+    )
+    readiness = case_readiness("Overdue Case", [doc], today=date(2026, 10, 4))
+    assert readiness["status"] == "ready"
+    assert readiness["counts"]["overdue"] == 1
+    assert any(issue["code"] == "overdue-action" for issue in readiness["issues"])
