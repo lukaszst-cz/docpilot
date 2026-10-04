@@ -1,0 +1,51 @@
+# LifePilot Preview 5.0 — RC Hardening
+
+Preview 5.0 nie dodaje nowego modułu użytkowego. Domyka automatyczne ryzyka techniczne przed kontrolowanym pilotem #62.
+
+## Recovery smoke
+
+Finalny `DocPilot.exe --self-test` wykonuje w izolowanym katalogu:
+- utworzenie zweryfikowanego checkpointu SQLite;
+- kontrolowaną zmianę ustawień i dokumentu;
+- restore z checkpointu;
+- potwierdzenie powrotu wcześniejszego stanu;
+- kontrolę integralności aktywnej bazy po restore.
+
+Ten sam self-test jest uruchamiany:
+- na świeżo zbudowanym pakiecie;
+- po clean install;
+- po upgrade z publicznego stable DocPilot v4.0.0.
+
+## Granice terminów
+
+Self-test sprawdza progi:
+- termin minął;
+- termin dzisiaj;
+- 1–3 dni = urgent;
+- 4–14 dni = soon;
+- 15+ dni = normal.
+
+## Kalendarz i DST
+
+Eksport .ics:
+- używa `DTSTART;VALUE=DATE`;
+- dodaje `DTEND;VALUE=DATE` następnego dnia;
+- nie używa `TZID`;
+- jest testowany na datach zmiany czasu Europe/Warsaw: 29.03.2026 i 25.10.2026;
+- nie zapisuje lokalnej ścieżki pliku w DESCRIPTION.
+
+## Privacy smoke
+
+Automatyczna kontrola obejmuje:
+- Decision Trail bez lokalnej ścieżki katalogu testowego;
+- metadane ProofPack/CasePack bez lokalnych ścieżek i pełnego OCR;
+- kalendarz bez lokalnej ścieżki dokumentu.
+
+## Status
+
+Automatyczne bramki techniczne nie są równoznaczne z zakończeniem pilota. Przed stable nadal wymagane są:
+- kontrolowany pilot na realnych lub zanonimizowanych dokumentach;
+- ręczny przegląd UX Windows;
+- ręczny przegląd prywatności finalnego builda.
+
+Stabilnym publicznym wydaniem pozostaje DocPilot v4.0.0.

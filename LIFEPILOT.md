@@ -394,3 +394,44 @@ Automatyczny baseline obejmuje dodatkowo:
 Pakowany `DocPilot.exe --self-test` sprawdza dodatkowo osobny ProofPack oraz scenariusz brakującego oryginału. Upgrade smoke rozpoczyna się od faktycznie stabilnego publicznego **DocPilot v4.0.0**, a nie od historycznej wersji 0.x.
 
 Po automatycznym Windows gate 4.9 pozostają już tylko: kontrolowany lokalny pilot na realnych/zredagowanych próbkach i ręczny przegląd UX Windows.
+
+
+## LifePilot Preview 5.0 — RC hardening
+
+Preview 5.0 nie dodaje kolejnego modułu użytkowego. Domyka automatyczne ryzyka przed pilotem #62.
+
+### Recovery w finalnym runtime
+
+`DocPilot.exe --self-test` wykonuje teraz na izolowanej bazie:
+1. utworzenie zweryfikowanego checkpointu SQLite;
+2. kontrolowaną zmianę danych;
+3. restore z checkpointu;
+4. potwierdzenie powrotu wcześniejszego stanu dokumentu i ustawień;
+5. ponowną kontrolę integralności aktywnej bazy.
+
+Ponieważ ten sam self-test działa na świeżo zbudowanym pakiecie, po clean install oraz po upgrade z v4.0.0, recovery jest testowane również w tych ścieżkach wydania.
+
+### Granice terminów i kalendarz
+
+Self-test sprawdza granice priorytetów:
+- po terminie;
+- dzisiaj;
+- 1–3 dni = pilne;
+- 4–14 dni = wkrótce;
+- 15+ dni = normalne.
+
+Eksport iCalendar został dodatkowo utwardzony:
+- termin jest zdarzeniem całodniowym `VALUE=DATE`;
+- `DTEND` wskazuje następny dzień zgodnie z semantyką iCalendar;
+- eksport nie używa `TZID`, więc data nie przesuwa się przez zmianę strefy lub DST;
+- test obejmuje przejścia Europe/Warsaw 29.03.2026 i 25.10.2026;
+- `.ics` nie zawiera lokalnej ścieżki dokumentu.
+
+### Privacy smoke
+
+Finalny self-test sprawdza, że:
+- Decision Trail nie ujawnia katalogu danych testowych;
+- metadane ProofPack/CasePack nie ujawniają lokalnych ścieżek ani pełnego OCR;
+- eksport kalendarza nie ujawnia lokalnej ścieżki źródła.
+
+Preview 5.0 nadal pozostaje **Preview / Pilot**. Automatyczne bramki techniczne nie zastępują kontrolowanego pilota na realnych lub zanonimizowanych dokumentach ani ręcznego przeglądu UX/prywatności.

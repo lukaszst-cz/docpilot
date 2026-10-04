@@ -41,6 +41,20 @@ Potwierdzenie automatycznych bramek 4.8: GitHub Actions `Windows Release` run **
 Potwierdzenie bramek 4.9: GitHub Actions `Windows Release` run **37209580044** — pełny `success`.
 
 
+### Preview 5.0 — RC hardening
+
+- [x] Recovery smoke w runtime: zweryfikowany checkpoint → kontrolowana zmiana → restore → ponowna kontrola integralności SQLite.
+- [x] Recovery smoke jest częścią tego samego `--self-test`, który działa na pakiecie, clean install i po upgrade.
+- [x] Granice priorytetu terminów: po terminie / dziś / 1–3 dni / 4–14 dni / 15+ dni.
+- [x] ProofPack i CasePack: automatyczny privacy smoke metadanych bez lokalnych ścieżek i pełnego OCR.
+- [x] Eksport .ics nie zawiera lokalnej ścieżki pliku.
+- [x] Eksport .ics używa całodniowych `VALUE=DATE` i jest sprawdzany na datach przejścia DST Europe/Warsaw (29.03.2026 i 25.10.2026).
+- [x] Packaged calendar self-test działa w finalnym EXE, po clean install i po upgrade.
+- [x] Zwykłe CI, Windows build, installer, clean install/uninstall, upgrade z v4.0.0, checksumy i artifacts.
+
+Potwierdzenie bramek 5.0: GitHub Actions `Windows Release` run **37224430228** — wymagany pełny `success` przed scaleniem tej aktualizacji dokumentacji.
+
+
 ## B. Pilot rzeczywistych / zanonimizowanych dokumentów
 
 Kanoniczne zadanie: GitHub issue #62.

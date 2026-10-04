@@ -33,7 +33,8 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 - [x] Wykryty termin trafia do „Co teraz?”.
 - [x] Eksport pojedynczego .ics.
 - [x] Rozróżnienie po terminie / dziś / pilne / wkrótce.
-- [ ] Test stref czasowych i dat granicznych na gotowej instalacji.
+- [x] Test dat granicznych priorytetu oraz eksportu .ics na dniach zmiany czasu w finalnym self-teście — Preview 5.0, Windows run 37224430228.
+- [x] Eksport .ics używa całodniowego `VALUE=DATE`, jawnego `DTEND` następnego dnia i nie zapisuje lokalnej ścieżki pliku.
 - [ ] Test rzeczywistych pism z różnymi sposobami zapisu terminu.
 
 ## D. Prywatność
@@ -42,18 +43,19 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 - [x] CzyToŚciema? otwiera się osobno.
 - [x] Brak automatycznej wysyłki OCR do CzyToŚciema?.
 - [x] ProofPack powstaje lokalnie.
+- [x] Automatyczny privacy smoke finalnego builda: Decision Trail, ProofPack/CasePack i .ics bez ujawniania lokalnych ścieżek; metadane pakietów bez pełnego OCR.
 - [ ] Ręczny przegląd prywatności finalnego builda.
 
 ## E. Niezawodność
 
-- [x] Pełne CI dla linii Preview 4.8.
+- [x] Pełne CI dla linii Preview 5.0.
 - [x] Windows build.
 - [x] Self-test EXE.
 - [x] Clean install.
 - [x] Upgrade z DocPilot v4.0.0 — Preview 4.9 Windows run 37209580044.
 - [x] Uninstall bez utraty danych użytkownika.
 - [x] OCR smoke na obrazie i skanowanym PDF w pełnym Windows gate.
-- [ ] Recovery smoke po aktualizacji.
+- [x] Recovery smoke checkpoint → zmiana → restore w finalnym EXE, clean install i po upgrade — Preview 5.0.
 
 ## F. Pilot dokumentów
 
