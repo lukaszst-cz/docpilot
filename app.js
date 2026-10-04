@@ -286,14 +286,14 @@ function renderLifePilot(){
 async function loadLifePilot(){
   const target=$('#lifepilotQueue');
   if(!target)return;
-  lifePilotItems=await api('/api/lifepilot/queue?limit=500&include_done=true');
+  lifePilotItems=await api('/api/lifepilot/queue?limit=250&include_done=true');
   renderLifePilot();
 }
 
 $('#refreshLifePilotBtn')?.addEventListener('click',()=>runLoad(loadLifePilot));
-$('[data-life-filter]').forEach(button=>button.addEventListener('click',()=>{
+document.querySelectorAll('[data-life-filter]').forEach(button=>button.addEventListener('click',()=>{
   lifePilotFilter=button.dataset.lifeFilter||'active';
-  $('[data-life-filter]').forEach(item=>item.classList.toggle('active',item===button));
+  document.querySelectorAll('[data-life-filter]').forEach(item=>item.classList.toggle('active',item===button));
   renderLifePilot();
 }));
 
