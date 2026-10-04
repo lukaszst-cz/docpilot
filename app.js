@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set(), documentsPageOffset = 0, documentsPageTotal = 0, documentsFilterValue = '', pendingPortableConfig = null;
+let current = null, currentChange = null, pickerBusy = false, deferredInstallPrompt = null, setupState = null, editingRuleId = null, selectedDocumentIds = new Set(), documentsPageOffset = 0, documentsPageTotal = 0, documentsFilterValue = '', pendingPortableConfig = null, lifePilotItems = [], lifePilotFilter = 'active';
 const documentsPageLimit = 100;
 const titles = {
   dashboard:['Dashboard','Documents + Deadlines + Actions + Archive'], lifepilot:['LifePilot · Co teraz?','Prioritized next actions from your local documents'], inbox:['Smart Inbox','Analyze, classify, rename and organize'], review:['Review Queue','Documents that need a human decision'],
@@ -215,28 +215,87 @@ async function loadRuntimeStatus(){
 
 async function api(url,opts={}){const r=await fetch(url,{cache:'no-store',...opts});if(!r.ok){let detail='';try{const j=await r.json();detail=j.detail||''}catch{}const err=new Error(friendlyApiMessage(r.status,detail));err.status=r.status;throw err}return r.headers.get('content-type')?.includes('application/json')?r.json():r.text()}
 
-async function loadLifePilot(){
-  const target=$('#lifepilotQueue');
+function lifePilotVisibleItems(){
+  return lifePilotItems.filter(item=>{
+    const priority=item.next_action?.priority||'normal';
+    if(lifePilotFilter==='done')return item.done===true;
+    if(item.done)return false;
+    if(lifePilotFilter==='today')return priority==='overdue'||priority==='today';
+    if(lifePilotFilter==='urgent')return ['overdue','today','urgent'].includes(priority);
+    if(lifePilotFilter==='review')return priority==='review';
+    if(lifePilotFilter==='soon')return priority==='soon';
+    return true;
+  });
+}
+
+function renderLifePilot(){
+  const target=$('#lifepilotQueue'), stats=$('#lifeQueueStats');
   if(!target)return;
-  const items=await api('/api/lifepilot/queue?limit=250');
+  const active=lifePilotItems.filter(x=>!x.done);
+  const counts={
+    overdue:active.filter(x=>x.next_action?.priority==='overdue').length,
+    today:active.filter(x=>x.next_action?.priority==='today').length,
+    urgent:active.filter(x=>x.next_action?.priority==='urgent').length,
+    review:active.filter(x=>x.next_action?.priority==='review').length,
+    done:lifePilotItems.filter(x=>x.done).length
+  };
+  if(stats)stats.innerHTML=[
+    ['Aktywne',active.length],['Po terminie',counts.overdue],['Dzisiaj',counts.today],
+    ['Pilne',counts.urgent],['Do sprawdzenia',counts.review],['Załatwione',counts.done]
+  ].map(([label,value])=>`<div class="stat"><strong>${value}</strong><span>${label}</span></div>`).join('');
+  const items=lifePilotVisibleItems();
   if(!items.length){
-    target.innerHTML='<p class="muted">Brak pilnych lub wymagających działania dokumentów. To dobry znak.</p>';
+    target.innerHTML='<p class="muted">Brak pozycji w tym widoku.</p>';
     return;
   }
   target.innerHTML=items.map(item=>{
     const next=item.next_action||{};
     const badge=next.priority==='overdue'?'red':(next.priority==='urgent'||next.priority==='today'||next.priority==='review')?'warn':'';
-    return `<div class="lifeQueueItem"><div class="listItemHead"><div><span class="badge">${esc((next.priority||'normal').toUpperCase())}</span><h3>${esc(item.source_name||'Dokument')}</h3></div><span class="badge ${badge}">${esc(next.title||'Sprawdź dokument')}</span></div><p>${esc(next.reason||'')}</p><div class="meta">${item.case_name?`<span>Sprawa: ${esc(item.case_name)}</span>`:''}${item.category?`<span>${esc(item.category)}</span>`:''}${next.due_date?`<span>Termin: ${fmtDate(next.due_date)}</span>`:''}</div><div class="lifePilotActions"><button class="secondary lifeOpenInDocs" data-name="${esc(item.source_name||'')}">Otwórz w Documents</button><a class="buttonLink" href="/api/lifepilot/${item.id}/proofpack">ProofPack ZIP</a>${next.due_date?`<a class="buttonLink secondary" href="/api/lifepilot/${item.id}/calendar">Termin .ics</a>`:''}</div></div>`;
+    const stateBadge=item.done?'<span class="badge">ZAŁATWIONE</span>':'';
+    const actionButton=item.done
+      ?`<button class="secondary lifeReopen" data-id="${item.id}">Przywróć do kolejki</button>`
+      :`<button class="secondary lifeDone" data-id="${item.id}">Oznacz jako załatwione</button>`;
+    return `<div class="lifeQueueItem ${item.done?'lifeQueueDone':''}"><div class="listItemHead"><div><span class="badge ${badge}">${esc((next.priority||'normal').toUpperCase())}</span><h3>${esc(item.source_name||'Dokument')}</h3></div><div class="inline">${stateBadge}<span class="badge ${badge}">${esc(next.title||'Sprawdź dokument')}</span></div></div><p>${esc(next.reason||'')}</p><div class="meta">${item.case_name?`<span>Sprawa: ${esc(item.case_name)}</span>`:''}${item.category?`<span>${esc(item.category)}</span>`:''}${next.due_date?`<span>Termin: ${fmtDate(next.due_date)}</span>`:''}</div><div class="lifePilotActions"><button class="secondary lifeOpenInDocs" data-name="${esc(item.source_name||'')}">Otwórz w Documents</button><button class="secondary lifePreviewProof" data-id="${item.id}">Co będzie w ProofPack?</button><a class="buttonLink" href="/api/lifepilot/${item.id}/proofpack">ProofPack ZIP</a>${next.due_date?`<a class="buttonLink secondary" href="/api/lifepilot/${item.id}/calendar">Termin .ics</a>`:''}${actionButton}</div><div class="proofPackPreview hidden" id="proofPreview-${item.id}"></div></div>`;
   }).join('');
-  document.querySelectorAll('.lifeOpenInDocs').forEach(button=>button.addEventListener('click',()=>{
+  $$('.lifeOpenInDocs').forEach(button=>button.addEventListener('click',()=>{
     documentsFilterValue=button.dataset.name||'';
     documentsPageOffset=0;
     const input=$('#documentsFilter');
     if(input)input.value=documentsFilterValue;
     go('documents');
   }));
+  $$('.lifeDone').forEach(button=>button.addEventListener('click',async()=>{
+    if(!confirm('Oznaczyć tę pozycję jako załatwioną? Dokument pozostanie w archiwum i można ją później przywrócić.'))return;
+    try{await api(`/api/lifepilot/${button.dataset.id}/done`,{method:'POST'});await loadLifePilot();showAppNotice('Pozycja oznaczona jako załatwiona.','ok')}catch(e){showAppNotice(e.message)}
+  }));
+  $$('.lifeReopen').forEach(button=>button.addEventListener('click',async()=>{
+    try{await api(`/api/lifepilot/${button.dataset.id}/reopen`,{method:'POST'});await loadLifePilot();showAppNotice('Pozycja wróciła do aktywnej kolejki.','ok')}catch(e){showAppNotice(e.message)}
+  }));
+  $$('.lifePreviewProof').forEach(button=>button.addEventListener('click',async()=>{
+    const box=$(`#proofPreview-${button.dataset.id}`);
+    if(!box)return;
+    if(!box.classList.contains('hidden')){box.classList.add('hidden');return}
+    box.classList.remove('hidden');box.innerHTML='<p class="muted">Sprawdzam zawartość pakietu…</p>';
+    try{
+      const p=await api(`/api/lifepilot/${button.dataset.id}/proofpack-preview`);
+      box.innerHTML=`<div class="proofPreviewHead"><strong>ProofPack przed pobraniem</strong><span class="badge">${p.timeline_items} element(y) timeline</span></div><div class="meta"><span>Oryginał: ${p.source_available?'dostępny':'brak'}</span><span>SHA-256: ${p.integrity?.indexed_digest_available?'zapisany':'brak w indeksie'}</span><span>Wysyłka do chmury: nie</span></div><ul>${(p.files||[]).map(file=>`<li>${esc(file.name)} ${file.available?'':'— niedostępny'}</li>`).join('')}</ul><p class="muted">Manifest nie zawiera pełnego OCR ani lokalnej ścieżki dokumentu.</p>`;
+    }catch(e){box.innerHTML=`<p class="dangerText">${esc(e.message)}</p>`}
+  }));
 }
+
+async function loadLifePilot(){
+  const target=$('#lifepilotQueue');
+  if(!target)return;
+  lifePilotItems=await api('/api/lifepilot/queue?limit=250&include_done=true');
+  renderLifePilot();
+}
+
 $('#refreshLifePilotBtn')?.addEventListener('click',()=>runLoad(loadLifePilot));
+document.querySelectorAll('[data-life-filter]').forEach(button=>button.addEventListener('click',()=>{
+  lifePilotFilter=button.dataset.lifeFilter||'active';
+  document.querySelectorAll('[data-life-filter]').forEach(item=>item.classList.toggle('active',item===button));
+  renderLifePilot();
+}));
 
 async function loadDashboard(){const d=await api('/api/dashboard');const welcome=$('#welcomeCard');const setupActive=setupState&&!setupState.complete&&!setupState.has_documents;if(welcome)welcome.classList.toggle('hidden',d.documents>0||setupActive);$('#stats').innerHTML=[['Documents',d.documents],['Deadlines',d.deadline_count],['Actions',d.actions],['Duplicate groups',d.duplicate_groups],['Cases',d.cases],['Health alerts',d.unhealthy]].map(([a,b])=>`<div class="stat"><strong>${b}</strong><span>${a}</span></div>`).join('');$('#dashboardDeadlines').innerHTML=d.deadlines.length?d.deadlines.slice(0,8).map(x=>`<div class="listItem"><div class="listItemHead"><strong>${esc(x.name)}</strong><span class="badge ${x.days<0?'red':x.days<=3?'warn':''}">${x.days<0?`${Math.abs(x.days)}d overdue`:x.days===0?'today':`${x.days}d`}</span></div><div class="meta"><span>${fmtDate(x.date)}</span><span>${esc(x.action||'deadline')}</span></div></div>`).join(''):'<p class="muted">No detected deadlines yet.</p>';$('#dashboardActions').innerHTML=d.actions?`<div class="stat"><strong>${d.actions}</strong><span>documents require an action</span></div><p class="muted">Use Documents and Deadline Radar to review them.</p>`:'<p class="muted">Nothing marked as action-required.</p>';$('#featureGrid').innerHTML=[['LifePilot','one clear next action'],['ProofPack','original + timeline + SHA-256'],['OCR','PL/EN local OCR'],['Smart Inbox','classify + rename'],['Deadline Radar','dates + actions'],['Duplicates','SHA-256 + near match'],['Cases','timeline'],['Search','local vector + Q&A'],['Review Queue','human-in-the-loop'],['Redaction','text + scanned PDF'],['PWA','installable UI']].map(([a,b])=>`<div class="feature"><strong>${a}</strong><small>${b}</small></div>`).join('')}
 

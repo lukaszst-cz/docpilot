@@ -181,6 +181,60 @@ def proof_pack_timeline(documents: list[dict[str, Any]]) -> list[dict[str, Any]]
     return items
 
 
+
+def attention_signature(document: dict[str, Any]) -> str:
+    metadata = document.get("metadata") or {}
+    payload = {
+        "id": document.get("id"),
+        "sha256": document.get("sha256"),
+        "action_required": document.get("action_required"),
+        "deadline": metadata.get("deadline"),
+        "warranty_until": metadata.get("warranty_until"),
+        "confidence": metadata.get("confidence"),
+        "case_name": document.get("case_name"),
+        "category": document.get("category"),
+        "profile": document.get("profile"),
+        "updated_at": document.get("updated_at"),
+    }
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def proof_pack_preview(
+    document: dict[str, Any],
+    *,
+    timeline_documents: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    source = Path(str(document.get("path") or ""))
+    timeline = proof_pack_timeline(timeline_documents or [document])
+    source_exists = source.exists() and source.is_file()
+    return {
+        "document_id": document.get("id"),
+        "source_name": document.get("source_name"),
+        "source_available": source_exists,
+        "source_size_bytes": source.stat().st_size if source_exists else None,
+        "timeline_items": len(timeline),
+        "case_name": document.get("case_name"),
+        "files": [
+            {"name": f"original/{_safe_name(source.name or document.get('source_name') or 'document')}", "kind": "original", "available": source_exists},
+            {"name": "manifest.json", "kind": "metadata", "available": True},
+            {"name": "next-action.json", "kind": "recommendation", "available": True},
+            {"name": "timeline.json", "kind": "timeline", "available": True},
+            {"name": "SHA256SUMS.txt", "kind": "integrity", "available": True},
+            {"name": "README.txt", "kind": "readme", "available": True},
+        ],
+        "integrity": {
+            "algorithm": "sha256",
+            "indexed_digest_available": bool(document.get("sha256")),
+            "will_verify_source_on_export": source_exists,
+        },
+        "privacy": {
+            "includes_extracted_text": False,
+            "includes_local_path_in_manifest": False,
+            "uploads_anything": False,
+        },
+    }
+
 def build_proof_pack(
     destination: Path,
     document: dict[str, Any],

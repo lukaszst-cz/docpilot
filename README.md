@@ -1,5 +1,21 @@
 # DocPilot
 
+## LifePilot preview
+
+DocPilot jest fundamentem rozwijanego produktu **LifePilot**:
+
+> **Wrzuć dokument. LifePilot powie Ci, co to jest, co trzeba zrobić, do kiedy i zachowa wszystko na później.**
+
+Aktualny kod zawiera już warstwę **CoTeraz?**, priorytetyzowaną kolejkę działań, odwracalne oznaczanie spraw jako załatwione, **ProofPack ZIP** z SHA-256 i timeline, podgląd ProofPack przed pobraniem oraz eksport terminów do kalendarza.
+
+- [Pełny opis aplikacji LifePilot](OPIS-APLIKACJI-LIFEPILOT.md)
+- [Dokumentacja LifePilot](LIFEPILOT.md)
+- [Checklista pilota LifePilot](PILOT-LIFEPILOT.md)
+- strona produktu w lokalnej aplikacji: `/lifepilot`
+
+LifePilot pozostaje warstwą preview. Stabilnym publicznym wydaniem Windows jest nadal DocPilot v4.0.0.
+
+
 [![Test](https://github.com/lukaszst-cz/docpilot/actions/workflows/test.yml/badge.svg)](https://github.com/lukaszst-cz/docpilot/actions/workflows/test.yml) [![Windows Release](https://github.com/lukaszst-cz/docpilot/actions/workflows/windows-release.yml/badge.svg)](https://github.com/lukaszst-cz/docpilot/actions/workflows/windows-release.yml)
 
 DocPilot powstał z prostego problemu: po pewnym czasie folder z dokumentami przestaje być archiwum, a zaczyna być miejscem, w którym trzeba wszystkiego szukać ręcznie.

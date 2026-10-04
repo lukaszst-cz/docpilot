@@ -71,7 +71,7 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
-from .lifepilot import build_lifepilot_view, build_proof_pack, lifepilot_queue
+from .lifepilot import attention_signature, build_lifepilot_view, build_proof_pack, lifepilot_queue, proof_pack_preview
 from .notifier import install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest
 from .redaction import redact_file
@@ -652,10 +652,32 @@ def analyze(upload: UploadFile = File(...)):
     return data
 
 
+def _lifepilot_done_map() -> dict[str, str]:
+    raw = get_setting(settings, "lifepilot.done", "{}") or "{}"
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
 @app.get("/api/lifepilot/queue")
-def lifepilot_action_queue(limit: int = 200):
+def lifepilot_action_queue(limit: int = 200, include_done: bool = False):
     documents = list_documents(settings, limit=min(max(int(limit), 1), 5000))
-    return lifepilot_queue(documents, limit=limit)
+    done = _lifepilot_done_map()
+    if include_done:
+        items = lifepilot_queue(documents, limit=limit)
+        for item in items:
+            document = next((doc for doc in documents if doc.get("id") == item.get("id")), None)
+            item["done"] = bool(
+                document and done.get(str(document.get("id"))) == attention_signature(document)
+            )
+        return items
+    active = [
+        document for document in documents
+        if done.get(str(document.get("id"))) != attention_signature(document)
+    ]
+    return lifepilot_queue(active, limit=limit)
 
 
 @app.get("/api/lifepilot/{doc_id}")
@@ -664,6 +686,39 @@ def lifepilot_view(doc_id: int):
     if not document:
         raise HTTPException(404, "Document not found")
     return build_lifepilot_view(document)
+
+
+@app.get("/api/lifepilot/{doc_id}/proofpack-preview")
+def lifepilot_proofpack_preview(doc_id: int):
+    document = get_document(settings, doc_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+    case_name = str(document.get("case_name") or "").strip()
+    timeline = [document]
+    if case_name:
+        timeline = [item for item in list_case_documents(settings, limit=5000) if item.get("case_name") == case_name]
+    return proof_pack_preview(document, timeline_documents=timeline)
+
+
+@app.post("/api/lifepilot/{doc_id}/done")
+def lifepilot_mark_done(doc_id: int):
+    document = get_document(settings, doc_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+    done = _lifepilot_done_map()
+    done[str(doc_id)] = attention_signature(document)
+    set_setting(settings, "lifepilot.done", json.dumps(done, ensure_ascii=False, sort_keys=True))
+    audit(settings, "lifepilot-mark-done", {"document_id": doc_id})
+    return {"document_id": doc_id, "done": True}
+
+
+@app.post("/api/lifepilot/{doc_id}/reopen")
+def lifepilot_reopen(doc_id: int):
+    done = _lifepilot_done_map()
+    done.pop(str(doc_id), None)
+    set_setting(settings, "lifepilot.done", json.dumps(done, ensure_ascii=False, sort_keys=True))
+    audit(settings, "lifepilot-reopen", {"document_id": doc_id})
+    return {"document_id": doc_id, "done": False}
 
 
 @app.get("/api/lifepilot/{doc_id}/proofpack")

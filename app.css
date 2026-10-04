@@ -66,3 +66,13 @@ input[type=checkbox]{width:auto;margin:0}
 .lifeQueueItem h3{margin:7px 0 4px;font-size:17px}
 .lifeQueueItem p{margin:7px 0;color:#b8c3d0;line-height:1.5}
 @media(max-width:620px){.lifeQueueItem .listItemHead{flex-direction:column}.lifePilotActions .buttonLink,.lifePilotActions button{width:100%;text-align:center}}
+
+.lifeQueueFilters{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
+.lifeQueueFilters button.active{border-color:#6da9dd;background:#1b2b3d;color:#f6fbff}
+.lifeQueueDone{opacity:.72}
+.proofPackPreview{margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:rgba(10,15,21,.55)}
+.proofPackPreview.hidden{display:none}
+.proofPackPreview ul{margin:10px 0 6px;padding-left:22px}
+.proofPackPreview li{margin:4px 0;color:#c3ceda}
+.proofPreviewHead{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+@media(max-width:620px){.lifeQueueFilters button{flex:1 1 calc(50% - 8px)}.proofPreviewHead{align-items:flex-start}}

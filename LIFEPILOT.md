@@ -168,6 +168,9 @@ Eksportuje pojedynczy wykryty termin jako iCalendar.
 - priorytety terminów;
 - ręczna weryfikacja przy niskiej pewności;
 - ProofPack ZIP;
+- podgląd zawartości ProofPack przed pobraniem;
+- oznaczanie pozycji kolejki jako załatwionej i przywracanie;
+- filtry Aktywne / Dzisiaj / Pilne / Do sprawdzenia / Wkrótce / Załatwione;
 - SHA-256 oryginału i plików metadanych;
 - timeline sprawy;
 - pojedynczy .ics;
@@ -192,9 +195,9 @@ LifePilot powinien wejść do kolejnego publicznego wydania dopiero po:
 
 ### Następny rozsądny zakres
 
-- podgląd zawartości ProofPack przed pobraniem;
-- jawne „wykonane / zamknięte” dla pozycji kolejki;
-- lepszy Today view;
+- ręczne poprawianie kluczowych pól bez opuszczania karty;
+- bezpieczny eksport streszczenia sprawy;
+- dalsze testy rzeczywistych klas dokumentów;
 - powiadomienia o najważniejszych akcjach;
 - ręczne poprawianie kluczowych pól bez opuszczania karty;
 - bezpieczny eksport streszczenia sprawy;
