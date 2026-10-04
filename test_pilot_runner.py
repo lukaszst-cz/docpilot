@@ -3,7 +3,8 @@ from datetime import date
 
 import pytest
 
-from docpilot.pilot_runner import run_pilot
+import docpilot.pilot_runner as pilot_runner
+from docpilot.pilot_runner import build_parser, run_pilot
 
 
 def test_pilot_runner_writes_private_and_public_reports_without_public_leakage(tmp_path):
@@ -96,3 +97,42 @@ def test_pilot_runner_does_not_write_private_report_by_default(tmp_path):
     assert not (output / "pilot-private.json").exists()
     assert (output / "pilot-public.json").exists()
     assert (output / "pilot-report.md").exists()
+
+
+def test_pilot_parser_allows_windows_launcher_without_source():
+    args = build_parser().parse_args([])
+    assert args.source_dir is None
+    assert args.output is None
+    assert args.include_private is False
+
+
+def test_default_windows_output_uses_local_appdata(monkeypatch, tmp_path):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
+    output = pilot_runner._default_windows_output_dir()
+
+    assert output.parent.name == "PilotResults"
+    assert output.is_relative_to(tmp_path / "LocalAppData" / "DocPilot" / "PilotResults")
+
+
+def test_windows_launcher_picker_runs_public_safe_pilot(monkeypatch, tmp_path):
+    source = tmp_path / "selected-documents"
+    output = tmp_path / "local-app-data" / "DocPilot" / "PilotResults" / "test-run"
+    source.mkdir()
+    (source / "private-invoice.txt").write_text(
+        "ACME Secret\nFaktura VAT\nTermin platnosci: 06.10.2026\nDo zaplaty 123,45 PLN",
+        encoding="utf-8",
+    )
+    shown = []
+
+    monkeypatch.setattr(pilot_runner.sys, "platform", "win32")
+    monkeypatch.setattr(pilot_runner, "_pick_windows_source_dir", lambda: source)
+    monkeypatch.setattr(pilot_runner, "_default_windows_output_dir", lambda: output)
+    monkeypatch.setattr(pilot_runner, "_show_windows_result", lambda result: shown.append(result))
+
+    exit_code = pilot_runner.main([])
+
+    assert exit_code == 0
+    assert shown and shown[0].processed == 1
+    assert (output / "pilot-public.json").exists()
+    assert (output / "pilot-report.md").exists()
+    assert not (output / "pilot-private.json").exists()
