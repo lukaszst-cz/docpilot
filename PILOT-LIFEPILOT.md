@@ -25,8 +25,8 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 - [x] Podgląd zawartości przed pobraniem.
 - [x] Brak pełnego OCR w manifeście.
 - [x] Brak lokalnej ścieżki w manifeście.
-- [ ] Smoke test ProofPack z gotowego Windows EXE.
-- [ ] Test brakującego/usuniętego oryginału na gotowej instalacji.
+- [ ] Smoke test ProofPack z gotowego Windows EXE — dodany do Preview 4.9; zaznaczyć po zielonym Windows gate.
+- [ ] Test brakującego/usuniętego oryginału na gotowej instalacji — dodany do Preview 4.9; zaznaczyć po zielonym Windows gate.
 
 ## C. Terminy
 
@@ -46,16 +46,20 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 
 ## E. Niezawodność
 
-- [ ] Pełne CI dla aktualnego commitu.
-- [ ] Windows build.
-- [ ] Self-test EXE.
-- [ ] Clean install.
-- [ ] Upgrade z DocPilot v4.0.0.
-- [ ] Uninstall bez utraty danych użytkownika.
-- [ ] OCR smoke na obrazie i skanowanym PDF.
+- [x] Pełne CI dla linii Preview 4.8.
+- [x] Windows build.
+- [x] Self-test EXE.
+- [x] Clean install.
+- [ ] Upgrade z DocPilot v4.0.0 — Preview 4.9 zmienia Windows gate z historycznego v0.5.1 na faktyczne stabilne v4.0.0; zaznaczyć dopiero po zielonym runie.
+- [x] Uninstall bez utraty danych użytkownika.
+- [x] OCR smoke na obrazie i skanowanym PDF w pełnym Windows gate.
 - [ ] Recovery smoke po aktualizacji.
 
 ## F. Pilot dokumentów
+
+Do pilota lokalnego użyj `docpilot-pilot`. Domyślny raport jest zredukowany prywatnościowo; dokładny raport lokalny wymaga jawnego `--include-private`.
+
+
 
 Przed szerszą publikacją sprawdzić minimum:
 - [ ] faktura;
