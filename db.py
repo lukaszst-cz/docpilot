@@ -671,7 +671,7 @@ def list_case_documents(settings: Settings, limit: int = 5000) -> list[dict[str,
         rows = conn.execute(
             """
             SELECT
-                id, path, source_name, metadata_json, category, tags_json, profile,
+                id, path, source_name, sha256, size_bytes, metadata_json, category, tags_json, profile,
                 case_name, action_required, health_score, health_json, indexed_at, updated_at
             FROM documents
             WHERE case_name IS NOT NULL AND case_name <> ''
