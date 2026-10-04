@@ -241,7 +241,6 @@ def attention_signature(document: dict[str, Any]) -> str:
         "warranty_until": metadata.get("warranty_until"),
         "confidence": metadata.get("confidence"),
         "manual_verified": metadata.get("manual_verified"),
-        "manual_verified_at": metadata.get("manual_verified_at"),
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
