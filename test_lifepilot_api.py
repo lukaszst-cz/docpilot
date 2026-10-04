@@ -2,6 +2,7 @@ import importlib
 import io
 import json
 import zipfile
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -305,3 +306,48 @@ def test_casepack_api_round_trip_and_generic_verifier(monkeypatch, tmp_path):
     assert payload["valid"] is True
     assert payload["pack_type"] == "casepack"
     assert payload["integrity"]["documents_verified"] == 2
+
+
+def test_case_readiness_api_respects_handled_state_and_missing_original(monkeypatch, tmp_path):
+    app_module = importlib.import_module("docpilot.app")
+    temp_settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", temp_settings)
+    client = TestClient(app_module.app)
+
+    analyzed = client.post(
+        "/api/analyze",
+        files={
+            "upload": (
+                "readiness.txt",
+                b"ACME Faktura VAT\nTermin platnosci: 06.10.2026\n100 PLN",
+                "text/plain",
+            )
+        },
+    )
+    assert analyzed.status_code == 200
+    payload = analyzed.json()
+    doc_id = payload["id"]
+
+    corrected = client.patch(
+        f"/api/lifepilot/{doc_id}/fields",
+        json={"case_name": "Readiness API"},
+    )
+    assert corrected.status_code == 200
+
+    before = client.get("/api/lifepilot/case-readiness", params={"case_name": "Readiness API"})
+    assert before.status_code == 200
+    assert before.json()["document_count"] == 1
+    assert before.json()["privacy"]["includes_local_paths"] is False
+
+    marked = client.post(f"/api/lifepilot/{doc_id}/done")
+    assert marked.status_code == 200
+    handled = client.get("/api/lifepilot/case-readiness", params={"case_name": "Readiness API"})
+    assert handled.status_code == 200
+    assert handled.json()["counts"]["open_actions"] == 0
+    assert handled.json()["counts"]["due_soon"] == 0
+
+    Path(payload["source_path"]).unlink()
+    missing = client.get("/api/lifepilot/case-readiness", params={"case_name": "Readiness API"})
+    assert missing.status_code == 200
+    assert missing.json()["status"] == "incomplete"
+    assert missing.json()["counts"]["missing_originals"] == 1
