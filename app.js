@@ -651,7 +651,7 @@ async function loadCases(){
       box.innerHTML=`<div class="proofPreviewHead"><strong>LifePilot — podsumowanie sprawy</strong><span class="badge">${summary.document_count} dokumentów</span></div><div class="meta"><span>Otwarte działania: ${summary.open_actions}</span><span>Najbliższy termin: ${summary.next_deadline?fmtDate(summary.next_deadline):'brak'}</span><span>Wysyłka do chmury: nie</span></div><div class="caseSummaryPreview">${(summary.timeline||[]).map(item=>`<div class="caseSummaryRow"><strong>${esc(item.document_date||'brak daty')} — ${esc(item.name||'Dokument')}</strong><div class="meta"><span>${esc(item.document_type||'document')}</span>${item.issuer?`<span>${esc(item.issuer)}</span>`:''}${item.deadline?`<span>termin ${fmtDate(item.deadline)}</span>`:''}${item.action_required?`<span>${esc(item.action_required)}</span>`:''}</div></div>`).join('')}</div><p class="muted">Podgląd nie zawiera pełnego OCR ani lokalnych ścieżek plików.</p>`;
     }catch(e){box.innerHTML=`<p class="dangerText">${esc(e.message)}</p>`}
   }));
-  $('.casePackPreview').forEach(button=>button.addEventListener('click',async()=>{
+  document.querySelectorAll('.casePackPreview').forEach(button=>button.addEventListener('click',async()=>{
     const box=$(`#${button.dataset.target}`);
     if(!box)return;
     if(!box.classList.contains('hidden')){box.classList.add('hidden');return}
