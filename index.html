@@ -98,6 +98,20 @@
             <div class="inline"><a class="buttonLink secondary" href="/lifepilot" target="_blank" rel="noopener">O LifePilot</a><button id="refreshLifePilotBtn" class="secondary">Odśwież</button></div>
           </div>
         </section>
+        <section class="card proofVerifyCard">
+          <div class="cardHead">
+            <div>
+              <span class="badge">PROOFPACK</span>
+              <h2>Sprawdź integralność pakietu</h2>
+              <p class="muted">Wybierz wcześniej utworzony ProofPack ZIP. Weryfikacja odbywa się lokalnie i nie rozpakowuje pakietu do folderu.</p>
+            </div>
+          </div>
+          <div class="inline proofVerifyControls">
+            <input id="proofVerifyInput" type="file" accept=".zip,application/zip">
+            <button id="proofVerifyBtn">Sprawdź integralność</button>
+          </div>
+          <div id="proofVerifyResult" class="proofPackPreview hidden"></div>
+        </section>
         <section class="card">
           <div id="lifeQueueStats" class="stats"></div>
           <div class="lifeQueueFilters" role="group" aria-label="Filtr kolejki LifePilot">
