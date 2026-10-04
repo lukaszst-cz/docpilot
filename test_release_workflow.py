@@ -44,3 +44,8 @@ def test_windows_release_runs_functional_self_test_on_packaged_installed_and_upg
     assert "lifepilot_casepack" in desktop
     assert "verify_lifepilot_pack" in desktop
     assert "lifepilot_mark_done" in desktop
+    assert "_lifepilot_deadline_boundary_self_test()" in desktop
+    assert "_lifepilot_recovery_self_test" in desktop
+    assert "create_database_checkpoint" in desktop
+    assert "restore_database_from_point" in desktop
+    assert "_lifepilot_pack_privacy_self_test" in desktop
