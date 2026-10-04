@@ -670,8 +670,9 @@ async function loadCases(){
   $('#caseList').innerHTML=cs.length?cs.map((c,index)=>`<div class="listItem caseCard">
     <div class="listItemHead"><div><h3>${esc(c.name)}</h3><div class="meta"><span>${c.document_count} documents</span><span>${c.open_actions} open actions</span><span>${esc((c.profiles||[]).join(', '))}</span>${c.next_deadline?`<span>next deadline ${fmtDate(c.next_deadline)}</span>`:''}${c.overdue_deadlines?`<span class="dangerText">${c.overdue_deadlines} overdue</span>`:''}</div></div><span class="badge">${c.document_count}</span></div>
     <div class="caseTimeline">${c.timeline.map(t=>`<div class="caseTimelineRow"><div><strong>${fmtDate((t.date||'').slice(0,10))}</strong><div>${esc(t.name)}</div><div class="meta"><span>${esc(t.document_type||'document')}</span><span>${esc(t.category||'')}</span><span>${esc(t.profile||'Home')}</span>${t.action?`<span>${esc(t.action)}</span>`:''}${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div></div><button class="secondary caseOpen" data-path="${esc(t.path)}">Open</button></div>`).join('')}</div>
-    <div class="lifePilotActions"><button class="secondary caseReadinessPreview" data-case="${esc(c.name)}" data-target="caseReadiness-${index}">Sprawdź gotowość</button><button class="secondary caseSummaryPreview" data-case="${esc(c.name)}" data-target="caseSummary-${index}">Podgląd podsumowania</button><button class="secondary casePackPreview" data-case="${esc(c.name)}" data-target="casePack-${index}">Co będzie w CasePack?</button><a class="buttonLink secondary" href="/api/lifepilot/case-summary/export?case_name=${encodeURIComponent(c.name)}">Podsumowanie .md</a><a class="buttonLink" href="/api/lifepilot/casepack?case_name=${encodeURIComponent(c.name)}">CasePack ZIP</a></div>
+    <div class="lifePilotActions"><button class="secondary caseReadinessPreview" data-case="${esc(c.name)}" data-target="caseReadiness-${index}">Sprawdź gotowość</button><button class="secondary caseHistoryPreview" data-case="${esc(c.name)}" data-target="caseHistory-${index}">Historia decyzji</button><button class="secondary caseSummaryPreview" data-case="${esc(c.name)}" data-target="caseSummary-${index}">Podgląd podsumowania</button><button class="secondary casePackPreview" data-case="${esc(c.name)}" data-target="casePack-${index}">Co będzie w CasePack?</button><a class="buttonLink secondary" href="/api/lifepilot/case-history/export?case_name=${encodeURIComponent(c.name)}">Historia .md</a><a class="buttonLink secondary" href="/api/lifepilot/case-summary/export?case_name=${encodeURIComponent(c.name)}">Podsumowanie .md</a><a class="buttonLink" href="/api/lifepilot/casepack?case_name=${encodeURIComponent(c.name)}">CasePack ZIP</a></div>
     <div class="proofPackPreview hidden" id="caseReadiness-${index}"></div>
+    <div class="proofPackPreview hidden" id="caseHistory-${index}"></div>
     <div class="proofPackPreview hidden" id="caseSummary-${index}"></div>
     <div class="proofPackPreview hidden" id="casePack-${index}"></div>
   </div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>';
@@ -692,6 +693,17 @@ async function loadCases(){
       }).join('');
       box.innerHTML=`<div class="proofPreviewHead"><strong>Case Readiness</strong><span class="badge ${badgeClass}">${esc(readiness.label||readiness.status)}</span></div><div class="meta"><span>Dokumenty: ${readiness.document_count}</span><span>Brakujące oryginały: ${counts.missing_originals||0}</span><span>Integralność potwierdzona: ${counts.integrity_verified||0}</span><span>Rozjazd SHA: ${counts.integrity_mismatch||0}</span><span>Dane do sprawdzenia: ${counts.low_confidence_unverified||0}</span><span>Po terminie: ${counts.overdue||0}</span><span>Otwarte działania: ${counts.open_actions||0}</span></div><p><strong>${esc(readiness.recommendation||'')}</strong></p>${issues?`<h4>Co wymaga uwagi</h4><ul>${issues}</ul>`:'<p class="muted">Nie wykryto problemów kompletności ani integralności.</p>'}<p class="muted">To kontrola kompletności materiału, a nie ocena prawna lub merytoryczna sprawy. Eksport CasePack pozostaje możliwy.</p>`;
     }catch(e){box.innerHTML=`<p class="dangerText">${esc(e.message)}</p>`}
+  }));
+  document.querySelectorAll('.caseHistoryPreview').forEach(button=>button.addEventListener('click',async()=>{
+    const box=$('#'+button.dataset.target);
+    if(!box)return;
+    if(!box.classList.contains('hidden')){box.classList.add('hidden');return}
+    box.classList.remove('hidden');
+    box.innerHTML='<p class="muted">Ładuję historię decyzji sprawy…</p>';
+    try{
+      const trail=await api('/api/lifepilot/case-history?case_name='+encodeURIComponent(button.dataset.case||'')+'&limit=250');
+      box.innerHTML=renderDecisionTrailHtml(trail);
+    }catch(e){box.innerHTML='<p class="dangerText">'+esc(e.message)+'</p>'}
   }));
   document.querySelectorAll('.caseSummaryPreview').forEach(button=>button.addEventListener('click',async()=>{
     const box=$(`#${button.dataset.target}`);
