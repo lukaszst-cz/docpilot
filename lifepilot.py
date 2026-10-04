@@ -229,6 +229,41 @@ def build_proof_pack(
     return destination
 
 
+def lifepilot_queue(
+    documents: list[dict[str, Any]],
+    *,
+    today: date | None = None,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    today = today or date.today()
+    priority_order = {"overdue": 0, "today": 1, "urgent": 2, "review": 3, "soon": 4, "normal": 5}
+    items: list[dict[str, Any]] = []
+    for document in documents:
+        next_action = next_action_for_document(document, today=today)
+        if next_action["priority"] == "normal" and not document.get("action_required") and not next_action.get("due_date"):
+            continue
+        items.append(
+            {
+                "id": document.get("id"),
+                "source_name": document.get("source_name"),
+                "case_name": document.get("case_name"),
+                "category": document.get("category"),
+                "profile": document.get("profile"),
+                "action_required": document.get("action_required"),
+                "next_action": next_action,
+            }
+        )
+    items.sort(
+        key=lambda item: (
+            priority_order.get(item["next_action"].get("priority"), 99),
+            item["next_action"].get("due_date") or "9999-12-31",
+            str(item.get("source_name") or "").lower(),
+            int(item.get("id") or 0),
+        )
+    )
+    return items[: max(1, min(int(limit), 1000))]
+
+
 def build_lifepilot_view(document: dict[str, Any], *, today: date | None = None) -> dict[str, Any]:
     return {
         "next_action": next_action_for_document(document, today=today),
