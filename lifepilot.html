@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b0e12">
+  <meta name="description" content="LifePilot — local-first warstwa DocPilot, która rozpoznaje dokument, wskazuje co zrobić dalej, pilnuje terminu i tworzy ProofPack.">
+  <meta property="og:title" content="LifePilot — dokument → decyzja → termin → dowód">
+  <meta property="og:description" content="Wrzuć dokument. LifePilot powie Ci, co to jest, co trzeba zrobić, do kiedy i zachowa wszystko na później.">
+  <meta property="og:type" content="website">
+  <title>LifePilot — o aplikacji</title>
+  <link rel="stylesheet" href="/static/app.css?v=4.0.0">
+  <style>
+    body{background:#0b0e12;color:#eef3f8}.lifePage{max-width:1120px;margin:0 auto;padding:28px 20px 60px}.lifeNav{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:42px}.lifeNav a{text-decoration:none}.lifeLogo{font-size:20px;font-weight:950;color:#fff}.lifeHero{display:grid;grid-template-columns:1.35fr .65fr;gap:22px;align-items:stretch;margin-bottom:22px}.lifeHero h1{font-size:clamp(36px,7vw,72px);line-height:.98;margin:12px 0 18px;letter-spacing:-.04em}.lifeHero p{font-size:18px;line-height:1.65;color:#b8c3d0;max-width:760px}.lifeQuote{font-size:24px;font-weight:850;line-height:1.35;margin:22px 0}.lifeSide{display:flex;flex-direction:column;justify-content:center}.lifeSection{margin-top:22px}.lifeSection>h2{font-size:28px;margin:0 0 8px}.lifeSection>p{color:#b8c3d0;line-height:1.7}.lifeCards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.lifeCards.three{grid-template-columns:repeat(3,minmax(0,1fr))}.lifeCard{background:linear-gradient(180deg,rgba(20,27,36,.98),rgba(15,20,27,.98));border:1px solid #27313d;border-radius:17px;padding:20px}.lifeCard h3{margin:0 0 9px}.lifeCard p{margin:0;color:#b8c3d0;line-height:1.6}.lifeSteps{counter-reset:step}.lifeStep{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start}.lifeStep b{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#eef3fb;color:#111821}.lifeStep h3{margin:2px 0 6px}.lifeStep p{margin:0;color:#b8c3d0;line-height:1.55}.lifeStatus{border-color:#38506d;background:linear-gradient(135deg,rgba(25,39,57,.98),rgba(15,20,27,.98))}.lifeCta{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.lifeFoot{margin-top:36px;padding-top:22px;border-top:1px solid #27313d;color:#8794a4;font-size:13px;line-height:1.65}.lifeFoot a{color:#dce6f1}.lifeFine{font-size:13px;color:#8794a4;line-height:1.6}.moduleTag{display:inline-block;font-size:11px;font-weight:900;letter-spacing:.04em;color:#8fd1ff;margin-bottom:8px;text-transform:uppercase}@media(max-width:800px){.lifeHero,.lifeCards,.lifeCards.three{grid-template-columns:1fr}.lifeNav{align-items:flex-start;flex-direction:column}.lifeHero h1{font-size:46px}}
+  </style>
+</head>
+<body>
+<main class="lifePage">
+  <nav class="lifeNav">
+    <a class="lifeLogo" href="/">LifePilot <span class="muted">by DocPilot</span></a>
+    <div class="lifeCta">
+      <a class="buttonLink secondary" href="/">Otwórz aplikację</a>
+      <a class="buttonLink secondary" href="https://github.com/lukaszst-cz/docpilot" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </nav>
+
+  <section class="lifeHero">
+    <div class="lifeCard lifeStatus">
+      <span class="badge">EKSPERYMENTALNY PRODUKT • LIFE PILOT PREVIEW</span>
+      <h1>Dokument → decyzja → termin → dowód.</h1>
+      <p class="lifeQuote">„Wrzuć dokument. LifePilot powie Ci, co to jest, co trzeba zrobić, do kiedy i zachowa wszystko na później.”</p>
+      <p>LifePilot rozwija DocPilot w kierunku prostego asystenta codziennych spraw. Nie chodzi o kolejne miejsce do przechowywania plików. Chodzi o to, żeby po otrzymaniu faktury, pisma, umowy, dokumentu szkolnego czy korespondencji od razu wiedzieć: <strong>co to jest, czy wymaga działania, jaki jest termin i co zachować jako materiał źródłowy.</strong></p>
+      <div class="lifeCta">
+        <a class="buttonLink" href="/">Wypróbuj w DocPilot</a>
+        <a class="buttonLink secondary" href="https://github.com/lukaszst-cz/docpilot/blob/main/LIFEPILOT.md" target="_blank" rel="noopener">Dokumentacja techniczna ↗</a>
+      </div>
+    </div>
+    <aside class="lifeCard lifeSide">
+      <span class="moduleTag">Najprostszy model</span>
+      <h2>Jedno wejście. Jedna odpowiedź.</h2>
+      <p>Użytkownik nie musi znać nazw modułów. Wrzuca dokument, a aplikacja prowadzi go do następnego sensownego kroku.</p>
+    </aside>
+  </section>
+
+  <section class="lifeSection">
+    <h2>Po co powstał LifePilot?</h2>
+    <p>Dokument sam w sobie rzadko jest problemem. Problem zaczyna się chwilę później: trzeba rozpoznać jego znaczenie, znaleźć termin, podjąć decyzję, pamiętać o odpowiedzi albo płatności i jeszcze zachować materiały tak, żeby dało się do nich wrócić. LifePilot łączy te etapy w jeden przepływ.</p>
+    <div class="lifeCards">
+      <article class="lifeCard"><h3>Mniej „co ja mam z tym zrobić?”</h3><p>Po analizie aplikacja pokazuje jedną rekomendowaną następną czynność i jej priorytet.</p></article>
+      <article class="lifeCard"><h3>Mniej przegapionych terminów</h3><p>Rozpoznany termin trafia do Deadline Radar i może zostać wyeksportowany do kalendarza.</p></article>
+      <article class="lifeCard"><h3>Mniej chaosu w plikach</h3><p>DocPilot porządkuje dokumenty lokalnie, przypisuje je do spraw i zachowuje historię działań.</p></article>
+      <article class="lifeCard"><h3>Lepszy materiał na później</h3><p>ProofPack tworzy spójny pakiet: oryginał, manifest, chronologię, następną czynność i sumy SHA-256.</p></article>
+    </div>
+  </section>
+
+  <section class="lifeSection">
+    <h2>Jak działa?</h2>
+    <div class="lifeCards">
+      <article class="lifeCard lifeStep"><b>1</b><div><h3>Wrzuć dokument</h3><p>PDF, skan, obraz albo zwykły plik tekstowy trafia do lokalnej analizy DocPilot.</p></div></article>
+      <article class="lifeCard lifeStep"><b>2</b><div><h3>Sprawdź, co wykryto</h3><p>Typ dokumentu, wystawca, kwota, data, termin, sprawa i pewność odczytu pozostają do weryfikacji użytkownika.</p></div></article>
+      <article class="lifeCard lifeStep"><b>3</b><div><h3>Zobacz „Co teraz?”</h3><p>LifePilot wskazuje priorytet i następną czynność. Przy słabym OCR najpierw wymusza ręczne sprawdzenie danych.</p></div></article>
+      <article class="lifeCard lifeStep"><b>4</b><div><h3>Zachowaj ślad</h3><p>Możesz zatwierdzić organizację pliku, dodać termin do kalendarza albo pobrać ProofPack.</p></div></article>
+    </div>
+  </section>
+
+  <section class="lifeSection">
+    <h2>Cztery warstwy jednego produktu</h2>
+    <div class="lifeCards">
+      <article class="lifeCard"><span class="moduleTag">DocPilot</span><h3>Co to jest?</h3><p>OCR, klasyfikacja, metadane, terminy, sprawy, wyszukiwanie, duplikaty, archiwum, historia i recovery.</p></article>
+      <article class="lifeCard"><span class="moduleTag">CoTeraz?</span><h3>Co mam zrobić?</h3><p>Jedna rekomendowana czynność, priorytet, termin i prosty następny krok bez przekopywania całej aplikacji.</p></article>
+      <article class="lifeCard"><span class="moduleTag">ProofPack</span><h3>Co zachować?</h3><p>Oryginalny plik, manifest, chronologia sprawy, rekomendacja oraz SHA-256 w jednym lokalnym ZIP-ie.</p></article>
+      <article class="lifeCard"><span class="moduleTag">CzyToŚciema?</span><h3>Czy to wygląda podejrzanie?</h3><p>Oddzielna aplikacja do podejrzanych wiadomości, linków, screenshotów i QR. LifePilot jej nie zasila automatycznie treścią dokumentu.</p></article>
+    </div>
+  </section>
+
+  <section class="lifeSection">
+    <h2>Co działa już teraz?</h2>
+    <div class="lifeCards three">
+      <article class="lifeCard"><h3>🧭 Co teraz?</h3><p>Karta pojawia się bezpośrednio po analizie i pokazuje rekomendowany następny krok.</p></article>
+      <article class="lifeCard"><h3>⏰ Priorytet i termin</h3><p>Przeterminowane, dzisiejsze, pilne, bliskie i zwykłe sprawy są rozróżniane na podstawie wykrytego terminu.</p></article>
+      <article class="lifeCard"><h3>📦 ProofPack ZIP</h3><p>Pakiet zawiera oryginał, manifest, timeline, next-action oraz SHA256SUMS.</p></article>
+      <article class="lifeCard"><h3>📅 Kalendarz</h3><p>Pojedynczy wykryty termin można pobrać jako plik .ics.</p></article>
+      <article class="lifeCard"><h3>🔐 Local-first</h3><p>Podstawowy obieg dokumentu, OCR, indeks i rekomendacja działają na komputerze użytkownika.</p></article>
+      <article class="lifeCard"><h3>🛡️ Human-in-the-loop</h3><p>Niska pewność ekstrakcji nie prowadzi do automatycznej decyzji — najpierw pojawia się prośba o ręczną kontrolę.</p></article>
+    </div>
+  </section>
+
+  <section class="lifeSection">
+    <h2>Dla kogo?</h2>
+    <div class="lifeCards">
+      <article class="lifeCard"><h3>Dom i rodzina</h3><p>Faktury, szkoła, gwarancje, polisy, umowy, korespondencja i codzienne terminy w jednym lokalnym systemie.</p></article>
+      <article class="lifeCard"><h3>Freelancer i mała firma</h3><p>Dokumenty kosztowe, umowy, korespondencja, terminy odpowiedzi i materiały do spraw klientów.</p></article>
+      <article class="lifeCard"><h3>Osoba prowadząca kilka spraw równolegle</h3><p>Grupowanie dokumentów w sprawy, timeline i pakiet materiałów zmniejszają ryzyko zgubienia kontekstu.</p></article>
+      <article class="lifeCard"><h3>Użytkownik nietechniczny</h3><p>Docelowo najważniejszym ekranem ma być odpowiedź „Co teraz?”, a nie lista funkcji technicznych.</p></article>
+    </div>
+  </section>
+
+  <section class="lifeSection">
+    <h2>Prywatność i granice</h2>
+    <div class="lifeCards">
+      <article class="lifeCard"><h3>Dokumenty lokalnie</h3><p>Podstawowa analiza nie wymaga wysłania dokumentu do chmury. Zewnętrzne integracje DocPilot pozostają opcjonalne i kontrolowane osobno.</p></article>
+      <article class="lifeCard"><h3>ProofPack bez ukrytej wysyłki</h3><p>ZIP powstaje lokalnie. Manifest nie zawiera pełnego tekstu OCR ani lokalnej ścieżki pliku.</p></article>
+      <article class="lifeCard"><h3>OCR może się pomylić</h3><p>Kwoty, terminy i dane z dokumentów trzeba porównać z oryginałem, szczególnie przed ważną decyzją.</p></article>
+      <article class="lifeCard"><h3>ProofPack to nie kwalifikowany podpis</h3><p>SHA-256 pomaga kontrolować integralność, ale pakiet nie zastępuje kwalifikowanej pieczęci, podpisu ani zaufanego znacznika czasu.</p></article>
+    </div>
+  </section>
+
+  <section class="lifeSection">
+    <div class="lifeCard lifeStatus">
+      <span class="badge">STATUS</span>
+      <h2>LifePilot jest obecnie warstwą preview rozwijaną na stabilnym fundamencie DocPilot 4.0.</h2>
+      <p>DocPilot 4.0 pozostaje opublikowanym stabilnym wydaniem Windows. Funkcje LifePilot są rozwijane i testowane w kodzie projektu; kolejne publiczne wydanie Windows powinno otrzymać je dopiero po przejściu pełnego procesu release: testów, smoke testów gotowego EXE, clean install, upgrade i weryfikacji pakietów.</p>
+      <div class="lifeCta">
+        <a class="buttonLink" href="https://github.com/lukaszst-cz/docpilot" target="_blank" rel="noopener">Repozytorium DocPilot / LifePilot ↗</a>
+        <a class="buttonLink secondary" href="https://github.com/lukaszst-cz/czy-to-sciema" target="_blank" rel="noopener">CzyToŚciema? ↗</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="lifeSection">
+    <h2>Co dalej?</h2>
+    <p>Kierunek jest celowo prosty: mniej ekranów i mniej decyzji technicznych. Następne etapy to lepsza lista „dzisiaj / pilne / później”, podgląd ProofPack przed eksportem, ręczne potwierdzanie wykonania czynności, dalsze testy realnych dokumentów oraz opcjonalny, jawny most do CzyToŚciema? bez automatycznego przekazywania prywatnej treści.</p>
+  </section>
+
+  <section class="lifeSection">
+    <div class="lifeCard">
+      <span class="moduleTag">Wsparcie projektu</span>
+      <h2>LifePilot / DocPilot jest rozwijany jako praktyczny projekt użytkowy.</h2>
+      <p>Jeśli projekt jest przydatny, można dobrowolnie wesprzeć jego rozwój. Potrzebujesz własnej strony lub prostego systemu — zobacz również Zielona Marka.</p>
+      <div class="lifeCta">
+        <a class="buttonLink" href="https://buymeacoffee.com/nalesnik_plus_plus" target="_blank" rel="noopener noreferrer">☕ Postaw Naleśnikowi++ kawę</a>
+        <a class="buttonLink secondary" href="https://zielona-marka.pl" target="_blank" rel="noopener noreferrer">Zielona Marka ↗</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="lifeFoot">LifePilot preview • rozwijany na fundamencie DocPilot • twórca projektu: Łukasz St‑cz • <a href="https://github.com/lukaszst-cz/docpilot" target="_blank" rel="noopener">GitHub</a><br><span class="lifeFine">Aplikacja pomaga organizować informacje i działania, ale nie zastępuje profesjonalnej porady prawnej, finansowej ani urzędowej.</span></footer>
+</main>
+</body>
+</html>
