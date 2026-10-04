@@ -19,9 +19,11 @@ Ten dokument określa, co musi być spełnione przed oznaczeniem LifePilot jako 
 - [x] Upgrade smoke test ze stabilnej starszej wersji w linii preview przed 4.8.
 - [x] Checksumy artefaktów.
 - [x] Preview 4.8: funkcjonalny self-test uruchamiany w zwykłym pytest przed pakowaniem.
-- [ ] Preview 4.8 po merge: funkcjonalny `DocPilot.exe --self-test` w finalnym pakiecie.
-- [ ] Preview 4.8 po merge: funkcjonalny self-test po clean install.
-- [ ] Preview 4.8 po merge: funkcjonalny self-test po upgrade.
+- [x] Preview 4.8 po merge: funkcjonalny `DocPilot.exe --self-test` w finalnym pakiecie.
+- [x] Preview 4.8 po merge: funkcjonalny self-test po clean install.
+- [x] Preview 4.8 po merge: funkcjonalny self-test po upgrade.
+
+Potwierdzenie automatycznych bramek 4.8: GitHub Actions `Windows Release` run **37206846769** — pełny `success` (packaged self-test, clean install/uninstall, upgrade, checksumy i artefakty).
 
 ## B. Pilot rzeczywistych / zanonimizowanych dokumentów
 
