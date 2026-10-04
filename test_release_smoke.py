@@ -183,3 +183,9 @@ def test_lifepilot_deadline_boundary_self_test_covers_release_edges():
     from docpilot.desktop import _lifepilot_deadline_boundary_self_test
 
     _lifepilot_deadline_boundary_self_test()
+
+
+def test_lifepilot_calendar_packaged_self_test():
+    from docpilot.desktop import _lifepilot_calendar_self_test
+
+    _lifepilot_calendar_self_test()
