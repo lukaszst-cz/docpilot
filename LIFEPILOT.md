@@ -366,3 +366,31 @@ Ten sam `--self-test` jest wykonywany w pipeline Windows dla:
 - świeżo zbudowanego pakietu;
 - czystej instalacji;
 - instalacji po upgrade ze starszej wersji.
+
+
+## LifePilot Preview 4.9 — pilot hardening
+
+Preview 4.9 przygotowuje kontrolowany pilot #62 bez dokładania kolejnego modułu użytkowego.
+
+### Lokalny Pilot Runner
+
+Polecenie `docpilot-pilot` analizuje wskazany folder lokalnie. Domyślnie tworzy:
+- `pilot-public.json`;
+- `pilot-report.md`.
+
+Raport publiczny nie zawiera nazw plików, lokalnych ścieżek, pełnego OCR, wartości issuerów, kwot ani hashy. Dokładny `pilot-private.json` powstaje dopiero po jawnym `--include-private` i powinien pozostać lokalny.
+
+### Macierz pilota
+
+Automatyczny baseline obejmuje dodatkowo:
+- dokument z wieloma datami i jawną frazą terminu;
+- sprawę z co najmniej 2 dokumentami;
+- CasePack przed i po utracie jednego lokalnego oryginału;
+- Case Readiness = Niekompletna dla brakującego oryginału;
+- ręczną korektę kluczowych pól i ponowne przeliczenie decyzji.
+
+### Windows hardening
+
+Pakowany `DocPilot.exe --self-test` sprawdza dodatkowo osobny ProofPack oraz scenariusz brakującego oryginału. Upgrade smoke rozpoczyna się od faktycznie stabilnego publicznego **DocPilot v4.0.0**, a nie od historycznej wersji 0.x.
+
+Po automatycznym Windows gate 4.9 pozostają już tylko: kontrolowany lokalny pilot na realnych/zredagowanych próbkach i ręczny przegląd UX Windows.
