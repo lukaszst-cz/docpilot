@@ -545,8 +545,12 @@ def case_pack_preview(case_name: str, documents: list[dict[str, Any]]) -> dict[s
     total_bytes = 0
     for index, document in enumerate(selected, start=1):
         source = Path(str(document.get("path") or ""))
-        exists = source.exists() and source.is_file()
-        size = source.stat().st_size if exists else None
+        try:
+            exists = source.exists() and source.is_file()
+            size = source.stat().st_size if exists else None
+        except OSError:
+            exists = False
+            size = None
         if exists:
             available += 1
             total_bytes += int(size or 0)
@@ -600,8 +604,12 @@ def build_case_pack(destination: Path, case_name: str, documents: list[dict[str,
 
     for index, document in enumerate(selected, start=1):
         source = Path(str(document.get("path") or ""))
-        source_exists = source.exists() and source.is_file()
-        computed_digest = _sha256_file(source) if source_exists else None
+        try:
+            source_exists = source.exists() and source.is_file()
+            computed_digest = _sha256_file(source) if source_exists else None
+        except OSError:
+            source_exists = False
+            computed_digest = None
         archive_name = (
             f"documents/{index:03d}-{_safe_name(source.name or document.get('source_name') or 'document')}"
             if source_exists
@@ -899,6 +907,33 @@ def verify_case_pack(
             if declared_count != len(documents):
                 result["errors"].append(
                     f"Manifest document_count ({declared_count}) does not match document entries ({len(documents)})."
+                )
+
+            referenced_originals = {
+                str(item.get("archive_name"))
+                for item in documents
+                if isinstance(item, dict) and item.get("source_available") and item.get("archive_name")
+            }
+            referenced_manifests = {
+                str(item.get("manifest_name"))
+                for item in documents
+                if isinstance(item, dict) and item.get("manifest_name")
+            }
+            actual_originals = {
+                name for name in names if name.startswith("documents/") and not name.endswith("/")
+            }
+            actual_manifests = {
+                name for name in names if name.startswith("manifests/") and not name.endswith("/")
+            }
+            extra_originals = sorted(actual_originals.difference(referenced_originals))
+            extra_manifests = sorted(actual_manifests.difference(referenced_manifests))
+            if extra_originals:
+                result["errors"].append(
+                    "CasePack contains unreferenced originals: " + ", ".join(extra_originals)
+                )
+            if extra_manifests:
+                result["errors"].append(
+                    "CasePack contains unreferenced document manifests: " + ", ".join(extra_manifests)
                 )
     except (OSError, zipfile.BadZipFile, RuntimeError) as exc:
         result["errors"].append(f"Could not verify CasePack: {exc}")
