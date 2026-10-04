@@ -1,4 +1,19 @@
-from copy import deepcopy\nfrom datetime import date\n\nfrom PIL import Image\n\nfrom docpilot.analyze import analyze_file\nfrom docpilot.lifepilot import (\n    build_case_pack,\n    case_pack_preview,\n    case_readiness,\n    decision_field_changes,\n    decision_summary,\n    next_action_for_document,\n    verify_case_pack,\n)\n
+from copy import deepcopy
+from datetime import date
+
+from PIL import Image
+
+from docpilot.analyze import analyze_file
+from docpilot.lifepilot import (
+    build_case_pack,
+    case_pack_preview,
+    case_readiness,
+    decision_field_changes,
+    decision_summary,
+    next_action_for_document,
+    verify_case_pack,
+)
+
 
 def _write(tmp_path, name: str, text: str):
     path = tmp_path / name
