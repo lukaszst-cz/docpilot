@@ -72,7 +72,7 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
-from .lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, legacy_attention_signature, lifepilot_queue, proof_pack_preview
+from .lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview
 from .notifier import install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest, LifePilotCorrectionRequest
 from .redaction import redact_file
@@ -662,21 +662,6 @@ def _lifepilot_done_map() -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _lifepilot_done_matches(entry: Any, document: dict[str, Any]) -> bool:
-    if isinstance(entry, str):
-        return entry in {attention_signature(document), legacy_attention_signature(document)}
-    if isinstance(entry, dict):
-        return str(entry.get("signature") or "") == attention_signature(document)
-    return False
-
-
-def _lifepilot_done_at(entry: Any) -> str | None:
-    if isinstance(entry, dict):
-        value = str(entry.get("done_at") or "").strip()
-        return value or None
-    return None
-
-
 @app.get("/api/lifepilot/queue")
 def lifepilot_action_queue(limit: int = 200, include_done: bool = False):
     documents = list_documents(settings, limit=min(max(int(limit), 1), 5000))
@@ -687,12 +672,12 @@ def lifepilot_action_queue(limit: int = 200, include_done: bool = False):
         for item in items:
             document = by_id.get(int(item.get("id") or 0))
             entry = done.get(str(item.get("id")))
-            item["done"] = bool(document and _lifepilot_done_matches(entry, document))
-            item["done_at"] = _lifepilot_done_at(entry) if item["done"] else None
+            item["done"] = bool(document and handled_entry_matches(entry, document))
+            item["done_at"] = handled_entry_done_at(entry) if item["done"] else None
         return items
     active = [
         document for document in documents
-        if not _lifepilot_done_matches(done.get(str(document.get("id"))), document)
+        if not handled_entry_matches(done.get(str(document.get("id"))), document)
     ]
     return lifepilot_queue(active, limit=limit)
 
