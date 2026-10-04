@@ -58,6 +58,18 @@ class ApplyRequest(BaseModel):
     smart_structure: bool = True
 
 
+class LifePilotCorrectionRequest(BaseModel):
+    document_type: str | None = None
+    issuer: str | None = None
+    amount: float | None = None
+    currency: str | None = None
+    document_date: date | None = None
+    deadline: date | None = None
+    warranty_until: date | None = None
+    case_name: str | None = None
+    action_required: Literal["to-pay", "to-reply", "to-sign", "to-review", "to-renew", "to-archive"] | None = None
+
+
 class AppliedChange(BaseModel):
     id: str
     created_at: datetime
