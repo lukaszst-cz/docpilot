@@ -662,9 +662,17 @@ def _lifepilot_done_map() -> dict[str, str]:
 
 
 @app.get("/api/lifepilot/queue")
-def lifepilot_action_queue(limit: int = 200):
+def lifepilot_action_queue(limit: int = 200, include_done: bool = False):
     documents = list_documents(settings, limit=min(max(int(limit), 1), 5000))
     done = _lifepilot_done_map()
+    if include_done:
+        items = lifepilot_queue(documents, limit=limit)
+        for item in items:
+            document = next((doc for doc in documents if doc.get("id") == item.get("id")), None)
+            item["done"] = bool(
+                document and done.get(str(document.get("id"))) == attention_signature(document)
+            )
+        return items
     active = [
         document for document in documents
         if done.get(str(document.get("id"))) != attention_signature(document)
