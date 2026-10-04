@@ -3,7 +3,7 @@ import hashlib
 import json
 import zipfile
 
-from docpilot.lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_readiness, case_summary_markdown, legacy_attention_signature, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview, verify_case_pack, verify_lifepilot_pack, verify_proof_pack
+from docpilot.lifepilot import attention_signature, build_case_pack, build_case_summary, build_lifepilot_view, build_proof_pack, case_pack_preview, case_readiness, case_summary_markdown, decision_field_changes, decision_summary, decision_trail_for_case, decision_trail_for_document, decision_trail_markdown, legacy_attention_signature, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview, verify_case_pack, verify_lifepilot_pack, verify_proof_pack
 
 
 def _doc(**overrides):
@@ -480,3 +480,117 @@ def test_case_readiness_overdue_is_attention_not_completeness_failure(tmp_path):
     assert readiness["status"] == "ready"
     assert readiness["counts"]["overdue"] == 1
     assert any(issue["code"] == "overdue-action" for issue in readiness["issues"])
+
+
+def test_decision_field_changes_and_trail_are_privacy_safe():
+    before = _doc(metadata={
+        "document_type": "invoice",
+        "issuer": "ACME",
+        "deadline": "2026-10-06",
+        "confidence": 0.95,
+        "amount": 100.0,
+        "currency": "PLN",
+    })
+    after = _doc(
+        case_name="ACME Appeal",
+        action_required="to-reply",
+        metadata={
+            "document_type": "official-letter",
+            "issuer": "Urząd",
+            "deadline": "2026-10-10",
+            "confidence": 0.95,
+            "amount": 100.0,
+            "currency": "PLN",
+        },
+    )
+    changes = decision_field_changes(
+        before,
+        after,
+        {"document_type", "issuer", "deadline", "case_name", "action_required"},
+    )
+    assert {item["field"] for item in changes} == {
+        "document_type",
+        "issuer",
+        "deadline",
+        "case_name",
+        "action_required",
+    }
+
+    audits = [
+        {
+            "id": 3,
+            "created_at": "2026-10-04T12:00:00+00:00",
+            "event": "lifepilot-fields-corrected",
+            "payload": {
+                "document_id": 7,
+                "fields": ["deadline", "case_name"],
+                "changes": changes,
+                "decision_before": decision_summary(before, today=date(2026, 10, 4)),
+                "decision_after": decision_summary(after, today=date(2026, 10, 4)),
+                "case_before": "ACME",
+                "case_after": "ACME Appeal",
+                "path": "C:/Secret/private.pdf",
+                "extracted_text": "SECRET OCR",
+            },
+        },
+        {
+            "id": 2,
+            "created_at": "2026-10-04T11:00:00+00:00",
+            "event": "analyzed",
+            "payload": {
+                "id": 7,
+                "path": "C:/Secret/private.pdf",
+                "extracted_text": "SECRET OCR",
+            },
+        },
+    ]
+
+    trail = decision_trail_for_document(after, audits)
+    encoded = json.dumps(trail, ensure_ascii=False)
+    assert "C:/Secret" not in encoded
+    assert "SECRET OCR" not in encoded
+    assert trail["events"][0]["details"]["changes"]
+    assert trail["events"][0]["details"]["decision_before"]["title"]
+    assert trail["events"][0]["details"]["decision_after"]["title"]
+
+    markdown = decision_trail_markdown(trail)
+    assert "C:/Secret" not in markdown
+    assert "SECRET OCR" not in markdown
+    assert "ACME → ACME Appeal" in markdown or "Sprawa:" in markdown
+
+
+def test_case_decision_trail_includes_current_documents_and_case_transition_without_paths():
+    docs = [
+        _doc(id=7, case_name="Case A"),
+        _doc(id=8, source_name="letter.pdf", case_name="Case A"),
+    ]
+    audits = [
+        {
+            "id": 5,
+            "created_at": "2026-10-04T12:00:00+00:00",
+            "event": "lifepilot-mark-done",
+            "payload": {
+                "document_id": 8,
+                "case_name": "Case A",
+                "done_at": "2026-10-04T12:00:00+00:00",
+                "path": "C:/Hidden/letter.pdf",
+            },
+        },
+        {
+            "id": 4,
+            "created_at": "2026-10-04T11:00:00+00:00",
+            "event": "lifepilot-fields-corrected",
+            "payload": {
+                "document_id": 99,
+                "case_before": "Case A",
+                "case_after": "Other Case",
+                "fields": ["case_name"],
+                "path": "C:/Hidden/old.pdf",
+            },
+        },
+    ]
+    trail = decision_trail_for_case("Case A", docs, audits)
+    assert trail["document_count"] == 2
+    assert len(trail["events"]) == 2
+    encoded = json.dumps(trail, ensure_ascii=False)
+    assert "C:/Hidden" not in encoded
