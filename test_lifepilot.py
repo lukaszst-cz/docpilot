@@ -117,6 +117,28 @@ def test_attention_signature_tracks_semantic_state_not_technical_timestamp():
     assert attention_signature(original) != attention_signature(changed_deadline)
     assert legacy_attention_signature(original) != legacy_attention_signature(technical_update)
 
+    verified_once = _doc(metadata={
+        "document_type": "invoice",
+        "issuer": "ACME",
+        "deadline": "2026-10-06",
+        "confidence": 0.95,
+        "amount": 199.99,
+        "currency": "PLN",
+        "manual_verified": True,
+        "manual_verified_at": "2026-10-04T10:00:00Z",
+    })
+    verified_again = _doc(metadata={
+        "document_type": "invoice",
+        "issuer": "ACME",
+        "deadline": "2026-10-06",
+        "confidence": 0.95,
+        "amount": 199.99,
+        "currency": "PLN",
+        "manual_verified": True,
+        "manual_verified_at": "2026-10-04T11:00:00Z",
+    })
+    assert attention_signature(verified_once) == attention_signature(verified_again)
+
 
 def test_proof_pack_preview_is_private_and_reports_expected_files(tmp_path):
     source = tmp_path / "evidence.txt"
