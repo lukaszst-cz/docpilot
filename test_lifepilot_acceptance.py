@@ -54,7 +54,7 @@ def test_acceptance_warranty_builds_expiry(tmp_path):
     analysis = _write(
         tmp_path,
         "warranty.txt",
-        "Sklep Testowy\nGwarancja 24 miesiecy\nData: 01.10.2026\nProdukt testowy",
+        "Sklep Testowy\nGwarancja 24 months\nData: 01.10.2026\nProdukt testowy",
     )
     assert analysis.metadata.document_type == "warranty"
     assert str(analysis.metadata.warranty_until) == "2028-10-01"
@@ -76,7 +76,7 @@ def test_acceptance_school_document_classification(tmp_path):
     analysis = _write(
         tmp_path,
         "school.txt",
-        "Szkola Podstawowa Testowa\nInformacja dla ucznia i rodzica\nData: 01.10.2026\nZebranie organizacyjne.",
+        "Szkoła Podstawowa Testowa\nInformacja Librus dla ucznia i rodzica\nData: 01.10.2026\nZebranie organizacyjne.",
     )
     assert analysis.metadata.document_type == "school"
     assert analysis.suggested_category == "School"
