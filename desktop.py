@@ -90,6 +90,42 @@ def _lifepilot_deadline_boundary_self_test() -> None:
             )
 
 
+def _lifepilot_calendar_self_test() -> None:
+    from docpilot.exporters import ics_for_documents
+
+    secret_path = r"C:\Users\Private\Documents\secret-case\deadline.pdf"
+    calendar = ics_for_documents(
+        [
+            {
+                "id": 901,
+                "source_name": "spring-deadline.pdf",
+                "path": secret_path,
+                "action_required": "to-reply",
+                "metadata": {"deadline": "2026-03-29"},
+            },
+            {
+                "id": 902,
+                "source_name": "autumn-deadline.pdf",
+                "path": secret_path,
+                "action_required": "to-reply",
+                "metadata": {"deadline": "2026-10-25"},
+            },
+        ]
+    )
+    required = (
+        "DTSTART;VALUE=DATE:20260329",
+        "DTEND;VALUE=DATE:20260330",
+        "DTSTART;VALUE=DATE:20261025",
+        "DTEND;VALUE=DATE:20261026",
+    )
+    if not all(item in calendar for item in required):
+        raise RuntimeError("LifePilot calendar self-test failed DST-boundary all-day export.")
+    if "TZID=" in calendar:
+        raise RuntimeError("LifePilot calendar self-test introduced timezone-sensitive DTSTART.")
+    if secret_path in calendar or "secret-case" in calendar:
+        raise RuntimeError("LifePilot calendar self-test exposed a local file path.")
+
+
 def _lifepilot_pack_privacy_self_test(
     pack_path: Path,
     *,
@@ -202,6 +238,7 @@ def _lifepilot_functional_self_test() -> None:
                 raise RuntimeError("LifePilot self-test correction returned an unexpected document.")
 
             _lifepilot_deadline_boundary_self_test()
+            _lifepilot_calendar_self_test()
             _lifepilot_recovery_self_test(temp_settings, doc_id)
 
             history_payload = app_module.lifepilot_document_history(doc_id, limit=100)
