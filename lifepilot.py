@@ -51,8 +51,9 @@ def next_action_for_document(document: dict[str, Any], *, today: date | None = N
     priority, days_remaining = _priority_for(deadline, today)
     action = str(document.get("action_required") or "").strip()
     confidence = float(metadata.get("confidence") or 0)
+    manual_verified = bool(metadata.get("manual_verified"))
 
-    if confidence < 0.65:
+    if confidence < 0.65 and not manual_verified:
         title = "Najpierw sprawdź dane odczytane z dokumentu"
         reason = "Pewność automatycznego rozpoznania jest niska."
         steps = [
@@ -316,6 +317,99 @@ def lifepilot_queue(
         )
     )
     return items[: max(1, min(int(limit), 1000))]
+
+
+def build_case_summary(case_name: str, documents: list[dict[str, Any]]) -> dict[str, Any]:
+    selected = [doc for doc in documents if str(doc.get("case_name") or "").strip() == case_name.strip()]
+    selected.sort(
+        key=lambda doc: (
+            str((doc.get("metadata") or {}).get("document_date") or doc.get("updated_at") or ""),
+            int(doc.get("id") or 0),
+        )
+    )
+    timeline = []
+    for doc in selected:
+        metadata = doc.get("metadata") or {}
+        timeline.append(
+            {
+                "id": doc.get("id"),
+                "name": doc.get("source_name"),
+                "document_type": metadata.get("document_type"),
+                "document_date": metadata.get("document_date"),
+                "deadline": metadata.get("deadline") or metadata.get("warranty_until"),
+                "issuer": metadata.get("issuer"),
+                "amount": metadata.get("amount"),
+                "currency": metadata.get("currency"),
+                "category": doc.get("category"),
+                "profile": doc.get("profile"),
+                "action_required": doc.get("action_required"),
+                "sha256": doc.get("sha256"),
+            }
+        )
+
+    deadlines = [item["deadline"] for item in timeline if item.get("deadline")]
+    actions = [item for item in timeline if item.get("action_required")]
+    return {
+        "format": "lifepilot-case-summary",
+        "version": 1,
+        "case_name": case_name.strip(),
+        "document_count": len(timeline),
+        "open_actions": len(actions),
+        "next_deadline": min(deadlines) if deadlines else None,
+        "timeline": timeline,
+        "privacy": {
+            "includes_extracted_text": False,
+            "includes_local_paths": False,
+            "uploads_anything": False,
+        },
+        "limitations": [
+            "Daty i metadane mogą pochodzić z OCR lub ręcznej korekty i powinny być zweryfikowane z oryginałem.",
+            "SHA-256 pomaga sprawdzić integralność pliku, ale nie jest kwalifikowanym znacznikiem czasu.",
+        ],
+    }
+
+
+def case_summary_markdown(summary: dict[str, Any]) -> str:
+    lines = [
+        f"# LifePilot — sprawa: {summary.get('case_name') or 'Bez nazwy'}",
+        "",
+        f"Dokumenty: {summary.get('document_count', 0)}",
+        f"Otwarte działania: {summary.get('open_actions', 0)}",
+        f"Najbliższy termin: {summary.get('next_deadline') or 'brak'}",
+        "",
+        "## Chronologia",
+        "",
+    ]
+    for item in summary.get("timeline") or []:
+        date_value = item.get("document_date") or "brak daty"
+        details = [
+            str(item.get("document_type") or "document"),
+            str(item.get("issuer") or "").strip(),
+            str(item.get("category") or "").strip(),
+        ]
+        details = [value for value in details if value]
+        lines.append(f"### {date_value} — {item.get('name') or 'Dokument'}")
+        if details:
+            lines.append("- " + " · ".join(details))
+        if item.get("deadline"):
+            lines.append(f"- Termin: {item['deadline']}")
+        if item.get("action_required"):
+            lines.append(f"- Działanie: {item['action_required']}")
+        if item.get("amount") is not None:
+            lines.append(f"- Kwota: {item['amount']} {item.get('currency') or ''}".rstrip())
+        if item.get("sha256"):
+            lines.append(f"- SHA-256: {item['sha256']}")
+        lines.append("")
+
+    lines += [
+        "## Prywatność i ograniczenia",
+        "",
+        "- Eksport nie zawiera pełnego tekstu OCR ani lokalnych ścieżek plików.",
+        "- Eksport powstaje lokalnie i sam niczego nie wysyła.",
+    ]
+    for limitation in summary.get("limitations") or []:
+        lines.append(f"- {limitation}")
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def build_lifepilot_view(document: dict[str, Any], *, today: date | None = None) -> dict[str, Any]:
