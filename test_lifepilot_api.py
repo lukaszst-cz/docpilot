@@ -33,6 +33,20 @@ def test_lifepilot_api_exposes_next_action_proofpack_calendar_and_about(monkeypa
     assert "next_action" in view.json()
     assert "proof_pack" in view.json()
 
+    preview = client.get(f"/api/lifepilot/{doc_id}/proofpack-preview")
+    assert preview.status_code == 200
+    assert preview.json()["privacy"]["uploads_anything"] is False
+    assert any(item["name"] == "manifest.json" for item in preview.json()["files"])
+
+    queue_before = client.get("/api/lifepilot/queue").json()
+    assert any(item["id"] == doc_id for item in queue_before)
+    marked = client.post(f"/api/lifepilot/{doc_id}/done")
+    assert marked.status_code == 200
+    assert all(item["id"] != doc_id for item in client.get("/api/lifepilot/queue").json())
+    reopened = client.post(f"/api/lifepilot/{doc_id}/reopen")
+    assert reopened.status_code == 200
+    assert any(item["id"] == doc_id for item in client.get("/api/lifepilot/queue").json())
+
     proof = client.get(f"/api/lifepilot/{doc_id}/proofpack")
     assert proof.status_code == 200
     assert proof.headers["content-type"].startswith("application/zip")
