@@ -260,3 +260,48 @@ def test_proofpack_verification_api_accepts_generated_pack_and_rejects_tampering
     assert invalid.status_code == 200
     assert invalid.json()["valid"] is False
     assert invalid.json()["errors"]
+
+
+def test_casepack_api_round_trip_and_generic_verifier(monkeypatch, tmp_path):
+    app_module = importlib.import_module("docpilot.app")
+    temp_settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", temp_settings)
+    client = TestClient(app_module.app)
+
+    doc_ids = []
+    for name, content in [
+        ("one.txt", b"ACME Faktura VAT\nTermin platnosci: 06.10.2026\n100 PLN"),
+        ("two.txt", b"Urzad Testowy\nWezwanie\nOdpowiedz do 10.10.2026"),
+    ]:
+        analyzed = client.post("/api/analyze", files={"upload": (name, content, "text/plain")})
+        assert analyzed.status_code == 200
+        doc_id = analyzed.json()["id"]
+        doc_ids.append(doc_id)
+        corrected = client.patch(
+            f"/api/lifepilot/{doc_id}/fields",
+            json={"case_name": "CasePack API"},
+        )
+        assert corrected.status_code == 200
+
+    preview = client.get("/api/lifepilot/casepack-preview", params={"case_name": "CasePack API"})
+    assert preview.status_code == 200
+    assert preview.json()["document_count"] == 2
+    assert preview.json()["available_originals"] == 2
+    assert preview.json()["privacy"]["includes_local_paths"] is False
+
+    packed = client.get("/api/lifepilot/casepack", params={"case_name": "CasePack API"})
+    assert packed.status_code == 200
+    assert packed.headers["content-type"].startswith("application/zip")
+    with zipfile.ZipFile(io.BytesIO(packed.content)) as archive:
+        assert "case-manifest.json" in archive.namelist()
+        assert len([name for name in archive.namelist() if name.startswith("documents/")]) == 2
+
+    verified = client.post(
+        "/api/lifepilot/proofpack/verify",
+        files={"upload": ("CasePack.zip", packed.content, "application/zip")},
+    )
+    assert verified.status_code == 200
+    payload = verified.json()
+    assert payload["valid"] is True
+    assert payload["pack_type"] == "casepack"
+    assert payload["integrity"]["documents_verified"] == 2
