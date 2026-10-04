@@ -269,3 +269,5 @@ def test_lifepilot_ui_exposes_queue_product_page_and_safe_actions():
     assert "Dlaczego LifePilot tak zaleca?" in script
     assert "done_at" in script
     assert "DANE SPRAWDZONE" in script
+    assert "LifePilot notifications" in script
+    assert "LifePilot background notifications" in html

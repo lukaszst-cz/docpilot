@@ -244,3 +244,17 @@ Nowe wpisy przechowują:
 - czas oznaczenia jako załatwione.
 
 Sygnatura v2 reaguje na realne zmiany danych wpływających na decyzję, a nie na sam techniczny `updated_at`. Starsze wpisy zapisane jako pojedynczy hash pozostają zgodne wstecznie.
+
+## LifePilot Preview 4.3 — powiadomienia
+
+Powiadomienia Windows korzystają teraz z tej samej kolejki i priorytetów co ekran **Co teraz?**.
+
+Zasady:
+- pozycje oznaczone jako załatwione nie generują powiadomień;
+- powiadamiane są tylko pozycje z wykrytym terminem w wybranym horyzoncie;
+- pozycje bez daty pozostają w kolejce LifePilot, ale nie generują powiadomień tylko dlatego, że wymagają ręcznej kontroli;
+- ta sama wersja stanu dokumentu jest pokazywana najwyżej raz dziennie;
+- jeżeli zmieni się istotny stan dokumentu, np. termin lub akcja, nowa sygnatura może wygenerować nowe powiadomienie;
+- treść powiadomienia używa rekomendacji LifePilot, a nie wyłącznie surowej daty.
+
+Status API powiadomień pokazuje również liczbę pozycji pasujących do aktualnego horyzontu.

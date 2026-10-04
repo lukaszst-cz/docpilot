@@ -817,9 +817,9 @@ $('#recoveryCheckpointBtn')?.addEventListener('click',async()=>{
 
 
 async function loadNotificationStatus(){
-  try{const r=await api('/api/notifications/status');$('#notifyStatus').textContent=r.enabled?`Background notifications enabled · ${r.days_ahead} day(s) ahead`:'Background notifications disabled.';$('#notifyDays').value=r.days_ahead||3;}catch(e){$('#notifyStatus').textContent=e.message}
+  try{const r=await api('/api/notifications/status');$('#notifyStatus').textContent=r.enabled?`LifePilot notifications enabled · ${r.pending||0} item(s) within ${r.days_ahead} day(s)`:`LifePilot notifications disabled · ${r.pending||0} item(s) currently match the selected horizon.`;$('#notifyDays').value=r.days_ahead||3;}catch(e){$('#notifyStatus').textContent=e.message}
 }
-$('#notifyEnableBtn')?.addEventListener('click',async()=>{try{const days=Number($('#notifyDays').value||3);const r=await api('/api/notifications/enable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({days_ahead:days})});await loadNotificationStatus();showAppNotice(`Background notifications enabled. Test notifications shown: ${r.test_notifications}.`,'ok');}catch(e){showAppNotice(e.message)}});
+$('#notifyEnableBtn')?.addEventListener('click',async()=>{try{const days=Number($('#notifyDays').value||3);const r=await api('/api/notifications/enable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({days_ahead:days})});await loadNotificationStatus();showAppNotice(`LifePilot notifications enabled. Test notifications shown: ${r.test_notifications}.`,'ok');}catch(e){showAppNotice(e.message)}});
 $('#notifyDisableBtn')?.addEventListener('click',async()=>{try{await api('/api/notifications/disable',{method:'POST'});loadNotificationStatus()}catch(e){showAppNotice(e.message)}});
 
 async function readPortableConfigFile(){
