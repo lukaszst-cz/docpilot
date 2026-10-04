@@ -435,3 +435,16 @@ Finalny self-test sprawdza, że:
 - eksport kalendarza nie ujawnia lokalnej ścieżki źródła.
 
 Preview 5.0 nadal pozostaje **Preview / Pilot**. Automatyczne bramki techniczne nie zastępują kontrolowanego pilota na realnych lub zanonimizowanych dokumentach ani ręcznego przeglądu UX/prywatności.
+
+
+### Pilot jednym kliknięciem na Windows
+
+Instalator dodaje do menu Start skrót **LifePilot Pilot**. Skrót uruchamia ten sam `DocPilot.exe` w trybie `--pilot`:
+1. pojawia się lokalne okno wyboru folderu;
+2. użytkownik wskazuje folder dokumentów do pilota;
+3. analiza odbywa się lokalnie;
+4. wyniki trafiają do `%LOCALAPPDATA%\DocPilot\PilotResults\<timestamp>`;
+5. domyślnie powstają tylko `pilot-public.json` i `pilot-report.md`;
+6. `pilot-private.json` nie jest tworzony bez jawnego `--include-private` w CLI.
+
+Pipeline Windows sprawdza ten tryb na świeżo zbudowanym EXE, po clean install oraz po upgrade z v4.0.0.
