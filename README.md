@@ -49,6 +49,38 @@ Po uruchomieniu możesz od razu użyć **Try safe demo**. Program wczyta przykł
 
 Przy normalnej pracy wybierasz plik, DocPilot go analizuje i pokazuje m.in. rozpoznany typ dokumentu, datę, kwotę, termin, kategorię oraz proponowaną nazwę. Dopiero po sprawdzeniu tych informacji decydujesz, co zrobić dalej.
 
+## LifePilot — „Co teraz?” + ProofPack (preview)
+
+DocPilot rozwija teraz eksperymentalną warstwę **LifePilot**:
+
+> **Wrzuć dokument. LifePilot powie Ci, co to jest, co trzeba zrobić, do kiedy i zachowa wszystko na później.**
+
+Po analizie dokumentu pojawia się karta **LifePilot · Co teraz?**, która:
+- wskazuje jedną rekomendowaną następną czynność;
+- nadaje priorytet na podstawie terminu;
+- przy niskiej pewności OCR najpierw kieruje dokument do ręcznej weryfikacji;
+- pozwala pobrać **ProofPack ZIP**;
+- pozwala pobrać pojedynczy termin jako plik `.ics`;
+- może otworzyć oddzielne **CzyToŚciema?** bez automatycznego przekazywania treści dokumentu.
+
+Osobny ekran **LifePilot · Co teraz?** porządkuje lokalne dokumenty w kolejności: przeterminowane → dziś → pilne → do sprawdzenia → wkrótce.
+
+### ProofPack v1
+
+ProofPack jest lokalnym ZIP-em zawierającym:
+- kopię oryginalnego dokumentu;
+- `manifest.json` z wybranymi metadanymi;
+- `next-action.json`;
+- `timeline.json` dla dokumentów z tej samej sprawy;
+- `SHA256SUMS.txt`;
+- krótkie `README.txt` z ograniczeniami.
+
+Manifest nie zawiera pełnego tekstu OCR ani lokalnej ścieżki pliku. SHA-256 służy do kontroli integralności, ale ProofPack **nie jest kwalifikowanym podpisem, pieczęcią ani zaufanym znacznikiem czasu**.
+
+Pełny opis produktu: po uruchomieniu DocPilot otwórz **O LifePilot** albo wejdź na `http://127.0.0.1:8765/lifepilot`. Dokumentacja koncepcji i granic znajduje się w [LIFEPILOT.md](LIFEPILOT.md).
+
+> Uwaga o wydaniu: publiczny instalator **DocPilot v4.0.0** pozostaje ostatnim stabilnym wydaniem Windows. Funkcje LifePilot są częścią kodu rozwijanego po v4.0.0 i powinny trafić do kolejnego publicznego builda dopiero po przejściu pełnego release pipeline.
+
 ## Co potrafi
 
 DocPilot czyta zwykłe PDF-y, obrazy i skany. Dla dokumentów obrazowych korzysta z OCR. W wydaniu Windows dołączony jest Tesseract z obsługą języka polskiego i angielskiego.
