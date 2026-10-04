@@ -96,6 +96,8 @@ W kodzie projektu działa już:
 - rozróżnienie stanów „Gotowa / Wymaga sprawdzenia / Niekompletna” oraz osobne raportowanie terminów i otwartych działań;
 - Decision Trail dla dokumentu i całej sprawy: historia korekt, zmian rekomendacji, oznaczeń „załatwione”, eksportów ProofPack/CasePack i kontroli gotowości;
 - eksport historii do Markdown bez pełnego OCR i lokalnych ścieżek plików;
+- funkcjonalny self-test gotowego EXE: analiza → korekta → Decision Trail → Case Readiness → CasePack → weryfikacja → „załatwione” → kolejka;
+- izolowany self-test w katalogu tymczasowym, bez używania danych użytkownika i bez zależności developerskich;
 - rozróżnienie między integralnością samego pakietu a zgodnością oryginału z hashem zapisanym wcześniej w indeksie;
 - bezpieczny podgląd i eksport podsumowania całej sprawy bez pełnego OCR i ścieżek lokalnych;
 - kontrola integralności SHA-256;
@@ -162,7 +164,7 @@ Operacje na dokumentach wymagają działającego lokalnego backendu.
 
 ## Status produktu
 
-LifePilot jest obecnie **preview/pilot (linia 4.7 preview)**, rozwijanym nad stabilnym DocPilot v4.0.0.
+LifePilot jest obecnie **preview/pilot (linia 4.8 preview)**, rozwijanym nad stabilnym DocPilot v4.0.0.
 
 Nie oznaczamy go jeszcze jako stabilnego publicznego wydania Windows. Przed takim oznaczeniem wymagane są:
 - pełne CI;
