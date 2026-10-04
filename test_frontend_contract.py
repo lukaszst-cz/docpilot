@@ -266,3 +266,6 @@ def test_lifepilot_ui_exposes_queue_product_page_and_safe_actions():
     assert "/proofpack" in script
     assert "/calendar" in script
     assert "LifePilot nie wysyła tam automatycznie treści dokumentu." in script
+    assert "Dlaczego LifePilot tak zaleca?" in script
+    assert "done_at" in script
+    assert "DANE SPRAWDZONE" in script

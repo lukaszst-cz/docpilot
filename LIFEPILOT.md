@@ -223,3 +223,24 @@ Powinien zobaczyć:
 5. jak zachować materiał.
 
 To jest główna miara produktu — nie liczba funkcji.
+
+## LifePilot Preview 4.2 — przejrzystość decyzji
+
+### Przejrzystość rekomendacji
+
+Każde `next_action` zwraca teraz:
+- źródło danych: `automatic` albo `manual`;
+- poziom pewności automatycznej ekstrakcji;
+- czas ręcznej weryfikacji, jeśli istnieje;
+- listę `decision_basis` wyjaśniającą podstawę zalecenia.
+
+Interfejs pokazuje te informacje pod rozwijanym „Dlaczego LifePilot tak zaleca?”.
+
+### Historia „załatwione”
+
+Nowe wpisy przechowują:
+- wersję formatu;
+- semantyczną sygnaturę stanu dokumentu;
+- czas oznaczenia jako załatwione.
+
+Sygnatura v2 reaguje na realne zmiany danych wpływających na decyzję, a nie na sam techniczny `updated_at`. Starsze wpisy zapisane jako pojedynczy hash pozostają zgodne wstecznie.

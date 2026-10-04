@@ -3,7 +3,7 @@ import hashlib
 import json
 import zipfile
 
-from docpilot.lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview
+from docpilot.lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, legacy_attention_signature, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview
 
 
 def _doc(**overrides):
@@ -38,6 +38,8 @@ def test_next_action_uses_existing_action_and_deadline():
     assert result["due_date"] == "2026-10-06"
     assert result["available_actions"]["proof_pack"] is True
     assert result["available_actions"]["calendar"] is True
+    assert result["verification"]["source"] == "automatic"
+    assert any("Pewność rozpoznania" in item for item in result["decision_basis"])
 
 
 def test_low_confidence_requires_review_before_action():
@@ -97,12 +99,45 @@ def test_lifepilot_queue_prioritizes_overdue_today_urgent_review_and_soon():
     assert all(item["id"] != 6 for item in queue)
 
 
-def test_attention_signature_changes_when_actionable_state_changes():
+def test_attention_signature_tracks_semantic_state_not_technical_timestamp():
     original = _doc(updated_at="2026-10-04T10:00:00Z")
-    same = _doc(updated_at="2026-10-04T10:00:00Z")
-    changed = _doc(updated_at="2026-10-04T10:01:00Z")
-    assert attention_signature(original) == attention_signature(same)
-    assert attention_signature(original) != attention_signature(changed)
+    technical_update = _doc(updated_at="2026-10-04T10:01:00Z")
+    changed_deadline = _doc(
+        updated_at="2026-10-04T10:01:00Z",
+        metadata={
+            "document_type": "invoice",
+            "issuer": "ACME",
+            "deadline": "2026-10-07",
+            "confidence": 0.95,
+            "amount": 199.99,
+            "currency": "PLN",
+        },
+    )
+    assert attention_signature(original) == attention_signature(technical_update)
+    assert attention_signature(original) != attention_signature(changed_deadline)
+    assert legacy_attention_signature(original) != legacy_attention_signature(technical_update)
+
+    verified_once = _doc(metadata={
+        "document_type": "invoice",
+        "issuer": "ACME",
+        "deadline": "2026-10-06",
+        "confidence": 0.95,
+        "amount": 199.99,
+        "currency": "PLN",
+        "manual_verified": True,
+        "manual_verified_at": "2026-10-04T10:00:00Z",
+    })
+    verified_again = _doc(metadata={
+        "document_type": "invoice",
+        "issuer": "ACME",
+        "deadline": "2026-10-06",
+        "confidence": 0.95,
+        "amount": 199.99,
+        "currency": "PLN",
+        "manual_verified": True,
+        "manual_verified_at": "2026-10-04T11:00:00Z",
+    })
+    assert attention_signature(verified_once) == attention_signature(verified_again)
 
 
 def test_proof_pack_preview_is_private_and_reports_expected_files(tmp_path):
@@ -133,6 +168,8 @@ def test_manual_verified_low_confidence_uses_verified_action():
     assert result["title"] == "Przygotuj odpowiedź"
     assert result["priority"] == "soon"
     assert "Pewność automatycznego rozpoznania jest niska" not in result["reason"]
+    assert result["verification"]["source"] == "manual"
+    assert "Dane sprawdzone ręcznie" in result["decision_basis"]
 
 
 def test_case_summary_is_ordered_private_and_contains_integrity():

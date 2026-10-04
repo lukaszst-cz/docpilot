@@ -83,6 +83,9 @@ W kodzie projektu działa już:
 - podgląd zawartości ProofPack przed pobraniem;
 - ręczna korekta typu, wystawcy, kwoty, waluty, daty dokumentu, terminu i gwarancji;
 - ponowne przeliczenie „Co teraz?” po zatwierdzeniu sprawdzonych danych;
+- jawne źródło rekomendacji: automatyczny odczyt albo dane sprawdzone ręcznie;
+- rozwijane „Dlaczego LifePilot tak zaleca?” z podstawą decyzji;
+- czas oznaczenia pozycji jako załatwionej oraz zgodność ze starszym formatem historii;
 - bezpieczny podgląd i eksport podsumowania całej sprawy bez pełnego OCR i ścieżek lokalnych;
 - kontrola integralności SHA-256;
 - chronologia sprawy w ProofPack;
@@ -148,7 +151,7 @@ Operacje na dokumentach wymagają działającego lokalnego backendu.
 
 ## Status produktu
 
-LifePilot jest obecnie **preview/pilot (linia 4.1 preview)**, rozwijanym nad stabilnym DocPilot v4.0.0.
+LifePilot jest obecnie **preview/pilot (linia 4.2 preview)**, rozwijanym nad stabilnym DocPilot v4.0.0.
 
 Nie oznaczamy go jeszcze jako stabilnego publicznego wydania Windows. Przed takim oznaczeniem wymagane są:
 - pełne CI;
