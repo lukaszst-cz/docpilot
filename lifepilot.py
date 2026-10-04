@@ -670,7 +670,7 @@ def case_readiness(
                     "detail": next_action.get("reason") or "Dokument ma przeterminowany termin.",
                 }
             )
-        elif next_action.get("priority") in {"today", "urgent", "soon"}:
+        elif not is_handled and next_action.get("priority") in {"today", "urgent", "soon"}:
             counts["due_soon"] += 1
 
     if counts["missing_originals"]:
