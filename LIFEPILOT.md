@@ -273,3 +273,22 @@ Weryfikator:
 - osobno raportuje zgodność z hashem zapisanym wcześniej w indeksie.
 
 **Ważne:** poprawna integralność ProofPack oznacza, że pakiet jest wewnętrznie spójny. Nie oznacza kwalifikowanego podpisu ani zaufanego znacznika czasu.
+
+## LifePilot Preview 4.5 — CasePack
+
+CasePack rozszerza ProofPack z pojedynczego dokumentu na **całą sprawę**.
+
+Pakiet zawiera:
+- wszystkie dostępne lokalnie oryginały należące do sprawy;
+- osobny manifest dla każdego dokumentu;
+- `case-manifest.json` opisujący zakres pakietu;
+- uporządkowaną chronologię `timeline.json`;
+- bezpieczne podsumowanie `case-summary.md` bez pełnego OCR i lokalnych ścieżek;
+- `SHA256SUMS.txt` dla elementów pakietu;
+- README z ograniczeniami.
+
+Jeżeli oryginału brakuje na dysku, CasePack **nie ukrywa tego faktu**. Dokument pozostaje w manifeście jako brakujący, a podgląd pokazuje liczbę brakujących oryginałów przed pobraniem.
+
+Ten sam lokalny ekran weryfikacji rozpoznaje teraz automatycznie ProofPack albo CasePack. Dla CasePack raportuje m.in. liczbę zweryfikowanych dokumentów, zgodność z wcześniejszym SHA-256 indeksu oraz brakujące oryginały.
+
+CasePack jest narzędziem porządkującym i integralnościowym. Nie jest kwalifikowanym podpisem elektronicznym, pieczęcią ani zaufanym znacznikiem czasu.
