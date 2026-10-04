@@ -55,6 +55,7 @@ from .db import (
     start_integration_run,
     finish_integration_run,
     update_document_fields,
+    update_document_metadata,
     update_documents_fields,
     update_rule,
     upsert_document,
@@ -71,9 +72,9 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
-from .lifepilot import attention_signature, build_lifepilot_view, build_proof_pack, lifepilot_queue, proof_pack_preview
+from .lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, lifepilot_queue, proof_pack_preview
 from .notifier import install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
-from .models import ApplyRequest
+from .models import ApplyRequest, LifePilotCorrectionRequest
 from .redaction import redact_file
 from .rules import apply_rules
 from .storage import apply_change, get_change, list_changes, safe_name, undo_change, unique_destination
@@ -680,12 +681,90 @@ def lifepilot_action_queue(limit: int = 200, include_done: bool = False):
     return lifepilot_queue(active, limit=limit)
 
 
+@app.get("/api/lifepilot/case-summary")
+def lifepilot_case_summary(case_name: str):
+    name = str(case_name or "").strip()
+    if not name:
+        raise HTTPException(400, "case_name is required")
+    documents = list_case_documents(settings, limit=5000)
+    summary = build_case_summary(name, documents)
+    if not summary["document_count"]:
+        raise HTTPException(404, "Case not found")
+    return summary
+
+
+@app.get("/api/lifepilot/case-summary/export")
+def lifepilot_case_summary_export(case_name: str):
+    name = str(case_name or "").strip()
+    if not name:
+        raise HTTPException(400, "case_name is required")
+    documents = list_case_documents(settings, limit=5000)
+    summary = build_case_summary(name, documents)
+    if not summary["document_count"]:
+        raise HTTPException(404, "Case not found")
+    content = case_summary_markdown(summary)
+    filename = f"LifePilot-Case-{safe_name(name)}.md"
+    audit(settings, "lifepilot-case-summary-exported", {"case_name": name, "documents": summary["document_count"]})
+    return PlainTextResponse(
+        content,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.get("/api/lifepilot/{doc_id}")
 def lifepilot_view(doc_id: int):
     document = get_document(settings, doc_id)
     if not document:
         raise HTTPException(404, "Document not found")
     return build_lifepilot_view(document)
+
+
+@app.patch("/api/lifepilot/{doc_id}/fields")
+def lifepilot_correct_fields(doc_id: int, request: LifePilotCorrectionRequest):
+    before = get_document(settings, doc_id)
+    if not before:
+        raise HTTPException(404, "Document not found")
+
+    payload = request.model_dump(exclude_unset=True)
+    metadata_keys = {"document_type", "issuer", "amount", "currency", "document_date", "deadline", "warranty_until"}
+    metadata_updates = {key: payload[key] for key in metadata_keys if key in payload}
+    top_updates = {key: payload[key] for key in ("case_name", "action_required") if key in payload}
+
+    if "document_type" in metadata_updates:
+        value = str(metadata_updates["document_type"] or "").strip()
+        metadata_updates["document_type"] = value or "document"
+    if "issuer" in metadata_updates:
+        value = metadata_updates["issuer"]
+        metadata_updates["issuer"] = str(value).strip() if value is not None else None
+    if "currency" in metadata_updates:
+        value = metadata_updates["currency"]
+        normalized = str(value or "").strip().upper()
+        if normalized and (len(normalized) != 3 or not normalized.isalpha()):
+            raise HTTPException(400, "Currency must be a 3-letter code, for example PLN or EUR")
+        metadata_updates["currency"] = normalized or None
+
+    if metadata_updates:
+        metadata_updates["manual_verified"] = True
+        metadata_updates["manual_verified_at"] = datetime.now(timezone.utc).isoformat()
+        update_document_metadata(settings, doc_id, **metadata_updates)
+    if top_updates:
+        update_document_fields(settings, doc_id, **top_updates)
+
+    after = get_document(settings, doc_id)
+    audit(
+        settings,
+        "lifepilot-fields-corrected",
+        {
+            "document_id": doc_id,
+            "fields": sorted(payload.keys()),
+            "case_before": before.get("case_name"),
+            "case_after": after.get("case_name") if after else None,
+        },
+    )
+    if not after:
+        raise HTTPException(404, "Document not found")
+    return {**after, "lifepilot": build_lifepilot_view(after)}
 
 
 @app.get("/api/lifepilot/{doc_id}/proofpack-preview")
