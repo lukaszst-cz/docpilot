@@ -101,6 +101,33 @@ jobs:
           $p = Start-Process -FilePath 'dist\DocPilot\DocPilot.exe' -ArgumentList '--self-test' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Packaged DocPilot self-test failed with exit code $($p.ExitCode)." }
 
+      - name: Smoke-test packaged LifePilot Pilot
+        shell: pwsh
+        run: |
+          $pilotSource = Join-Path $env:RUNNER_TEMP 'lifepilot-pilot-source-packaged'
+          $pilotOutput = Join-Path $env:RUNNER_TEMP 'lifepilot-pilot-output-packaged'
+          New-Item -ItemType Directory -Force -Path $pilotSource | Out-Null
+          Remove-Item -Path $pilotOutput -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item 'sample_invoice.txt' (Join-Path $pilotSource 'private-sample-name.txt')
+
+          $pilotArgs = @('--pilot', ('"' + $pilotSource + '"'), '--output', ('"' + $pilotOutput + '"'))
+          $pilot = Start-Process -FilePath 'dist\DocPilot\DocPilot.exe' -ArgumentList $pilotArgs -Wait -PassThru
+          if ($pilot.ExitCode -ne 0) { throw "Packaged LifePilot Pilot failed with exit code $($pilot.ExitCode)." }
+
+          $public = Join-Path $pilotOutput 'pilot-public.json'
+          $markdown = Join-Path $pilotOutput 'pilot-report.md'
+          $private = Join-Path $pilotOutput 'pilot-private.json'
+          if (!(Test-Path $public)) { throw 'LifePilot Pilot did not create pilot-public.json.' }
+          if (!(Test-Path $markdown)) { throw 'LifePilot Pilot did not create pilot-report.md.' }
+          if (Test-Path $private) { throw 'LifePilot Pilot created a private report without explicit opt-in.' }
+
+          $payload = Get-Content $public -Raw | ConvertFrom-Json
+          if ($payload.processed -ne 1 -or $payload.failed -ne 0) { throw 'LifePilot Pilot returned an unexpected processed/failed count.' }
+          $publicText = Get-Content $public -Raw
+          if ($publicText -match 'private-sample-name' -or $publicText -match [regex]::Escape($pilotSource)) {
+            throw 'LifePilot Pilot public report exposed a filename or local source path.'
+          }
+
       - name: Create portable ZIP
         shell: pwsh
         run: |
@@ -129,9 +156,22 @@ jobs:
           $startMenuRoot = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
           $shortcut = Get-ChildItem -Path $startMenuRoot -Filter 'DocPilot.lnk' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if (!$shortcut) { throw 'Clean install did not create the Start menu shortcut.' }
+          $pilotShortcut = Get-ChildItem -Path $startMenuRoot -Filter 'LifePilot Pilot.lnk' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (!$pilotShortcut) { throw 'Clean install did not create the LifePilot Pilot Start menu shortcut.' }
 
           $selfTest = Start-Process -FilePath $installedExe -ArgumentList '--self-test' -Wait -PassThru
           if ($selfTest.ExitCode -ne 0) { throw "Clean-installed DocPilot self-test failed with exit code $($selfTest.ExitCode)." }
+
+          $pilotSource = Join-Path $env:RUNNER_TEMP 'lifepilot-pilot-source-installed'
+          $pilotOutput = Join-Path $env:RUNNER_TEMP 'lifepilot-pilot-output-installed'
+          New-Item -ItemType Directory -Force -Path $pilotSource | Out-Null
+          Remove-Item -Path $pilotOutput -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item 'sample_invoice.txt' (Join-Path $pilotSource 'installed-private-name.txt')
+          $pilotArgs = @('--pilot', ('"' + $pilotSource + '"'), '--output', ('"' + $pilotOutput + '"'))
+          $pilotRun = Start-Process -FilePath $installedExe -ArgumentList $pilotArgs -Wait -PassThru
+          if ($pilotRun.ExitCode -ne 0) { throw "Clean-installed LifePilot Pilot failed with exit code $($pilotRun.ExitCode)." }
+          if (!(Test-Path (Join-Path $pilotOutput 'pilot-public.json'))) { throw 'Clean-installed LifePilot Pilot did not create the public report.' }
+          if (Test-Path (Join-Path $pilotOutput 'pilot-private.json')) { throw 'Clean-installed LifePilot Pilot created a private report without opt-in.' }
 
           $dataRoot = Join-Path $env:LOCALAPPDATA 'DocPilot\Data'
           New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
@@ -181,6 +221,21 @@ jobs:
           if (!(Test-Path $installedExe)) { throw 'Upgraded DocPilot.exe was not installed.' }
           $selfTest = Start-Process -FilePath $installedExe -ArgumentList '--self-test' -Wait -PassThru
           if ($selfTest.ExitCode -ne 0) { throw "Upgraded DocPilot self-test failed with exit code $($selfTest.ExitCode)." }
+
+          $startMenuRoot = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+          $pilotShortcut = Get-ChildItem -Path $startMenuRoot -Filter 'LifePilot Pilot.lnk' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (!$pilotShortcut) { throw 'Upgrade did not create the LifePilot Pilot Start menu shortcut.' }
+
+          $pilotSource = Join-Path $env:RUNNER_TEMP 'lifepilot-pilot-source-upgraded'
+          $pilotOutput = Join-Path $env:RUNNER_TEMP 'lifepilot-pilot-output-upgraded'
+          New-Item -ItemType Directory -Force -Path $pilotSource | Out-Null
+          Remove-Item -Path $pilotOutput -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item 'sample_invoice.txt' (Join-Path $pilotSource 'upgraded-private-name.txt')
+          $pilotArgs = @('--pilot', ('"' + $pilotSource + '"'), '--output', ('"' + $pilotOutput + '"'))
+          $pilotRun = Start-Process -FilePath $installedExe -ArgumentList $pilotArgs -Wait -PassThru
+          if ($pilotRun.ExitCode -ne 0) { throw "Upgraded LifePilot Pilot failed with exit code $($pilotRun.ExitCode)." }
+          if (!(Test-Path (Join-Path $pilotOutput 'pilot-public.json'))) { throw 'Upgraded LifePilot Pilot did not create the public report.' }
+          if (Test-Path (Join-Path $pilotOutput 'pilot-private.json')) { throw 'Upgraded LifePilot Pilot created a private report without opt-in.' }
 
       - name: Generate checksums
         shell: pwsh
