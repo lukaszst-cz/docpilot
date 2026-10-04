@@ -11,7 +11,8 @@ from pathlib import Path
 def ics_for_documents(documents: list[dict]) -> str:
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//DocPilot//EN", "CALSCALE:GREGORIAN"]
     for doc in documents:
-        deadline = (doc.get("metadata") or {}).get("deadline")
+        metadata = doc.get("metadata") or {}
+        deadline = metadata.get("deadline") or metadata.get("warranty_until")
         if not deadline:
             continue
         uid = f"docpilot-{doc.get('id')}@local"
