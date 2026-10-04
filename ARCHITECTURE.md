@@ -19,6 +19,7 @@ Do tej warstwy należą m.in.:
 - `qa.py`;
 - `portable_config.py`;
 - `exporters.py`;
+- `lifepilot.py`;
 - `update_safety.py`.
 
 ### 2. Integracje
