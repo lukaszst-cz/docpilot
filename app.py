@@ -12,7 +12,7 @@ import tempfile
 import threading
 import time
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path
@@ -865,6 +865,19 @@ def apply(request: ApplyRequest):
                 action_required=request.action_required or indexed.get("action_required"),
                 profile=request.profile,
             )
+        if request.metadata_overrides:
+            allowed_override_keys = {
+                "document_type", "issuer", "amount", "currency",
+                "document_date", "deadline", "warranty_until",
+            }
+            overrides = {
+                key: value for key, value in request.metadata_overrides.items()
+                if key in allowed_override_keys
+            }
+            if overrides:
+                overrides["manual_verified"] = True
+                overrides["manual_verified_at"] = datetime.now(timezone.utc).isoformat()
+                update_document_metadata(settings, indexed["id"], **overrides)
         audit(settings, change.action, change.model_dump(mode="json"))
         result = change.model_dump(mode="json")
         result["document_id"] = indexed["id"]
