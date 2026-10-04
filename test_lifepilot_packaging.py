@@ -16,7 +16,7 @@ def test_lifepilot_product_page_states_preview_and_limits():
     assert "ProofPack to nie kwalifikowany podpis" in page
     assert "DocPilot v4.0.0" in page
     assert "Co teraz?" in page
-    assert "LifePilot Preview 4.8" in page
+    assert "LifePilot Preview 4.9" in page
     assert "CasePack" in page
     assert "Case Readiness" in page
     assert "Decision Trail" in page
