@@ -71,7 +71,7 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
-from .lifepilot import build_lifepilot_view, build_proof_pack
+from .lifepilot import build_lifepilot_view, build_proof_pack, lifepilot_queue
 from .notifier import install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest
 from .redaction import redact_file
@@ -650,6 +650,12 @@ def analyze(upload: UploadFile = File(...)):
     data["source_mode"] = "copy"
     audit(settings, "imported-copy", {"path": str(destination), "id": data["id"]})
     return data
+
+
+@app.get("/api/lifepilot/queue")
+def lifepilot_action_queue(limit: int = 200):
+    documents = list_documents(settings, limit=min(max(int(limit), 1), 5000))
+    return lifepilot_queue(documents, limit=limit)
 
 
 @app.get("/api/lifepilot/{doc_id}")
