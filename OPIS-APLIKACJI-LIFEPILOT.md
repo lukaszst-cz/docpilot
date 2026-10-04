@@ -99,6 +99,7 @@ W kodzie projektu działa już:
 - funkcjonalny self-test gotowego EXE: analiza → korekta → Decision Trail → Case Readiness → CasePack → weryfikacja → „załatwione” → kolejka;
 - izolowany self-test w katalogu tymczasowym, bez używania danych użytkownika i bez zależności developerskich;
 - lokalny Pilot Runner (`docpilot-pilot`) do kontrolowanego pilota na prywatnym folderze dokumentów;
+- skrót **LifePilot Pilot** w menu Start: wybór folderu oknem i uruchomienie public-safe pilota bez terminala;
 - public-safe raport pilota domyślnie bez nazw plików, ścieżek, pełnego OCR, wartości issuerów, kwot i SHA-256;
 - dokładny raport prywatny wyłącznie po jawnym `--include-private`;
 - packaged self-test ProofPack oraz scenariusza brakującego oryginału;
