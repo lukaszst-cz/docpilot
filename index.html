@@ -18,6 +18,7 @@
       <div class="brand"><div class="brandIcon">DP</div><div><strong>DocPilot</strong><small>Local-first</small></div></div>
       <nav id="nav" aria-label="Primary">
         <button data-view="dashboard" class="navBtn active" aria-current="page">Dashboard</button>
+        <button data-view="lifepilot" class="navBtn">LifePilot · Co teraz?</button>
         <button data-view="inbox" class="navBtn">Smart Inbox</button>
         <button data-view="review" class="navBtn">Review Queue</button>
         <button data-view="documents" class="navBtn">Documents</button>
@@ -84,6 +85,22 @@
           <section class="card"><div class="cardHead"><h2>Action Required</h2></div><div id="dashboardActions"></div></section>
         </div>
         <section class="card"><div class="cardHead"><h2>System status</h2></div><div class="featureGrid" id="featureGrid"></div></section>
+      </section>
+
+      <section id="view-lifepilot" class="view">
+        <section class="card lifeQueueIntro">
+          <div class="cardHead">
+            <div>
+              <span class="badge">LIFEPILOT</span>
+              <h2>Co teraz?</h2>
+              <p class="muted">Jedna kolejka zamiast przeglądania całego archiwum: przeterminowane → dziś → pilne → do sprawdzenia → wkrótce.</p>
+            </div>
+            <div class="inline"><a class="buttonLink secondary" href="/lifepilot" target="_blank" rel="noopener">O LifePilot</a><button id="refreshLifePilotBtn" class="secondary">Odśwież</button></div>
+          </div>
+        </section>
+        <section class="card">
+          <div id="lifepilotQueue"><p class="muted">Ładowanie kolejki…</p></div>
+        </section>
       </section>
 
       <section id="view-inbox" class="view">
