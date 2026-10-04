@@ -76,3 +76,10 @@ input[type=checkbox]{width:auto;margin:0}
 .proofPackPreview li{margin:4px 0;color:#c3ceda}
 .proofPreviewHead{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 @media(max-width:620px){.lifeQueueFilters button{flex:1 1 calc(50% - 8px)}.proofPreviewHead{align-items:flex-start}}
+
+.lifeCorrectionIntro{margin:18px 0 8px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+.lifeCorrectionIntro p{margin:5px 0 0}
+.lifeVerifyActions{margin-top:10px}
+.caseSummaryPreview{margin-top:10px}
+.caseSummaryRow{padding:10px 0;border-top:1px solid var(--line)}
+.caseSummaryRow:first-child{border-top:0}
