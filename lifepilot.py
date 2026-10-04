@@ -120,6 +120,300 @@ def next_action_for_document(document: dict[str, Any], *, today: date | None = N
     }
 
 
+_DECISION_FIELDS = {
+    "document_type": "Typ dokumentu",
+    "issuer": "Wystawca",
+    "amount": "Kwota",
+    "currency": "Waluta",
+    "document_date": "Data dokumentu",
+    "deadline": "Termin",
+    "warranty_until": "Gwarancja do",
+    "case_name": "Sprawa",
+    "action_required": "Akcja",
+    "category": "Kategoria",
+    "profile": "Profil",
+}
+
+
+def decision_field_snapshot(document: dict[str, Any]) -> dict[str, Any]:
+    metadata = document.get("metadata") or {}
+    return {
+        "document_type": metadata.get("document_type"),
+        "issuer": metadata.get("issuer"),
+        "amount": metadata.get("amount"),
+        "currency": metadata.get("currency"),
+        "document_date": metadata.get("document_date"),
+        "deadline": metadata.get("deadline"),
+        "warranty_until": metadata.get("warranty_until"),
+        "case_name": document.get("case_name"),
+        "action_required": document.get("action_required"),
+        "category": document.get("category"),
+        "profile": document.get("profile"),
+    }
+
+
+def decision_field_changes(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    fields: list[str] | set[str] | tuple[str, ...] | None = None,
+) -> list[dict[str, Any]]:
+    before_fields = decision_field_snapshot(before)
+    after_fields = decision_field_snapshot(after)
+    selected = set(fields or _DECISION_FIELDS)
+    changes: list[dict[str, Any]] = []
+    for key in _DECISION_FIELDS:
+        if key not in selected:
+            continue
+        old = before_fields.get(key)
+        new = after_fields.get(key)
+        if old == new:
+            continue
+        changes.append(
+            {
+                "field": key,
+                "label": _DECISION_FIELDS[key],
+                "before": old,
+                "after": new,
+            }
+        )
+    return changes
+
+
+def decision_summary(document: dict[str, Any], *, today: date | None = None) -> dict[str, Any]:
+    next_action = next_action_for_document(document, today=today)
+    verification = next_action.get("verification") or {}
+    return {
+        "title": next_action.get("title"),
+        "priority": next_action.get("priority"),
+        "due_date": next_action.get("due_date"),
+        "action_code": next_action.get("action_code"),
+        "verification_source": verification.get("source"),
+    }
+
+
+_HISTORY_EVENT_LABELS = {
+    "analyzed": "Dokument przeanalizowano",
+    "imported-copy": "Zaimportowano kopię dokumentu",
+    "lifepilot-fields-corrected": "Zmieniono dane wpływające na decyzję",
+    "document-update": "Zmieniono dane dokumentu",
+    "documents-batch-update": "Zmieniono dane zbiorczo",
+    "lifepilot-mark-done": "Oznaczono jako załatwione",
+    "lifepilot-reopen": "Przywrócono do aktywnych",
+    "lifepilot-proofpack-exported": "Utworzono ProofPack",
+    "lifepilot-case-summary-exported": "Wyeksportowano podsumowanie sprawy",
+    "lifepilot-case-readiness-checked": "Sprawdzono gotowość sprawy",
+    "lifepilot-casepack-exported": "Utworzono CasePack",
+    "lifepilot-document-history-exported": "Wyeksportowano historię dokumentu",
+    "lifepilot-case-history-exported": "Wyeksportowano historię sprawy",
+}
+
+
+def _history_safe_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    safe: dict[str, Any] = {}
+    for key in ("fields", "changes", "decision_before", "decision_after", "done_at", "status", "documents", "issues", "available_originals", "missing_originals", "events"):
+        if key in payload:
+            safe[key] = payload.get(key)
+    for key in ("case_name", "case_before", "case_after"):
+        if key in payload:
+            safe[key] = payload.get(key)
+
+    direct_updates = {
+        key: payload.get(key)
+        for key in ("category", "profile", "case_name", "action_required")
+        if key in payload
+    }
+    raw_fields = payload.get("fields")
+    if isinstance(raw_fields, dict):
+        direct_updates.update(
+            {
+                key: raw_fields.get(key)
+                for key in ("category", "profile", "case_name", "action_required")
+                if key in raw_fields
+            }
+        )
+    if direct_updates:
+        safe["updates"] = direct_updates
+    return safe
+
+
+def _audit_document_match(payload: dict[str, Any], document_id: int) -> bool:
+    for key in ("document_id", "id"):
+        try:
+            if int(payload.get(key)) == document_id:
+                return True
+        except (TypeError, ValueError):
+            pass
+    ids = payload.get("ids")
+    if isinstance(ids, list):
+        for value in ids:
+            try:
+                if int(value) == document_id:
+                    return True
+            except (TypeError, ValueError):
+                continue
+    return False
+
+
+def _audit_case_match(
+    payload: dict[str, Any],
+    case_name: str,
+    current_document_ids: set[int],
+) -> bool:
+    name = case_name.strip()
+    if any(str(payload.get(key) or "").strip() == name for key in ("case_name", "case_before", "case_after")):
+        return True
+    return any(_audit_document_match(payload, doc_id) for doc_id in current_document_ids)
+
+
+def _history_event(entry: dict[str, Any]) -> dict[str, Any] | None:
+    event = str(entry.get("event") or "")
+    label = _HISTORY_EVENT_LABELS.get(event)
+    if not label:
+        return None
+    payload = entry.get("payload") if isinstance(entry.get("payload"), dict) else {}
+    return {
+        "id": entry.get("id"),
+        "created_at": entry.get("created_at"),
+        "event": event,
+        "label": label,
+        "details": _history_safe_fields(payload),
+    }
+
+
+def decision_trail_for_document(
+    document: dict[str, Any],
+    audit_entries: list[dict[str, Any]],
+    *,
+    limit: int = 100,
+) -> dict[str, Any]:
+    document_id = int(document.get("id") or 0)
+    events: list[dict[str, Any]] = []
+    for entry in audit_entries:
+        payload = entry.get("payload") if isinstance(entry.get("payload"), dict) else {}
+        if not _audit_document_match(payload, document_id):
+            continue
+        rendered = _history_event(entry)
+        if rendered:
+            events.append(rendered)
+        if len(events) >= limit:
+            break
+    return {
+        "format": "lifepilot-decision-trail",
+        "version": 1,
+        "scope": "document",
+        "document_id": document_id,
+        "source_name": document.get("source_name"),
+        "case_name": document.get("case_name"),
+        "current_decision": decision_summary(document),
+        "events": events,
+        "privacy": {
+            "includes_extracted_text": False,
+            "includes_local_paths": False,
+        },
+    }
+
+
+def decision_trail_for_case(
+    case_name: str,
+    documents: list[dict[str, Any]],
+    audit_entries: list[dict[str, Any]],
+    *,
+    limit: int = 250,
+) -> dict[str, Any]:
+    selected = _case_documents(case_name, documents)
+    ids = {int(doc.get("id") or 0) for doc in selected if doc.get("id") is not None}
+    events: list[dict[str, Any]] = []
+    for entry in audit_entries:
+        payload = entry.get("payload") if isinstance(entry.get("payload"), dict) else {}
+        if not _audit_case_match(payload, case_name, ids):
+            continue
+        rendered = _history_event(entry)
+        if rendered:
+            events.append(rendered)
+        if len(events) >= limit:
+            break
+    return {
+        "format": "lifepilot-decision-trail",
+        "version": 1,
+        "scope": "case",
+        "case_name": case_name.strip(),
+        "document_count": len(selected),
+        "document_ids": sorted(ids),
+        "events": events,
+        "privacy": {
+            "includes_extracted_text": False,
+            "includes_local_paths": False,
+        },
+    }
+
+
+def decision_trail_markdown(trail: dict[str, Any]) -> str:
+    title = (
+        f"LifePilot — historia dokumentu: {trail.get('source_name') or trail.get('document_id')}"
+        if trail.get("scope") == "document"
+        else f"LifePilot — historia sprawy: {trail.get('case_name') or 'Sprawa'}"
+    )
+    lines = [f"# {title}", "", "Historia jest tworzona z lokalnego audytu DocPilot/LifePilot.", ""]
+    current = trail.get("current_decision")
+    if isinstance(current, dict):
+        lines += [
+            "## Aktualna rekomendacja",
+            "",
+            f"- Co teraz: {current.get('title') or '—'}",
+            f"- Priorytet: {current.get('priority') or '—'}",
+            f"- Termin: {current.get('due_date') or '—'}",
+            "",
+        ]
+    lines += ["## Zdarzenia", ""]
+    events = trail.get("events") or []
+    if not events:
+        lines.append("- Brak zapisanych zdarzeń w obsługiwanym zakresie audytu.")
+    for event in events:
+        lines.append(f"### {event.get('created_at') or 'brak daty'} — {event.get('label') or event.get('event')}")
+        details = event.get("details") if isinstance(event.get("details"), dict) else {}
+        changes = details.get("changes")
+        if isinstance(changes, list):
+            for change in changes:
+                if not isinstance(change, dict):
+                    continue
+                lines.append(
+                    f"- {change.get('label') or change.get('field')}: "
+                    f"{change.get('before') if change.get('before') not in (None, '') else '—'} → "
+                    f"{change.get('after') if change.get('after') not in (None, '') else '—'}"
+                )
+        before = details.get("decision_before")
+        after = details.get("decision_after")
+        if isinstance(before, dict) and isinstance(after, dict) and before != after:
+            lines.append(
+                f"- Rekomendacja: {before.get('title') or '—'} / {before.get('priority') or '—'} "
+                f"→ {after.get('title') or '—'} / {after.get('priority') or '—'}"
+            )
+        if details.get("status"):
+            lines.append(f"- Status: {details.get('status')}")
+        if details.get("done_at"):
+            lines.append(f"- Załatwione: {details.get('done_at')}")
+        updates = details.get("updates")
+        if isinstance(updates, dict) and updates:
+            rendered_updates = ", ".join(
+                f"{_DECISION_FIELDS.get(key, key)}: {value if value not in (None, '') else '—'}"
+                for key, value in updates.items()
+            )
+            lines.append(f"- Aktualizacja: {rendered_updates}")
+        if not changes and not before and not details.get("status") and not details.get("done_at") and not updates:
+            fields = details.get("fields")
+            if isinstance(fields, list) and fields:
+                lines.append("- Zmienione pola: " + ", ".join(str(item) for item in fields))
+        lines.append("")
+    lines += [
+        "## Prywatność",
+        "",
+        "- Historia nie zawiera pełnego tekstu OCR.",
+        "- Historia nie zawiera lokalnych ścieżek plików.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def proof_pack_manifest(document: dict[str, Any], *, computed_digest: str | None = None) -> dict[str, Any]:
     metadata = document.get("metadata") or {}
     indexed_digest = document.get("sha256")

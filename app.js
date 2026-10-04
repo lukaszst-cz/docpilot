@@ -14,6 +14,35 @@ const titles = {
 function esc(v=''){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function fmtDate(v){if(!v)return '—'; try{return new Date(v+'T00:00:00').toLocaleDateString();}catch{return v}}
 function fmtDateTime(v){if(!v)return '—';try{return new Date(v).toLocaleString()}catch{return v}}
+function renderDecisionTrailHtml(trail){
+  const events=trail?.events||[];
+  const current=trail?.current_decision||null;
+  const currentHtml=current
+    ? '<div class="decisionTrailCurrent"><strong>Aktualna rekomendacja</strong><div class="meta"><span>'+esc(current.title||'—')+'</span><span>'+esc(current.priority||'normal')+'</span>'+(current.due_date?'<span>Termin: '+fmtDate(current.due_date)+'</span>':'')+'</div></div>'
+    : '';
+  const rows=events.map(event=>{
+    const details=event.details||{};
+    const changes=Array.isArray(details.changes)?details.changes:[];
+    const changesHtml=changes.length
+      ? '<ul>'+changes.map(change=>'<li><strong>'+esc(change.label||change.field||'Pole')+'</strong>: '+esc(change.before??'—')+' → '+esc(change.after??'—')+'</li>').join('')+'</ul>'
+      : '';
+    const before=details.decision_before||null, after=details.decision_after||null;
+    const decisionHtml=before&&after&&JSON.stringify(before)!==JSON.stringify(after)
+      ? '<div class="meta"><span>Rekomendacja: '+esc(before.title||'—')+' / '+esc(before.priority||'—')+' → '+esc(after.title||'—')+' / '+esc(after.priority||'—')+'</span></div>'
+      : '';
+    const statusHtml=details.status?'<div class="meta"><span>Status: '+esc(details.status)+'</span></div>':'';
+    const updates=details.updates&&typeof details.updates==='object'?details.updates:{};
+    const updatePairs=Object.entries(updates);
+    const updatesHtml=updatePairs.length
+      ? '<div class="meta"><span>Aktualizacja: '+updatePairs.map(([key,value])=>esc(key)+': '+esc(value??'—')).join(' · ')+'</span></div>'
+      : '';
+    const fieldsHtml=!changes.length&&!updatePairs.length&&Array.isArray(details.fields)&&details.fields.length
+      ? '<div class="meta"><span>Zmienione pola: '+esc(details.fields.join(', '))+'</span></div>'
+      : '';
+    return '<div class="decisionTrailRow"><strong>'+fmtDateTime(event.created_at)+' — '+esc(event.label||event.event||'Zdarzenie')+'</strong>'+changesHtml+decisionHtml+statusHtml+updatesHtml+fieldsHtml+'</div>';
+  }).join('');
+  return currentHtml+(rows||'<p class="muted">Brak zapisanych zdarzeń w obsługiwanym zakresie audytu.</p>')+'<p class="muted">Historia nie zawiera pełnego OCR ani lokalnych ścieżek plików.</p>';
+}
 function money(md){return md?.amount==null?'—':`${md.amount} ${md.currency||''}`.trim()}
 
 function friendlyApiMessage(status, detail=''){
@@ -418,7 +447,7 @@ function showAnalysis(d){
     ? `<div class="meta"><span>Dane sprawdzone ręcznie${verification.verified_at?` · ${fmtDateTime(verification.verified_at)}`:''}</span></div>`
     : `<div class="meta"><span>Automatyczny odczyt · ${Math.round(Number(verification.confidence||0)*100)}% pewności</span></div>`;
   const decision=(next.decision_basis||[]).length?`<details class="lifeDecision"><summary>Dlaczego LifePilot tak zaleca?</summary><ul>${next.decision_basis.map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul></details>`:'';
-  const lifeCard=next.title?`<div class="lifePilotCard"><div class="listItemHead"><div><span class="badge">LIFEPILOT · CO TERAZ?</span><h3>${esc(next.title)}</h3></div><span class="badge ${lpBadge}">${esc(next.priority||'normal')}</span></div><p>${esc(next.reason||'')}</p>${verificationLine}${next.due_date?`<div class="meta"><span>Termin: ${fmtDate(next.due_date)}</span></div>`:''}${(next.steps||[]).length?`<div class="meta"><span>${esc(next.steps.join(' · '))}</span></div>`:''}${decision}<div class="lifePilotActions"><a class="buttonLink" href="/api/lifepilot/${d.id}/proofpack">Pobierz ProofPack ZIP</a>${next.due_date?`<a class="buttonLink secondary" href="/api/lifepilot/${d.id}/calendar">Dodaj termin (.ics)</a>`:''}<button class="secondary" id="lifeOpenSource">Otwórz dokument</button><a class="buttonLink secondary" href="https://lukaszst-cz.github.io/czy-to-sciema/" target="_blank" rel="noopener">Sprawdź jako ściemę ↗</a><a class="buttonLink secondary" href="/lifepilot" target="_blank" rel="noopener">O LifePilot</a></div><p class="muted lifePilotPrivacy">CzyToŚciema? otwiera się osobno. LifePilot nie wysyła tam automatycznie treści dokumentu.</p></div>`:'' ;
+  const lifeCard=next.title?`<div class="lifePilotCard"><div class="listItemHead"><div><span class="badge">LIFEPILOT · CO TERAZ?</span><h3>${esc(next.title)}</h3></div><span class="badge ${lpBadge}">${esc(next.priority||'normal')}</span></div><p>${esc(next.reason||'')}</p>${verificationLine}${next.due_date?`<div class="meta"><span>Termin: ${fmtDate(next.due_date)}</span></div>`:''}${(next.steps||[]).length?`<div class="meta"><span>${esc(next.steps.join(' · '))}</span></div>`:''}${decision}<div class="lifePilotActions"><a class="buttonLink" href="/api/lifepilot/${d.id}/proofpack">Pobierz ProofPack ZIP</a>${next.due_date?`<a class="buttonLink secondary" href="/api/lifepilot/${d.id}/calendar">Dodaj termin (.ics)</a>`:''}<button class="secondary" id="lifeHistoryBtn">Historia decyzji</button><a class="buttonLink secondary" href="/api/lifepilot/${d.id}/history/export">Historia .md</a><button class="secondary" id="lifeOpenSource">Otwórz dokument</button><a class="buttonLink secondary" href="https://lukaszst-cz.github.io/czy-to-sciema/" target="_blank" rel="noopener">Sprawdź jako ściemę ↗</a><a class="buttonLink secondary" href="/lifepilot" target="_blank" rel="noopener">O LifePilot</a></div><div id="lifeHistoryBox" class="proofPackPreview hidden"></div><p class="muted lifePilotPrivacy">CzyToŚciema? otwiera się osobno. LifePilot nie wysyła tam automatycznie treści dokumentu.</p></div>`:'' ;
   $('#analysisPanel').classList.remove('hidden');
   $('#analysisPanel').innerHTML=`<div class="cardHead"><div><span class="badge">ANALYZED</span> ${verified}<h2>${esc(d.source_name)}</h2></div><span>${Math.round((md.confidence||0)*100)}% confidence</span></div><div class="modeNotice ${d.source_mode==='original'?'original':'copy'}">${d.source_mode==='original'?'REAL FILE MODE — Apply can rename or move the original.':'COPY MODE — drag & drop imported a safe copy.'}</div><div class="sourcePath">${esc(d.source_path)}</div>${matchedRules?`<div class="meta"><span>Matched rules: ${esc(matchedRules)}</span></div>`:'' }${lifeCard}<div class="lifeCorrectionIntro"><strong>Sprawdź kluczowe dane</strong><p class="muted">Te pola wpływają na rekomendację LifePilot. Popraw je na podstawie oryginału i zapisz.</p></div><div class="grid"><label>Type<input id="docType" value="${esc(md.document_type||'document')}"></label><label>Issuer<input id="lifeIssuer" value="${esc(md.issuer||'')}"></label><label>Amount<input id="lifeAmount" inputmode="decimal" value="${md.amount==null?'':esc(md.amount)}"></label><label>Currency<input id="lifeCurrency" maxlength="3" value="${esc(md.currency||'')}"></label><label>Document date<input id="lifeDocumentDate" type="date" value="${esc(md.document_date||'')}"></label><label>Deadline<input id="lifeDeadline" type="date" value="${esc(md.deadline||'')}"></label><label>Warranty until<input id="lifeWarrantyUntil" type="date" value="${esc(md.warranty_until||'')}"></label><label>Language<input value="${esc(md.language||'unknown')}" disabled></label><label>Health<input value="${d.health_score}/100" disabled></label><label class="wide">Category<input id="category" value="${esc(d.suggested_category)}"></label><label class="wide">Suggested filename<input id="suggestedFilename" value="${esc(d.suggested_filename)}"></label><label>Profile<select id="profile"><option>Home</option><option>Company</option><option>Child</option><option>Vehicle</option><option>Legal Cases</option></select></label><label>Action<select id="actionRequired"><option value="">None</option><option value="to-pay">To pay</option><option value="to-reply">To reply</option><option value="to-sign">To sign</option><option value="to-review">To review</option><option value="to-renew">To renew</option><option value="to-archive">To archive</option></select></label><label class="wide">Case<input id="caseName" value="${esc(d.suggested_case||'')}"></label><label class="wide">Apply action<select id="applyMode"><option value="rename">Rename original in the same folder</option><option value="organize">Move + rename into DocPilot archive</option></select></label><label class="wide"><input id="smartStructure" type="checkbox" checked style="width:auto;margin-right:8px"> Smart folder structure (category / year / issuer) when organizing</label></div><div class="actions lifeVerifyActions"><button class="secondary" id="saveLifeFields">Zapisz sprawdzone dane</button></div>${sensitive?`<p class="badge warn">Sensitive data detected</p><p class="muted">${esc(sensitive)}</p>`:''}${(d.health_notes||[]).length?`<p class="muted">Health: ${esc(d.health_notes.join(' · '))}</p>`:''}<div class="actions"><button class="secondary" id="cancelAnalyze">Analyze another</button><button id="applyBtn">Apply</button></div>`;
   $('#profile').value=d.profile||'Home';
@@ -426,6 +455,17 @@ function showAnalysis(d){
   if(d.source_mode!=='original'){$('#applyMode').value='organize';$('#applyMode').disabled=true}
   $('#cancelAnalyze').addEventListener('click',resetInbox);
   $('#applyBtn').addEventListener('click',applyCurrent);
+  $('#lifeHistoryBtn')?.addEventListener('click',async()=>{
+    const box=$('#lifeHistoryBox');
+    if(!box)return;
+    if(!box.classList.contains('hidden')){box.classList.add('hidden');return}
+    box.classList.remove('hidden');
+    box.innerHTML='<p class="muted">Ładuję historię decyzji…</p>';
+    try{
+      const trail=await api('/api/lifepilot/'+d.id+'/history?limit=100');
+      box.innerHTML=renderDecisionTrailHtml(trail);
+    }catch(e){box.innerHTML='<p class="dangerText">'+esc(e.message)+'</p>'}
+  });
   $('#saveLifeFields').addEventListener('click',async()=>{
     const button=$('#saveLifeFields');button.disabled=true;button.textContent='Zapisuję…';
     try{await saveLifePilotCorrections()}catch(e){showAppNotice(e.message);button.disabled=false;button.textContent='Zapisz sprawdzone dane'}
@@ -635,8 +675,9 @@ async function loadCases(){
   $('#caseList').innerHTML=cs.length?cs.map((c,index)=>`<div class="listItem caseCard">
     <div class="listItemHead"><div><h3>${esc(c.name)}</h3><div class="meta"><span>${c.document_count} documents</span><span>${c.open_actions} open actions</span><span>${esc((c.profiles||[]).join(', '))}</span>${c.next_deadline?`<span>next deadline ${fmtDate(c.next_deadline)}</span>`:''}${c.overdue_deadlines?`<span class="dangerText">${c.overdue_deadlines} overdue</span>`:''}</div></div><span class="badge">${c.document_count}</span></div>
     <div class="caseTimeline">${c.timeline.map(t=>`<div class="caseTimelineRow"><div><strong>${fmtDate((t.date||'').slice(0,10))}</strong><div>${esc(t.name)}</div><div class="meta"><span>${esc(t.document_type||'document')}</span><span>${esc(t.category||'')}</span><span>${esc(t.profile||'Home')}</span>${t.action?`<span>${esc(t.action)}</span>`:''}${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div></div><button class="secondary caseOpen" data-path="${esc(t.path)}">Open</button></div>`).join('')}</div>
-    <div class="lifePilotActions"><button class="secondary caseReadinessPreview" data-case="${esc(c.name)}" data-target="caseReadiness-${index}">Sprawdź gotowość</button><button class="secondary caseSummaryPreview" data-case="${esc(c.name)}" data-target="caseSummary-${index}">Podgląd podsumowania</button><button class="secondary casePackPreview" data-case="${esc(c.name)}" data-target="casePack-${index}">Co będzie w CasePack?</button><a class="buttonLink secondary" href="/api/lifepilot/case-summary/export?case_name=${encodeURIComponent(c.name)}">Podsumowanie .md</a><a class="buttonLink" href="/api/lifepilot/casepack?case_name=${encodeURIComponent(c.name)}">CasePack ZIP</a></div>
+    <div class="lifePilotActions"><button class="secondary caseReadinessPreview" data-case="${esc(c.name)}" data-target="caseReadiness-${index}">Sprawdź gotowość</button><button class="secondary caseHistoryPreview" data-case="${esc(c.name)}" data-target="caseHistory-${index}">Historia decyzji</button><button class="secondary caseSummaryPreview" data-case="${esc(c.name)}" data-target="caseSummary-${index}">Podgląd podsumowania</button><button class="secondary casePackPreview" data-case="${esc(c.name)}" data-target="casePack-${index}">Co będzie w CasePack?</button><a class="buttonLink secondary" href="/api/lifepilot/case-history/export?case_name=${encodeURIComponent(c.name)}">Historia .md</a><a class="buttonLink secondary" href="/api/lifepilot/case-summary/export?case_name=${encodeURIComponent(c.name)}">Podsumowanie .md</a><a class="buttonLink" href="/api/lifepilot/casepack?case_name=${encodeURIComponent(c.name)}">CasePack ZIP</a></div>
     <div class="proofPackPreview hidden" id="caseReadiness-${index}"></div>
+    <div class="proofPackPreview hidden" id="caseHistory-${index}"></div>
     <div class="proofPackPreview hidden" id="caseSummary-${index}"></div>
     <div class="proofPackPreview hidden" id="casePack-${index}"></div>
   </div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>';
@@ -657,6 +698,17 @@ async function loadCases(){
       }).join('');
       box.innerHTML=`<div class="proofPreviewHead"><strong>Case Readiness</strong><span class="badge ${badgeClass}">${esc(readiness.label||readiness.status)}</span></div><div class="meta"><span>Dokumenty: ${readiness.document_count}</span><span>Brakujące oryginały: ${counts.missing_originals||0}</span><span>Integralność potwierdzona: ${counts.integrity_verified||0}</span><span>Rozjazd SHA: ${counts.integrity_mismatch||0}</span><span>Dane do sprawdzenia: ${counts.low_confidence_unverified||0}</span><span>Po terminie: ${counts.overdue||0}</span><span>Otwarte działania: ${counts.open_actions||0}</span></div><p><strong>${esc(readiness.recommendation||'')}</strong></p>${issues?`<h4>Co wymaga uwagi</h4><ul>${issues}</ul>`:'<p class="muted">Nie wykryto problemów kompletności ani integralności.</p>'}<p class="muted">To kontrola kompletności materiału, a nie ocena prawna lub merytoryczna sprawy. Eksport CasePack pozostaje możliwy.</p>`;
     }catch(e){box.innerHTML=`<p class="dangerText">${esc(e.message)}</p>`}
+  }));
+  document.querySelectorAll('.caseHistoryPreview').forEach(button=>button.addEventListener('click',async()=>{
+    const box=$('#'+button.dataset.target);
+    if(!box)return;
+    if(!box.classList.contains('hidden')){box.classList.add('hidden');return}
+    box.classList.remove('hidden');
+    box.innerHTML='<p class="muted">Ładuję historię decyzji sprawy…</p>';
+    try{
+      const trail=await api('/api/lifepilot/case-history?case_name='+encodeURIComponent(button.dataset.case||'')+'&limit=250');
+      box.innerHTML=renderDecisionTrailHtml(trail);
+    }catch(e){box.innerHTML='<p class="dangerText">'+esc(e.message)+'</p>'}
   }));
   document.querySelectorAll('.caseSummaryPreview').forEach(button=>button.addEventListener('click',async()=>{
     const box=$(`#${button.dataset.target}`);
