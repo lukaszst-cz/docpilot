@@ -88,6 +88,8 @@ W kodzie projektu działa już:
 - czas oznaczenia pozycji jako załatwionej oraz zgodność ze starszym formatem historii;
 - powiadomienia Windows oparte na tej samej logice LifePilot „Co teraz?”, respektujące status załatwione i wybrany horyzont;
 - antyspamowe deduplikowanie powiadomień według semantycznego stanu dokumentu;
+- lokalny weryfikator ProofPack sprawdzający sumy SHA-256, manifest, oryginał oraz bezpieczną strukturę ZIP;
+- rozróżnienie między integralnością samego pakietu a zgodnością oryginału z hashem zapisanym wcześniej w indeksie;
 - bezpieczny podgląd i eksport podsumowania całej sprawy bez pełnego OCR i ścieżek lokalnych;
 - kontrola integralności SHA-256;
 - chronologia sprawy w ProofPack;
@@ -153,7 +155,7 @@ Operacje na dokumentach wymagają działającego lokalnego backendu.
 
 ## Status produktu
 
-LifePilot jest obecnie **preview/pilot (linia 4.3 preview)**, rozwijanym nad stabilnym DocPilot v4.0.0.
+LifePilot jest obecnie **preview/pilot (linia 4.4 preview)**, rozwijanym nad stabilnym DocPilot v4.0.0.
 
 Nie oznaczamy go jeszcze jako stabilnego publicznego wydania Windows. Przed takim oznaczeniem wymagane są:
 - pełne CI;
