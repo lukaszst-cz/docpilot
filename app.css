@@ -59,3 +59,10 @@ input[type=checkbox]{width:auto;margin:0}
 .lifePilotCard p{line-height:1.55}
 .lifePilotActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .lifePilotPrivacy{margin:10px 0 0;font-size:12px}
+
+.lifeQueueIntro{margin-bottom:16px;border-color:#38506d;background:linear-gradient(135deg,rgba(25,39,57,.98),rgba(15,20,27,.98))}
+.lifeQueueItem{padding:16px 0;border-top:1px solid var(--line)}
+.lifeQueueItem:first-child{border-top:0}
+.lifeQueueItem h3{margin:7px 0 4px;font-size:17px}
+.lifeQueueItem p{margin:7px 0;color:#b8c3d0;line-height:1.5}
+@media(max-width:620px){.lifeQueueItem .listItemHead{flex-direction:column}.lifePilotActions .buttonLink,.lifePilotActions button{width:100%;text-align:center}}
