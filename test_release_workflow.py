@@ -33,7 +33,8 @@ def test_windows_release_runs_functional_self_test_on_packaged_installed_and_upg
     assert workflow.count("'--self-test'") >= 3
     assert "Self-test packaged DocPilot" in workflow
     assert "Clean install and uninstall smoke test" in workflow
-    assert "Upgrade smoke test from stable v4.0.0" in workflow\n    assert "releases/download/v4.0.0/DocPilot-Setup-Windows-x64.exe" in workflow
+    assert "Upgrade smoke test from stable v4.0.0" in workflow
+    assert "releases/download/v4.0.0/DocPilot-Setup-Windows-x64.exe" in workflow
     assert "_lifepilot_functional_self_test()" in desktop
     assert "fastapi.testclient" not in desktop
     assert "httpx" not in desktop
