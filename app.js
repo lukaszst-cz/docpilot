@@ -583,11 +583,24 @@ async function loadDuplicates(){
 $('#scanDuplicatesBtn').addEventListener('click',()=>runLoad(loadDuplicates));
 async function loadCases(){
   const cs=await api('/api/cases');
-  $('#caseList').innerHTML=cs.length?cs.map(c=>`<div class="listItem caseCard">
+  $('#caseList').innerHTML=cs.length?cs.map((c,index)=>`<div class="listItem caseCard">
     <div class="listItemHead"><div><h3>${esc(c.name)}</h3><div class="meta"><span>${c.document_count} documents</span><span>${c.open_actions} open actions</span><span>${esc((c.profiles||[]).join(', '))}</span>${c.next_deadline?`<span>next deadline ${fmtDate(c.next_deadline)}</span>`:''}${c.overdue_deadlines?`<span class="dangerText">${c.overdue_deadlines} overdue</span>`:''}</div></div><span class="badge">${c.document_count}</span></div>
     <div class="caseTimeline">${c.timeline.map(t=>`<div class="caseTimelineRow"><div><strong>${fmtDate((t.date||'').slice(0,10))}</strong><div>${esc(t.name)}</div><div class="meta"><span>${esc(t.document_type||'document')}</span><span>${esc(t.category||'')}</span><span>${esc(t.profile||'Home')}</span>${t.action?`<span>${esc(t.action)}</span>`:''}${t.deadline?`<span>deadline ${fmtDate(t.deadline)}</span>`:''}</div></div><button class="secondary caseOpen" data-path="${esc(t.path)}">Open</button></div>`).join('')}</div>
+    <div class="lifePilotActions"><button class="secondary caseSummaryPreview" data-case="${esc(c.name)}" data-target="caseSummary-${index}">Podgląd podsumowania</button><a class="buttonLink secondary" href="/api/lifepilot/case-summary/export?case_name=${encodeURIComponent(c.name)}">Pobierz podsumowanie .md</a></div>
+    <div class="proofPackPreview hidden" id="caseSummary-${index}"></div>
   </div>`).join(''):'<p class="muted">Assign documents to cases to build timelines.</p>';
   $$('.caseOpen').forEach(button=>button.addEventListener('click',()=>reveal(button.dataset.path)));
+  $$('.caseSummaryPreview').forEach(button=>button.addEventListener('click',async()=>{
+    const box=$(`#${button.dataset.target}`);
+    if(!box)return;
+    if(!box.classList.contains('hidden')){box.classList.add('hidden');return}
+    box.classList.remove('hidden');
+    box.innerHTML='<p class="muted">Tworzę lokalny podgląd sprawy…</p>';
+    try{
+      const summary=await api(`/api/lifepilot/case-summary?case_name=${encodeURIComponent(button.dataset.case||'')}`);
+      box.innerHTML=`<div class="proofPreviewHead"><strong>LifePilot — podsumowanie sprawy</strong><span class="badge">${summary.document_count} dokumentów</span></div><div class="meta"><span>Otwarte działania: ${summary.open_actions}</span><span>Najbliższy termin: ${summary.next_deadline?fmtDate(summary.next_deadline):'brak'}</span><span>Wysyłka do chmury: nie</span></div><div class="caseSummaryPreview">${(summary.timeline||[]).map(item=>`<div class="caseSummaryRow"><strong>${esc(item.document_date||'brak daty')} — ${esc(item.name||'Dokument')}</strong><div class="meta"><span>${esc(item.document_type||'document')}</span>${item.issuer?`<span>${esc(item.issuer)}</span>`:''}${item.deadline?`<span>termin ${fmtDate(item.deadline)}</span>`:''}${item.action_required?`<span>${esc(item.action_required)}</span>`:''}</div></div>`).join('')}</div><p class="muted">Podgląd nie zawiera pełnego OCR ani lokalnych ścieżek plików.</p>`;
+    }catch(e){box.innerHTML=`<p class="dangerText">${esc(e.message)}</p>`}
+  }));
 }
 
 async function runSearch(){
