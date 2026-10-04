@@ -84,6 +84,22 @@ def next_action_for_document(document: dict[str, Any], *, today: date | None = N
         else:
             reason += f" Do terminu pozostało {days_remaining} dni."
 
+    verification = {
+        "source": "manual" if manual_verified else "automatic",
+        "label": "Dane sprawdzone ręcznie" if manual_verified else "Automatyczny odczyt",
+        "confidence": confidence,
+        "verified_at": metadata.get("manual_verified_at") if manual_verified else None,
+    }
+    decision_basis: list[str] = [verification["label"]]
+    if not manual_verified:
+        decision_basis.append(f"Pewność rozpoznania: {round(confidence * 100)}%")
+    if deadline:
+        decision_basis.append(f"Termin: {deadline.isoformat()}")
+    if action:
+        decision_basis.append(f"Akcja: {action}")
+    if metadata.get("document_type"):
+        decision_basis.append(f"Typ: {metadata.get('document_type')}")
+
     return {
         "title": title,
         "priority": priority,
@@ -92,6 +108,8 @@ def next_action_for_document(document: dict[str, Any], *, today: date | None = N
         "reason": reason,
         "steps": steps,
         "action_code": action or None,
+        "verification": verification,
+        "decision_basis": decision_basis,
         "available_actions": {
             "proof_pack": True,
             "calendar": bool(deadline),
@@ -183,9 +201,9 @@ def proof_pack_timeline(documents: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 
 
-def attention_signature(document: dict[str, Any]) -> str:
+def _attention_payload_v1(document: dict[str, Any]) -> dict[str, Any]:
     metadata = document.get("metadata") or {}
-    payload = {
+    return {
         "id": document.get("id"),
         "sha256": document.get("sha256"),
         "action_required": document.get("action_required"),
@@ -196,6 +214,34 @@ def attention_signature(document: dict[str, Any]) -> str:
         "category": document.get("category"),
         "profile": document.get("profile"),
         "updated_at": document.get("updated_at"),
+    }
+
+
+def legacy_attention_signature(document: dict[str, Any]) -> str:
+    encoded = json.dumps(_attention_payload_v1(document), ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def attention_signature(document: dict[str, Any]) -> str:
+    metadata = document.get("metadata") or {}
+    payload = {
+        "version": 2,
+        "id": document.get("id"),
+        "sha256": document.get("sha256"),
+        "action_required": document.get("action_required"),
+        "case_name": document.get("case_name"),
+        "category": document.get("category"),
+        "profile": document.get("profile"),
+        "document_type": metadata.get("document_type"),
+        "issuer": metadata.get("issuer"),
+        "amount": metadata.get("amount"),
+        "currency": metadata.get("currency"),
+        "document_date": metadata.get("document_date"),
+        "deadline": metadata.get("deadline"),
+        "warranty_until": metadata.get("warranty_until"),
+        "confidence": metadata.get("confidence"),
+        "manual_verified": metadata.get("manual_verified"),
+        "manual_verified_at": metadata.get("manual_verified_at"),
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
