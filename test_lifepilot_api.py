@@ -82,3 +82,109 @@ def test_calendar_export_accepts_warranty_date(monkeypatch, tmp_path):
     ])
     assert "DTSTART;VALUE=DATE:20261231" in content
     assert "BEGIN:VEVENT" in content
+
+
+def test_verified_corrections_recompute_lifepilot_and_survive_apply(monkeypatch, tmp_path):
+    app_module = importlib.import_module("docpilot.app")
+    temp_settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", temp_settings)
+    client = TestClient(app_module.app)
+
+    analyzed = client.post(
+        "/api/analyze",
+        files={"upload": ("letter.txt", b"Nieczytelny dokument do sprawdzenia", "text/plain")},
+    )
+    assert analyzed.status_code == 200
+    original = analyzed.json()
+    assert original["metadata"]["confidence"] < 0.65
+
+    corrected = client.patch(
+        f"/api/lifepilot/{original['id']}/fields",
+        json={
+            "document_type": "official-letter",
+            "issuer": "Urzad Testowy",
+            "amount": None,
+            "currency": None,
+            "document_date": "2026-10-04",
+            "deadline": "2026-10-08",
+            "warranty_until": None,
+            "case_name": "Sprawa testowa",
+            "action_required": "to-reply",
+        },
+    )
+    assert corrected.status_code == 200
+    payload = corrected.json()
+    assert payload["metadata"]["manual_verified"] is True
+    assert payload["metadata"]["deadline"] == "2026-10-08"
+    assert payload["case_name"] == "Sprawa testowa"
+    assert payload["lifepilot"]["next_action"]["title"] == "Przygotuj odpowiedź"
+
+    applied = client.post(
+        "/api/apply",
+        json={
+            "source_path": original["source_path"],
+            "category": "Official",
+            "filename": "verified-letter.txt",
+            "mode": "organize",
+            "profile": "Home",
+            "case_name": "Sprawa testowa",
+            "action_required": "to-reply",
+            "smart_structure": False,
+            "metadata_overrides": {
+                "document_type": payload["metadata"]["document_type"],
+                "issuer": payload["metadata"]["issuer"],
+                "amount": payload["metadata"]["amount"],
+                "currency": payload["metadata"]["currency"],
+                "document_date": payload["metadata"]["document_date"],
+                "deadline": payload["metadata"]["deadline"],
+                "warranty_until": payload["metadata"]["warranty_until"],
+            },
+        },
+    )
+    assert applied.status_code == 200
+    moved_id = applied.json()["document_id"]
+    moved = client.get(f"/api/lifepilot/{moved_id}")
+    assert moved.status_code == 200
+    assert moved.json()["next_action"]["title"] == "Przygotuj odpowiedź"
+
+    document = client.get("/api/documents").json()[0]
+    assert document["metadata"]["manual_verified"] is True
+    assert document["metadata"]["deadline"] == "2026-10-08"
+
+
+def test_case_summary_preview_and_markdown_export_are_private(monkeypatch, tmp_path):
+    app_module = importlib.import_module("docpilot.app")
+    temp_settings = get_settings(tmp_path / "DocPilotData")
+    monkeypatch.setattr(app_module, "settings", temp_settings)
+    client = TestClient(app_module.app)
+
+    ids = []
+    for name, content, day in [
+        ("first.txt", b"ACME Faktura VAT\nData: 01.10.2026\nTermin platnosci: 06.10.2026\n199,99 PLN", "2026-10-01"),
+        ("second.txt", b"Urzad Testowy\nWezwanie\nData: 03.10.2026\nOdpowiedz do 10.10.2026", "2026-10-03"),
+    ]:
+        analyzed = client.post("/api/analyze", files={"upload": (name, content, "text/plain")})
+        assert analyzed.status_code == 200
+        doc_id = analyzed.json()["id"]
+        ids.append(doc_id)
+        corrected = client.patch(
+            f"/api/lifepilot/{doc_id}/fields",
+            json={"document_date": day, "case_name": "Sprawa eksportowa"},
+        )
+        assert corrected.status_code == 200
+
+    summary = client.get("/api/lifepilot/case-summary", params={"case_name": "Sprawa eksportowa"})
+    assert summary.status_code == 200
+    data = summary.json()
+    assert data["document_count"] == 2
+    assert data["privacy"]["includes_extracted_text"] is False
+    assert data["privacy"]["includes_local_paths"] is False
+    assert all(item.get("sha256") for item in data["timeline"])
+
+    exported = client.get("/api/lifepilot/case-summary/export", params={"case_name": "Sprawa eksportowa"})
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("text/markdown")
+    assert "first.txt" in exported.text
+    assert "second.txt" in exported.text
+    assert str(tmp_path) not in exported.text
+    assert "Nieczytelny dokument" not in exported.text

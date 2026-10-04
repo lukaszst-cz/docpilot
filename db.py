@@ -671,7 +671,7 @@ def list_case_documents(settings: Settings, limit: int = 5000) -> list[dict[str,
         rows = conn.execute(
             """
             SELECT
-                id, path, source_name, metadata_json, category, tags_json, profile,
+                id, path, source_name, sha256, size_bytes, metadata_json, category, tags_json, profile,
                 case_name, action_required, health_score, health_json, indexed_at, updated_at
             FROM documents
             WHERE case_name IS NOT NULL AND case_name <> ''
@@ -687,6 +687,34 @@ def get_document(settings: Settings, doc_id: int) -> dict[str, Any] | None:
     with connect(settings) as conn:
         row = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
     return row_to_document(row) if row else None
+
+
+def update_document_metadata(settings: Settings, doc_id: int, **fields: Any) -> dict[str, Any] | None:
+    allowed = {
+        "document_type", "issuer", "amount", "currency", "document_date",
+        "deadline", "warranty_until", "manual_verified", "manual_verified_at",
+    }
+    actual = {key: value for key, value in fields.items() if key in allowed}
+    if not actual:
+        return get_document(settings, doc_id)
+
+    document = get_document(settings, doc_id)
+    if not document:
+        return None
+
+    metadata = dict(document.get("metadata") or {})
+    for key, value in actual.items():
+        if hasattr(value, "isoformat"):
+            value = value.isoformat()
+        metadata[key] = value
+
+    now = datetime.now(timezone.utc).isoformat()
+    with connect(settings) as conn:
+        conn.execute(
+            "UPDATE documents SET metadata_json=?, updated_at=? WHERE id=?",
+            (_dumps(metadata), now, int(doc_id)),
+        )
+    return get_document(settings, doc_id)
 
 
 def update_document_fields(settings: Settings, doc_id: int, **fields: Any) -> None:

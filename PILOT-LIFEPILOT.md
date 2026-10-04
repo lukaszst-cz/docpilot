@@ -77,3 +77,13 @@ Publiczna beta może być oznaczona dopiero wtedy, gdy:
 2. pilot dokumentów nie pokaże błędów prowadzących do niebezpiecznej rekomendacji bez ostrzeżenia;
 3. ProofPack z gotowej instalacji będzie odtwarzalny i czytelny;
 4. opis produktu i ograniczeń będzie zgodny z faktycznym działaniem.
+
+## G. Macierz akceptacyjna
+
+- [x] Automatyczny baseline syntetyczny dla głównych klas dokumentów.
+- [x] Słaby skan kierowany do ręcznej kontroli.
+- [x] Niejednoznaczny termin nie jest zgadywany.
+- [x] Brak prywatnych fixture'ów w publicznym repo.
+- [ ] Kontrolowany pilot na realnych, prywatnych lub zanonimizowanych dokumentach.
+
+Szczegóły: [LIFEPILOT-ACCEPTANCE.md](LIFEPILOT-ACCEPTANCE.md).

@@ -3,7 +3,7 @@ import hashlib
 import json
 import zipfile
 
-from docpilot.lifepilot import attention_signature, build_lifepilot_view, build_proof_pack, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview
+from docpilot.lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview
 
 
 def _doc(**overrides):
@@ -117,3 +117,52 @@ def test_proof_pack_preview_is_private_and_reports_expected_files(tmp_path):
     assert preview["privacy"]["includes_extracted_text"] is False
     assert preview["privacy"]["includes_local_path_in_manifest"] is False
     assert preview["privacy"]["uploads_anything"] is False
+
+
+def test_manual_verified_low_confidence_uses_verified_action():
+    doc = _doc(
+        action_required="to-reply",
+        metadata={
+            "document_type": "official-letter",
+            "confidence": 0.4,
+            "deadline": "2026-10-08",
+            "manual_verified": True,
+        },
+    )
+    result = next_action_for_document(doc, today=date(2026, 10, 4))
+    assert result["title"] == "Przygotuj odpowiedź"
+    assert result["priority"] == "soon"
+    assert "Pewność automatycznego rozpoznania jest niska" not in result["reason"]
+
+
+def test_case_summary_is_ordered_private_and_contains_integrity():
+    docs = [
+        _doc(
+            id=2,
+            source_name="second.pdf",
+            case_name="Sprawa A",
+            sha256="hash2",
+            metadata={"document_type": "official-letter", "document_date": "2026-10-03", "deadline": "2026-10-10"},
+        ),
+        _doc(
+            id=1,
+            source_name="first.pdf",
+            case_name="Sprawa A",
+            sha256="hash1",
+            metadata={"document_type": "invoice", "document_date": "2026-10-01", "deadline": "2026-10-06"},
+        ),
+        _doc(id=3, source_name="other.pdf", case_name="Inna sprawa"),
+    ]
+    summary = build_case_summary("Sprawa A", docs)
+    assert summary["document_count"] == 2
+    assert [item["id"] for item in summary["timeline"]] == [1, 2]
+    assert summary["next_deadline"] == "2026-10-06"
+    assert summary["timeline"][0]["sha256"] == "hash1"
+    assert summary["privacy"]["includes_extracted_text"] is False
+    assert summary["privacy"]["includes_local_paths"] is False
+
+    markdown = case_summary_markdown(summary)
+    assert "first.pdf" in markdown
+    assert "hash1" in markdown
+    assert "C:/Docs" not in markdown
+    assert "Extracted text" not in markdown
