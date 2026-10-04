@@ -9,3 +9,4 @@ build/
 *.egg-info/
 .env
 .DS_Store
+\n# Local LifePilot pilot outputs may contain sensitive metadata\nlifepilot-pilot-results/\n
