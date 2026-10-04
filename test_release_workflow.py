@@ -24,3 +24,22 @@ def test_manual_tag_must_match_package_version():
 
     assert "Validate tagged release version" in workflow
     assert 'if ("${{ github.ref_name }}" -ne $expected)' in workflow
+
+
+def test_windows_release_runs_functional_self_test_on_packaged_installed_and_upgraded_apps():
+    workflow = (ROOT / ".github" / "workflows" / "windows-release.yml").read_text(encoding="utf-8")
+    desktop = (ROOT / "desktop.py").read_text(encoding="utf-8")
+
+    assert workflow.count("'--self-test'") >= 3
+    assert "Self-test packaged DocPilot" in workflow
+    assert "Clean install and uninstall smoke test" in workflow
+    assert "Upgrade smoke test from v0.5.1" in workflow
+    assert "_lifepilot_functional_self_test()" in desktop
+    assert "fastapi.testclient" not in desktop
+    assert "httpx" not in desktop
+    assert "TemporaryDirectory" in desktop
+    assert "lifepilot_document_history" in desktop
+    assert "lifepilot_case_readiness" in desktop
+    assert "lifepilot_casepack" in desktop
+    assert "verify_lifepilot_pack" in desktop
+    assert "lifepilot_mark_done" in desktop

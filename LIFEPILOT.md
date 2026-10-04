@@ -342,3 +342,27 @@ Warstwa historii jawnie filtruje payload audytu. Do Decision Trail nie trafiają
 Starsze wpisy pozostają widoczne w zakresie danych, które były wtedy rzeczywiście zapisane. LifePilot nie rekonstruuje ani nie dopisuje historycznych wartości, których audyt wcześniej nie przechowywał.
 
 Historia dokumentu i sprawy może być eksportowana do Markdown.
+
+## LifePilot Preview 4.8 — release self-test
+
+Preview 4.8 wzmacnia proces wydania Windows zamiast dodawać kolejną funkcję użytkową.
+
+Polecenie `DocPilot.exe --self-test` sprawdza teraz nie tylko obecność plików i zgodność wersji, ale również izolowany przepływ LifePilot:
+1. analizę dokumentu testowego;
+2. ręczną korektę danych i przypisanie do sprawy;
+3. zapis i odczyt Decision Trail;
+4. Case Readiness;
+5. utworzenie CasePack;
+6. lokalną weryfikację CasePack;
+7. oznaczenie dokumentu jako załatwionego;
+8. potwierdzenie, że załatwiony dokument znika z aktywnej kolejki;
+9. historię sprawy z wpisem o załatwieniu.
+
+Self-test używa osobnego katalogu tymczasowego, po czym przywraca wcześniejsze ustawienia aplikacji. Nie korzysta z dokumentów użytkownika.
+
+Self-test nie zależy od `pytest`, `httpx` ani `FastAPI TestClient`. Korzysta wyłącznie z modułów dostępnych w runtime aplikacji.
+
+Ten sam `--self-test` jest wykonywany w pipeline Windows dla:
+- świeżo zbudowanego pakietu;
+- czystej instalacji;
+- instalacji po upgrade ze starszej wersji.

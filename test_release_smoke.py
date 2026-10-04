@@ -167,3 +167,13 @@ def test_polish_characters_survive_suggested_filename(tmp_path):
 
     assert "Żółta-Łódź" in result.suggested_filename
     assert result.metadata.reference == "PL/2026/9"
+
+
+def test_lifepilot_packaged_self_test_uses_runtime_only_and_restores_settings():
+    import docpilot.app as app_module
+    from docpilot.desktop import _lifepilot_functional_self_test
+
+    original_settings = app_module.settings
+    _lifepilot_functional_self_test()
+
+    assert app_module.settings is original_settings
