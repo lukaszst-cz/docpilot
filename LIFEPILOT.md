@@ -258,3 +258,18 @@ Zasady:
 - treść powiadomienia używa rekomendacji LifePilot, a nie wyłącznie surowej daty.
 
 Status API powiadomień pokazuje również liczbę pozycji pasujących do aktualnego horyzontu.
+
+## LifePilot Preview 4.4 — weryfikacja ProofPack
+
+LifePilot potrafi lokalnie sprawdzić wcześniej utworzony ProofPack ZIP.
+
+Weryfikator:
+- nie rozpakowuje archiwum do folderu użytkownika;
+- odrzuca duplikaty nazw i niebezpieczne ścieżki ZIP;
+- kontroluje limit liczby wpisów i łącznego rozmiaru po rozpakowaniu;
+- sprawdza `SHA256SUMS.txt` strumieniowo;
+- weryfikuje wymagane pliki oraz format manifestu;
+- porównuje hash oryginału z `computed_digest` w manifeście;
+- osobno raportuje zgodność z hashem zapisanym wcześniej w indeksie.
+
+**Ważne:** poprawna integralność ProofPack oznacza, że pakiet jest wewnętrznie spójny. Nie oznacza kwalifikowanego podpisu ani zaufanego znacznika czasu.

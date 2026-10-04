@@ -72,7 +72,7 @@ from .integrations import (
     configure_google_calendar, configure_imap, configure_notion, import_imap_attachments,
 )
 from .integration_registry import get_integration_adapter, integration_catalog
-from .lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview
+from .lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, handled_entry_done_at, handled_entry_matches, lifepilot_queue, proof_pack_preview, verify_proof_pack
 from .notifier import collect_due, install_startup as install_notifier_startup, remove_startup as remove_notifier_startup, notify_once
 from .models import ApplyRequest, LifePilotCorrectionRequest
 from .redaction import redact_file
@@ -711,6 +711,33 @@ def lifepilot_case_summary_export(case_name: str):
         media_type="text/markdown; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.post("/api/lifepilot/proofpack/verify")
+def lifepilot_verify_proofpack(upload: UploadFile = File(...)):
+    original_name = safe_name(upload.filename or "proofpack.zip")
+    handle = tempfile.NamedTemporaryFile(prefix="lifepilot-proofpack-", suffix=".zip", delete=False)
+    handle.close()
+    temporary = Path(handle.name)
+    try:
+        _save_upload_with_limit(upload, temporary, settings.max_upload_mb * 1024 * 1024)
+        result = verify_proof_pack(
+            temporary,
+            max_total_bytes=max(settings.max_upload_mb * 4, 200) * 1024 * 1024,
+        )
+        audit(
+            settings,
+            "lifepilot-proofpack-verified",
+            {
+                "source_name": original_name,
+                "valid": result.get("valid"),
+                "errors": len(result.get("errors") or []),
+                "warnings": len(result.get("warnings") or []),
+            },
+        )
+        return result
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 @app.get("/api/lifepilot/{doc_id}")

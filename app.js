@@ -297,6 +297,36 @@ async function loadLifePilot(){
   renderLifePilot();
 }
 
+async function verifyProofPackFromUi(){
+  const input=$('#proofVerifyInput'), result=$('#proofVerifyResult'), button=$('#proofVerifyBtn');
+  const file=input?.files?.[0];
+  if(!file){showAppNotice('Wybierz plik ProofPack ZIP.');return}
+  button.disabled=true;button.textContent='Sprawdzam…';
+  result.classList.remove('hidden');
+  result.innerHTML='<p class="muted">Weryfikuję manifest i sumy SHA-256…</p>';
+  try{
+    const form=new FormData();form.append('upload',file);
+    const data=await api('/api/lifepilot/proofpack/verify',{method:'POST',body:form});
+    const status=data.valid?'ZWERYFIKOWANY':'NIEPRAWIDŁOWY';
+    const statusClass=data.valid?'':'red';
+    const checks=(data.checks||[]).map(check=>`<li>${check.ok?'✓':'✕'} ${esc(check.name)} — ${check.ok?'SHA-256 zgodny':'niezgodny'}</li>`).join('');
+    const errors=(data.errors||[]).map(item=>`<li class="dangerText">${esc(item)}</li>`).join('');
+    const warnings=(data.warnings||[]).map(item=>`<li>${esc(item)}</li>`).join('');
+    const integrity=data.integrity||{};
+    result.innerHTML=`<div class="proofPreviewHead"><strong>Wynik weryfikacji</strong><span class="badge ${statusClass}">${status}</span></div>
+      <div class="meta"><span>Sumy: ${integrity.checksums_verified?'zgodne':'niepotwierdzone'}</span><span>Oryginał ↔ manifest: ${integrity.source_matches_manifest===true?'zgodny':integrity.source_matches_manifest===false?'niezgodny':'brak danych'}</span><span>Oryginał ↔ indeks: ${integrity.source_matches_index===true?'zgodny':integrity.source_matches_index===false?'różni się':'brak danych'}</span></div>
+      ${data.manifest?`<p><strong>${esc(data.manifest.source_name||'ProofPack')}</strong> · ${esc(data.manifest.document_type||'document')} ${data.manifest.case_name?`· ${esc(data.manifest.case_name)}`:''}</p>`:''}
+      ${checks?`<h4>Kontrole SHA-256</h4><ul>${checks}</ul>`:''}
+      ${errors?`<h4>Błędy</h4><ul>${errors}</ul>`:''}
+      ${warnings?`<h4>Ostrzeżenia</h4><ul>${warnings}</ul>`:''}
+      <p class="muted">Weryfikacja potwierdza integralność pakietu, ale nie stanowi kwalifikowanego podpisu ani zaufanego znacznika czasu.</p>`;
+  }catch(e){
+    result.innerHTML=`<p class="dangerText">${esc(e.message)}</p>`;
+  }finally{
+    button.disabled=false;button.textContent='Sprawdź integralność';
+  }
+}
+$('#proofVerifyBtn')?.addEventListener('click',verifyProofPackFromUi);
 $('#refreshLifePilotBtn')?.addEventListener('click',()=>runLoad(loadLifePilot));
 document.querySelectorAll('[data-life-filter]').forEach(button=>button.addEventListener('click',()=>{
   lifePilotFilter=button.dataset.lifeFilter||'active';

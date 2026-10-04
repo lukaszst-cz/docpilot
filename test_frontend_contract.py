@@ -271,3 +271,7 @@ def test_lifepilot_ui_exposes_queue_product_page_and_safe_actions():
     assert "DANE SPRAWDZONE" in script
     assert "LifePilot notifications" in script
     assert "LifePilot background notifications" in html
+    assert 'id="proofVerifyInput"' in html
+    assert 'id="proofVerifyBtn"' in html
+    assert "/api/lifepilot/proofpack/verify" in script
+    assert "Sprawdź integralność" in script

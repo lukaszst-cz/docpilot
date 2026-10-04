@@ -3,7 +3,7 @@ import hashlib
 import json
 import zipfile
 
-from docpilot.lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, legacy_attention_signature, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview
+from docpilot.lifepilot import attention_signature, build_case_summary, build_lifepilot_view, build_proof_pack, case_summary_markdown, legacy_attention_signature, lifepilot_queue, next_action_for_document, proof_pack_manifest, proof_pack_preview, verify_proof_pack
 
 
 def _doc(**overrides):
@@ -203,3 +203,59 @@ def test_case_summary_is_ordered_private_and_contains_integrity():
     assert "hash1" in markdown
     assert "C:/Docs" not in markdown
     assert "Extracted text" not in markdown
+
+
+def test_verify_proof_pack_accepts_valid_pack_and_detects_tampering(tmp_path):
+    source = tmp_path / "original.txt"
+    source.write_text("proof content", encoding="utf-8")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    document = _doc(
+        path=str(source),
+        source_name=source.name,
+        sha256=digest,
+        size_bytes=source.stat().st_size,
+    )
+    pack = tmp_path / "valid-proofpack.zip"
+    build_proof_pack(pack, document, timeline_documents=[document])
+
+    verified = verify_proof_pack(pack)
+    assert verified["valid"] is True
+    assert verified["integrity"]["checksums_verified"] is True
+    assert verified["integrity"]["source_matches_manifest"] is True
+    assert verified["integrity"]["source_matches_index"] is True
+    assert verified["original"] == "original/original.txt"
+
+    tampered = tmp_path / "tampered-proofpack.zip"
+    with zipfile.ZipFile(pack, "r") as source_zip, zipfile.ZipFile(tampered, "w", compression=zipfile.ZIP_DEFLATED) as target_zip:
+        for info in source_zip.infolist():
+            data = source_zip.read(info.filename)
+            if info.filename == "original/original.txt":
+                data = b"changed content"
+            target_zip.writestr(info.filename, data)
+
+    failed = verify_proof_pack(tampered)
+    assert failed["valid"] is False
+    assert any("Checksum mismatch" in error for error in failed["errors"])
+
+
+def test_verify_proof_pack_rejects_duplicate_or_unsafe_members(tmp_path):
+    duplicate = tmp_path / "duplicate.zip"
+    with zipfile.ZipFile(duplicate, "w") as archive:
+        archive.writestr("manifest.json", "{}")
+        archive.writestr("manifest.json", "{}")
+    result = verify_proof_pack(duplicate)
+    assert result["valid"] is False
+    assert any("duplicate filenames" in error.lower() for error in result["errors"])
+
+    unsafe = tmp_path / "unsafe.zip"
+    with zipfile.ZipFile(unsafe, "w") as archive:
+        archive.writestr("../escape.txt", "x")
+        archive.writestr("manifest.json", "{}")
+        archive.writestr("next-action.json", "{}")
+        archive.writestr("timeline.json", "[]")
+        archive.writestr("SHA256SUMS.txt", "")
+        archive.writestr("README.txt", "x")
+        archive.writestr("original/a.txt", "x")
+    result = verify_proof_pack(unsafe)
+    assert result["valid"] is False
+    assert any("unsafe member paths" in error.lower() for error in result["errors"])
