@@ -228,7 +228,7 @@ async function loadLifePilot(){
     const badge=next.priority==='overdue'?'red':(next.priority==='urgent'||next.priority==='today'||next.priority==='review')?'warn':'';
     return `<div class="lifeQueueItem"><div class="listItemHead"><div><span class="badge">${esc((next.priority||'normal').toUpperCase())}</span><h3>${esc(item.source_name||'Dokument')}</h3></div><span class="badge ${badge}">${esc(next.title||'Sprawdź dokument')}</span></div><p>${esc(next.reason||'')}</p><div class="meta">${item.case_name?`<span>Sprawa: ${esc(item.case_name)}</span>`:''}${item.category?`<span>${esc(item.category)}</span>`:''}${next.due_date?`<span>Termin: ${fmtDate(next.due_date)}</span>`:''}</div><div class="lifePilotActions"><button class="secondary lifeOpenInDocs" data-name="${esc(item.source_name||'')}">Otwórz w Documents</button><a class="buttonLink" href="/api/lifepilot/${item.id}/proofpack">ProofPack ZIP</a>${next.due_date?`<a class="buttonLink secondary" href="/api/lifepilot/${item.id}/calendar">Termin .ics</a>`:''}</div></div>`;
   }).join('');
-  $('.lifeOpenInDocs').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelectorAll('.lifeOpenInDocs').forEach(button=>button.addEventListener('click',()=>{
     documentsFilterValue=button.dataset.name||'';
     documentsPageOffset=0;
     const input=$('#documentsFilter');
