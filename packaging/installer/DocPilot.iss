@@ -25,6 +25,7 @@ Source: "..\..\dist\DocPilot\*"; DestDir: "{app}"; Flags: ignoreversion recurses
 
 [Icons]
 Name: "{autoprograms}\DocPilot"; Filename: "{app}\DocPilot.exe"
+Name: "{autoprograms}\LifePilot Pilot"; Filename: "{app}\DocPilot.exe"; Parameters: "--pilot"
 Name: "{autodesktop}\DocPilot"; Filename: "{app}\DocPilot.exe"; Tasks: desktopicon
 
 [Tasks]
