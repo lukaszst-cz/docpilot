@@ -246,6 +246,21 @@ def attention_signature(document: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def handled_entry_matches(entry: Any, document: dict[str, Any]) -> bool:
+    if isinstance(entry, str):
+        return entry in {attention_signature(document), legacy_attention_signature(document)}
+    if isinstance(entry, dict):
+        return str(entry.get("signature") or "") == attention_signature(document)
+    return False
+
+
+def handled_entry_done_at(entry: Any) -> str | None:
+    if isinstance(entry, dict):
+        value = str(entry.get("done_at") or "").strip()
+        return value or None
+    return None
+
+
 def proof_pack_preview(
     document: dict[str, Any],
     *,
