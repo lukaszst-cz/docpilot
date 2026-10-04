@@ -543,9 +543,11 @@ def case_readiness(
     *,
     today: date | None = None,
     verify_integrity: bool = True,
+    handled: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     today = today or date.today()
     selected = _case_documents(case_name, documents)
+    handled = handled or {}
     issues: list[dict[str, Any]] = []
     counts = {
         "missing_originals": 0,
@@ -649,9 +651,14 @@ def case_readiness(
                 )
 
         next_action = next_action_for_document(document, today=today)
-        if document.get("action_required") and document.get("action_required") != "to-archive":
+        is_handled = handled_entry_matches(handled.get(str(doc_id)), document)
+        if (
+            document.get("action_required")
+            and document.get("action_required") != "to-archive"
+            and not is_handled
+        ):
             counts["open_actions"] += 1
-        if next_action.get("priority") == "overdue":
+        if not is_handled and next_action.get("priority") == "overdue":
             counts["overdue"] += 1
             issues.append(
                 {
