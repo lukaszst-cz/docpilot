@@ -396,7 +396,8 @@ def test_decision_trail_api_records_safe_before_after_and_exports_markdown(monke
     serialized = json.dumps(data, ensure_ascii=False)
     assert str(tmp_path) not in serialized
     assert payload["source_path"] not in serialized
-    assert "extracted_text" not in serialized
+    assert '"extracted_text":' not in serialized
+    assert "SECRET OCR" not in serialized
 
     marked = client.post(f"/api/lifepilot/{doc_id}/done")
     assert marked.status_code == 200
