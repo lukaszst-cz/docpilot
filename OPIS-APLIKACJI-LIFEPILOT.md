@@ -176,16 +176,9 @@ Operacje na dokumentach wymagają działającego lokalnego backendu.
 
 LifePilot jest obecnie **preview/pilot (linia 5.0 preview)**, rozwijanym nad stabilnym DocPilot v4.0.0.
 
-Nie oznaczamy go jeszcze jako stabilnego publicznego wydania Windows. Przed takim oznaczeniem wymagane są:
-- pełne CI;
-- Windows build;
-- self-test EXE;
-- clean install;
-- upgrade ze stabilnej wersji;
-- OCR smoke;
-- testy ProofPack w gotowej instalacji;
-- testy na rzeczywistych klasach dokumentów;
-- kontrola UX na Windows.
+Nie oznaczamy go jeszcze jako stabilnego publicznego wydania Windows. Zakończone są już: pełne CI, Windows build, self-test EXE, clean install/uninstall, upgrade z v4.0.0, OCR smoke, ProofPack/CasePack runtime tests oraz kontrolowany syntetyczny pilot **10/10 dokumentów i 45/45 kontroli PASS**. Finalny Windows Release to **#90** dla `main` `e2091874…`.
+
+Jedyną pozostałą bramką przed decyzją public beta/stable jest **ręczny Windows UX/privacy pass** na autoryzowanym urządzeniu zgodnie z issue #62.
 
 ## Kryterium sukcesu
 

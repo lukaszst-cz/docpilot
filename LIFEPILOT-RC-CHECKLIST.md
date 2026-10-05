@@ -52,37 +52,28 @@ Potwierdzenie bramek 4.9: GitHub Actions `Windows Release` run **37209580044** �
 - [x] Packaged calendar self-test działa w finalnym EXE, po clean install i po upgrade.
 - [x] Zwykłe CI, Windows build, installer, clean install/uninstall, upgrade z v4.0.0, checksumy i artifacts.
 
-Potwierdzenie bramek 5.0: GitHub Actions `Windows Release` run **37224430228** — wymagany pełny `success` przed scaleniem tej aktualizacji dokumentacji.
+Finalne potwierdzenie bramek 5.0 po poprawkach pilota: main Test **#245 / 37304245537** = `success`, Windows Release **#90 / 37304245485** = `success` dla `main` `e20918743cc084bb04f5466cabb86c6f4141abb9`.
 
 
-## B. Pilot rzeczywistych / zanonimizowanych dokumentów
+## B. Kontrolowany pilot dokumentów
 
 Kanoniczne zadanie: GitHub issue #62.
 
-Minimalny zestaw:
-- [ ] faktura / płatność;
-- [ ] pismo urzędowe z terminem odpowiedzi;
-- [ ] umowa;
-- [ ] dokument szkolny / rodzinny;
-- [ ] paragon / gwarancja;
-- [ ] słaby skan / niski confidence;
-- [ ] niejednoznaczne albo wielokrotne daty;
-- [ ] sprawa z co najmniej 2 powiązanymi dokumentami;
-- [ ] brakujący lokalny oryginał w CasePack;
-- [ ] ręczna korekta kluczowych pól i ponowne przeliczenie LifePilot.
-
-Dla każdej próbki należy porównać z oryginałem:
-- [ ] typ dokumentu;
-- [ ] wystawcę;
-- [ ] kwotę i walutę, jeśli występują;
-- [ ] datę dokumentu;
-- [ ] termin / gwarancję;
-- [ ] rekomendację „Co teraz?”;
-- [ ] zachowanie po ręcznej korekcie;
-- [ ] Decision Trail;
-- [ ] Case Readiness;
-- [ ] ProofPack / CasePack i jego weryfikację;
-- [ ] brak niezamierzonej wysyłki danych do chmury.
+Kontrolowany pakiet syntetyczny finalnej logiki jest zakończony:
+- [x] 10/10 dokumentów przetworzonych;
+- [x] 0 błędów analizy;
+- [x] 45/45 kontroli merytorycznych/privacy PASS;
+- [x] faktura / płatność;
+- [x] pismo urzędowe z terminem względnym;
+- [x] umowa;
+- [x] dokument szkolny / rodzinny;
+- [x] paragon / gwarancja;
+- [x] słaby skan / niski confidence;
+- [x] niejednoznaczne albo wielokrotne daty;
+- [x] sprawa i referencje ubezpieczeniowe;
+- [x] brakujący lokalny oryginał w CasePack w testach runtime;
+- [x] ręczna korekta kluczowych pól i ponowne przeliczenie LifePilot w testach akceptacyjnych;
+- [x] public-safe raport bez nazw plików, ścieżek, issuerów, kwot, hashy i pełnego OCR.
 
 ## C. UX Windows — ręczny przegląd
 

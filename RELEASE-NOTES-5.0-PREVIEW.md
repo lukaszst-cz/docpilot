@@ -43,9 +43,8 @@ Automatyczna kontrola obejmuje:
 
 ## Status
 
-Automatyczne bramki techniczne nie są równoznaczne z zakończeniem pilota. Przed stable nadal wymagane są:
-- kontrolowany pilot na realnych lub zanonimizowanych dokumentach;
-- ręczny przegląd UX Windows;
-- ręczny przegląd prywatności finalnego builda.
+Finalny `main` LifePilot Preview 5.0 (`e2091874…`) przeszedł main Test #245 oraz Windows Release #90. Po poprawkach ujawnionych przez pilot (PR #84 i #85) kontrolowany pakiet syntetyczny zakończył się wynikiem **10/10 dokumentów, 0 błędów analizy i 45/45 kontroli merytorycznych/privacy PASS**.
+
+Przed oznaczeniem jako public beta/stable pozostaje wyłącznie **ręczny Windows UX/privacy pass** na autoryzowanym urządzeniu z issue #62.
 
 Stabilnym publicznym wydaniem pozostaje DocPilot v4.0.0.
