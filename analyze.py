@@ -48,7 +48,7 @@ _ISSUER_LABEL_RE = re.compile(
     re.I,
 )
 _ISSUER_ORG_RE = re.compile(
-    r"\b(?:sp\.?\s*z\s*o\.?o\.?|s\.?\s*a\.?|urząd|urzad|szkoł|sklep|bank|towarzystwo|fundacja|spółdzielnia|spoldzielnia)\b",
+    r"\b(?:sp\.?\s*z\s*o\.?o\.?|s\.?\s*a\.?|urząd|urzad|szkoł\w*|szkol\w*|sklep|bank|towarzystwo|fundacja|spółdzielnia|spoldzielnia)\b",
     re.I,
 )
 _DEADLINE_PHRASES = (
