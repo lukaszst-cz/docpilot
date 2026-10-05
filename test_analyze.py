@@ -114,3 +114,81 @@ def test_total_amount_is_preferred_over_first_line_item(tmp_path):
     )
     analysis = analyze_file(path)
     assert analysis.metadata.amount == 1470.00
+
+
+def test_invoice_issuer_prefers_organization_over_document_title(tmp_path):
+    path = tmp_path / "invoice.txt"
+    path.write_text(
+        "FAKTURA VAT - DOKUMENT TESTOWY\n"
+        "Fikcyjna Energia Sp. z o.o.\n"
+        "Faktura nr: FE/09/2026/184\n"
+        "Data wystawienia: 28.09.2026\n"
+        "Termin platnosci: 12.10.2026\n"
+        "Do zaplaty: 428,17 PLN",
+        encoding="utf-8",
+    )
+    analysis = analyze_file(path)
+    assert analysis.metadata.issuer == "Fikcyjna Energia Sp. z o.o."
+    assert analysis.metadata.reference == "FE/09/2026/184"
+    assert analysis.metadata.invoice_number == "FE/09/2026/184"
+
+
+def test_invoice_title_is_not_mistaken_for_invoice_number(tmp_path):
+    path = tmp_path / "scan.txt"
+    path.write_text(
+        "FAKTURA TESTOWA - SLABY SKAN\n"
+        "Wystawca: Syntetyczny Serwis Sp. z o.o.\n"
+        "Data: 02.10.2026\n"
+        "Termin platnosci: 08.10.2026\n"
+        "Kwota do zaplaty: 317,40 PLN\n"
+        "Nr: SS/1026/044",
+        encoding="utf-8",
+    )
+    analysis = analyze_file(path)
+    assert analysis.metadata.issuer == "Syntetyczny Serwis Sp. z o.o."
+    assert analysis.metadata.reference == "SS/1026/044"
+    assert analysis.metadata.invoice_number is None
+
+
+def test_multiple_unlabelled_dates_do_not_become_document_date():
+    meta = infer_metadata(
+        "Szkola Podstawowa Testowa\n"
+        "Planowany termin wycieczki: 16.10.2026.\n"
+        "Prosze przekazac podpisana zgode do 09.10.2026.\n"
+        "Platnosc do 09.10.2026."
+    )
+    assert meta.issuer == "Szkola Podstawowa Testowa"
+    assert meta.document_date is None
+    assert meta.deadline.isoformat() == "2026-10-09"
+
+
+def test_explicit_creation_date_is_preferred_with_other_dates():
+    meta = infer_metadata(
+        "Pismo informacyjne\n"
+        "Data sporzadzenia: 03.10.2026\n"
+        "Spotkanie: 12.10.2026\n"
+        "Orientacyjne zakonczenie: 31.10.2026"
+    )
+    assert meta.document_date.isoformat() == "2026-10-03"
+
+
+def test_health_80_ocr_caps_confidence_for_review(monkeypatch, tmp_path):
+    from PIL import Image
+
+    path = tmp_path / "scan.png"
+    Image.new("RGB", (900, 900), "white").save(path)
+    monkeypatch.setattr(
+        analyze_module,
+        "extract_text",
+        lambda _: (
+            "Faktura VAT\nData: 02.10.2026\nTermin platnosci: 08.10.2026\n"
+            "Do zaplaty 317,40 PLN",
+            [
+                "Deskewed by -1.39 degrees.",
+                "Applied grayscale, autocontrast and light denoise cleanup.",
+            ],
+        ),
+    )
+    analysis = analyze_module.analyze_file(path)
+    assert analysis.health_score == 80
+    assert analysis.metadata.confidence < 0.65

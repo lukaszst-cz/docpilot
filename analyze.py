@@ -22,11 +22,12 @@ _AMOUNT_RE = re.compile(r"(?<!\d)(\d{1,3}(?:[ .]\d{3})*(?:[,.]\d{2}))\s?(PLN|zł
 _REFERENCE_PATTERNS = (
     re.compile(r"(?:nr|numer)\s+(?:umowy|sprawy|dokumentu|faktury|polisy|szkody)\s*[:#-]?\s*([A-Z0-9][A-Z0-9./_-]{3,})", re.I),
     re.compile(r"(?:sprawa|szkoda)\s*(?:nr)?\s*[:#-]\s*([A-Z0-9][A-Z0-9./_-]{3,})", re.I),
-    re.compile(r"(?:nr|numer|invoice|faktura|policy|polisa|reference|ref\.?)[\s:#-]*([A-Z0-9][A-Z0-9./_-]{3,})", re.I),
+    re.compile(r"(?:faktura(?:\s+vat)?|invoice|policy|polisa)\s*(?:nr|no\.?|number)\s*[:#-]?\s*([A-Z0-9][A-Z0-9./_-]{3,})", re.I),
+    re.compile(r"(?:nr|numer|reference|ref\.?)\s*[:#-]\s*([A-Z0-9][A-Z0-9./_-]{3,})", re.I),
 )
 _DATE_RE = re.compile(r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2})\b")
 _DOCUMENT_DATE_RE = re.compile(
-    r"(?:data(?:\s+(?:wystawienia|pisma|zawarcia|zakupu|kosztorysu|dokumentu))?|zawarta\s+dnia|sporządzono\s+dnia|sporzadzono\s+dnia)"
+    r"(?:data(?:\s+(?:wystawienia|pisma|zawarcia|zakupu|kosztorysu|dokumentu|sporządzenia|sporzadzenia))?|zawarta\s+dnia|sporządzono\s+dnia|sporzadzono\s+dnia)"
     r"\s*[:#-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2})",
     re.I,
 )
@@ -40,6 +41,14 @@ _DELIVERY_DATE_RE = re.compile(
 )
 _EXPLICIT_DO_DATE_RE = re.compile(
     r"\bdo\s+(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2})\b",
+    re.I,
+)
+_ISSUER_LABEL_RE = re.compile(
+    r"^(?:wystawca|sprzedawca|nadawca|ubezpieczyciel|firma)\s*:\s*(.+)$",
+    re.I,
+)
+_ISSUER_ORG_RE = re.compile(
+    r"\b(?:sp\.?\s*z\s*o\.?o\.?|s\.?\s*a\.?|urząd|urzad|szkoł\w*|szkol\w*|sklep|bank|towarzystwo|fundacja|spółdzielnia|spoldzielnia)\b",
     re.I,
 )
 _DEADLINE_PHRASES = (
@@ -98,7 +107,7 @@ def analyze_file(path: Path, custom_types: list[dict] | None = None) -> FileAnal
     base.suggested_case = suggest_case(base)
     base.action_required = action_required(base)
     base.health_score, base.health_notes = health_check(path, text, warnings)
-    if warnings and base.health_score <= 70:
+    if warnings and base.health_score <= 80:
         metadata.confidence = min(metadata.confidence, 0.60)
     base.sensitive = detect_sensitive(text)
     base.simhash = simhash64(text)
@@ -135,7 +144,7 @@ def infer_metadata(text: str, filename: str = "", custom_types: list[dict] | Non
     document_date = _extract_document_date(text)
     if document_date is None:
         dates = _extract_dates(text)
-        document_date = dates[0] if dates else None
+        document_date = dates[0] if len(dates) == 1 else None
     deadline = _extract_deadline(text)
 
     issuer = _infer_issuer(text)
@@ -220,10 +229,21 @@ def _extract_deadline(text: str) -> date | None:
 
 
 def _infer_issuer(text: str) -> str | None:
-    for line in (ln.strip() for ln in text.splitlines()[:15]):
-        if 3 <= len(line) <= 90 and any(ch.isalpha() for ch in line):
-            if not _DATE_RE.search(line) and not _AMOUNT_RE.search(line):
-                return line[:90]
+    lines = [ln.strip() for ln in text.splitlines()[:20] if ln.strip()]
+    for line in lines:
+        match = _ISSUER_LABEL_RE.match(line)
+        if match:
+            value = match.group(1).strip()
+            if 2 <= len(value) <= 90:
+                return value[:90]
+
+    for line in lines:
+        if line.startswith("[PAGE "):
+            continue
+        if _DATE_RE.search(line) or _AMOUNT_RE.search(line):
+            continue
+        if _ISSUER_ORG_RE.search(line):
+            return line[:90]
     return None
 
 
