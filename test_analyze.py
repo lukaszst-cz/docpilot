@@ -173,8 +173,10 @@ def test_explicit_creation_date_is_preferred_with_other_dates():
 
 
 def test_health_80_ocr_caps_confidence_for_review(monkeypatch, tmp_path):
+    from PIL import Image
+
     path = tmp_path / "scan.png"
-    path.write_bytes(b"synthetic")
+    Image.new("RGB", (900, 900), "white").save(path)
     monkeypatch.setattr(
         analyze_module,
         "extract_text",
