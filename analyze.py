@@ -5,7 +5,6 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 
-from dateutil import parser as date_parser
 
 from .extract import extract_text
 from .intelligence import (
@@ -20,8 +19,29 @@ from .intelligence import (
 from .models import ExtractedMetadata, FileAnalysis
 
 _AMOUNT_RE = re.compile(r"(?<!\d)(\d{1,3}(?:[ .]\d{3})*(?:[,.]\d{2}))\s?(PLN|zł|EUR|€|USD|\$)", re.I)
-_REFERENCE_RE = re.compile(r"(?:nr|numer|invoice|faktura|policy|polisa|reference|ref\.?)[\s:#-]*([A-Z0-9][A-Z0-9./_-]{3,})", re.I)
+_REFERENCE_PATTERNS = (
+    re.compile(r"(?:nr|numer)\s+(?:umowy|sprawy|dokumentu|faktury|polisy|szkody)\s*[:#-]?\s*([A-Z0-9][A-Z0-9./_-]{3,})", re.I),
+    re.compile(r"(?:sprawa|szkoda)\s*(?:nr)?\s*[:#-]\s*([A-Z0-9][A-Z0-9./_-]{3,})", re.I),
+    re.compile(r"(?:nr|numer|invoice|faktura|policy|polisa|reference|ref\.?)[\s:#-]*([A-Z0-9][A-Z0-9./_-]{3,})", re.I),
+)
 _DATE_RE = re.compile(r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2})\b")
+_DOCUMENT_DATE_RE = re.compile(
+    r"(?:data(?:\s+(?:wystawienia|pisma|zawarcia|zakupu|kosztorysu|dokumentu))?|zawarta\s+dnia|sporządzono\s+dnia|sporzadzono\s+dnia)"
+    r"\s*[:#-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2})",
+    re.I,
+)
+_RELATIVE_DEADLINE_RE = re.compile(
+    r"\b(?:w\s+terminie\s+|w\s+ciągu\s+|w\s+ciagu\s+)?(\d{1,3})\s+dni\s+od\s+(?:(?:dnia|daty)\s+)?(?:doręczenia|doreczenia)\b",
+    re.I,
+)
+_DELIVERY_DATE_RE = re.compile(
+    r"(?:data\s+)?(?:doręczenia|doreczenia)\s*[:#-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2})",
+    re.I,
+)
+_EXPLICIT_DO_DATE_RE = re.compile(
+    r"\bdo\s+(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2})\b",
+    re.I,
+)
 _DEADLINE_PHRASES = (
     "termin płatności", "termin platnosci", "płatne do", "platne do", "zapłacić do", "zaplacic do",
     "due date", "payment due", "deadline", "odpowiedź do", "odpowiedz do", "response by",
@@ -71,11 +91,15 @@ def analyze_file(path: Path, custom_types: list[dict] | None = None) -> FileAnal
     for key, value in enriched.items():
         if hasattr(metadata, key):
             setattr(metadata, key, value)
+    if enriched.get("gross_amount") is not None:
+        metadata.amount = enriched["gross_amount"]
     base.suggested_filename = suggest_filename(path, metadata)
     base.tags = tags_for(base)
     base.suggested_case = suggest_case(base)
     base.action_required = action_required(base)
     base.health_score, base.health_notes = health_check(path, text, warnings)
+    if warnings and base.health_score <= 70:
+        metadata.confidence = min(metadata.confidence, 0.60)
     base.sensitive = detect_sensitive(text)
     base.simhash = simhash64(text)
     return base
@@ -106,14 +130,13 @@ def infer_metadata(text: str, filename: str = "", custom_types: list[dict] | Non
         except ValueError:
             pass
 
-    reference = None
-    ref_match = _REFERENCE_RE.search(text)
-    if ref_match:
-        reference = ref_match.group(1)
+    reference = _extract_reference(text)
 
-    dates = _extract_dates(haystack)
-    document_date = dates[0] if dates else None
-    deadline = _extract_deadline(haystack)
+    document_date = _extract_document_date(text)
+    if document_date is None:
+        dates = _extract_dates(text)
+        document_date = dates[0] if dates else None
+    deadline = _extract_deadline(text)
 
     issuer = _infer_issuer(text)
     score = 0.35
@@ -135,21 +158,54 @@ def infer_metadata(text: str, filename: str = "", custom_types: list[dict] | Non
     )
 
 
+def _parse_numeric_date(value: str) -> date | None:
+    parts = re.split(r"[./-]", value)
+    if len(parts) != 3:
+        return None
+    try:
+        if len(parts[0]) == 4:
+            year, month, day = (int(part) for part in parts)
+        else:
+            day, month, year = (int(part) for part in parts)
+            if year < 100:
+                year += 2000 if year < 70 else 1900
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
 def _extract_dates(text: str) -> list[date]:
     out: list[date] = []
     seen: set[date] = set()
     for match in _DATE_RE.findall(text):
-        try:
-            value = date_parser.parse(match, dayfirst=True, fuzzy=False).date()
-            if date(1990, 1, 1) <= value <= date.today() + timedelta(days=3650) and value not in seen:
-                out.append(value)
-                seen.add(value)
-        except (ValueError, OverflowError):
-            continue
+        value = _parse_numeric_date(match)
+        if value and date(1990, 1, 1) <= value <= date.today() + timedelta(days=3650) and value not in seen:
+            out.append(value)
+            seen.add(value)
     return out[:30]
 
 
+def _extract_document_date(text: str) -> date | None:
+    match = _DOCUMENT_DATE_RE.search(text)
+    return _parse_numeric_date(match.group(1)) if match else None
+
+
+def _extract_reference(text: str) -> str | None:
+    for pattern in _REFERENCE_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return match.group(1)
+    return None
+
+
 def _extract_deadline(text: str) -> date | None:
+    relative = _RELATIVE_DEADLINE_RE.search(text)
+    if relative:
+        delivered = _DELIVERY_DATE_RE.search(text)
+        delivered_date = _parse_numeric_date(delivered.group(1)) if delivered else None
+        if delivered_date:
+            return delivered_date + timedelta(days=int(relative.group(1)))
+
     low = text.lower()
     for phrase in _DEADLINE_PHRASES:
         idx = low.find(phrase)
@@ -158,7 +214,9 @@ def _extract_deadline(text: str) -> date | None:
             dates = _extract_dates(window)
             if dates:
                 return dates[0]
-    return None
+
+    explicit = _EXPLICIT_DO_DATE_RE.search(text)
+    return _parse_numeric_date(explicit.group(1)) if explicit else None
 
 
 def _infer_issuer(text: str) -> str | None:

@@ -29,7 +29,7 @@ ADDRESS_RE = re.compile(r"\b(?:ul\.|ulica|al\.|aleja|os\.|osiedle)\s+[A-ZĄĆĘ�
 BANK_RE = re.compile(r"\b(?:rachunek|konto|account|iban)\b", re.I)
 VAT_RE = re.compile(r"\bVAT\s*(\d{1,2}(?:[,.]\d{1,2})?)\s*%", re.I)
 NET_RE = re.compile(r"(?:netto|net)\D{0,20}(\d[\d .]*[,.]\d{2})", re.I)
-GROSS_RE = re.compile(r"(?:brutto|gross|do zapłaty|razem)\D{0,20}(\d[\d .]*[,.]\d{2})", re.I)
+GROSS_RE = re.compile(r"(?:brutto|gross|do zapłaty|razem|łącznie|lacznie|total)\D{0,20}(\d[\d .]*[,.]\d{2})", re.I)
 INVOICE_NO_RE = re.compile(r"(?:faktura|invoice)\s*(?:nr|no\.?|number)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9./_-]{2,})", re.I)
 NOTICE_RE = re.compile(r"(?:okres wypowiedzenia|notice period)\D{0,20}(\d+)\s*(dni|days|miesiąc|miesiące|months)", re.I)
 WARRANTY_RE = re.compile(r"(?:gwarancj\w*|warranty)\D{0,30}(\d+)\s*(miesięcy|miesiące|months|lat|years)", re.I)
@@ -126,8 +126,10 @@ def action_required(analysis: FileAnalysis) -> str | None:
     if md.deadline:
         if md.document_type == "invoice" or any(k in text for k in ("do zapłaty", "termin płatności", "payment due")):
             return "to-pay"
-        if any(k in text for k in ("odpowiedź", "odpowiedz", "response", "ustosunk", "wyjaśn", "wyjasn")):
+        if any(k in text for k in ("odpowiedź", "odpowiedz", "response", "ustosunk", "wyjaśn", "wyjasn", "dosł", "dosl", "uzupełn", "uzupeln", "prześlij", "przeslij", "przesłać", "przeslac", "dostarc")):
             return "to-reply"
+        if any(k in text for k in ("podpis", "signature", "sign here")):
+            return "to-sign"
         return "to-review"
     if any(k in text for k in ("podpis", "signature", "sign here")):
         return "to-sign"
