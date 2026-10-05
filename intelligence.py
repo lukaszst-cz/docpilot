@@ -30,7 +30,10 @@ BANK_RE = re.compile(r"\b(?:rachunek|konto|account|iban)\b", re.I)
 VAT_RE = re.compile(r"\bVAT\s*(\d{1,2}(?:[,.]\d{1,2})?)\s*%", re.I)
 NET_RE = re.compile(r"(?:netto|net)\D{0,20}(\d[\d .]*[,.]\d{2})", re.I)
 GROSS_RE = re.compile(r"(?:brutto|gross|do zapłaty|razem|łącznie|lacznie|total)\D{0,20}(\d[\d .]*[,.]\d{2})", re.I)
-INVOICE_NO_RE = re.compile(r"(?:faktura|invoice)\s*(?:nr|no\.?|number)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9./_-]{2,})", re.I)
+INVOICE_NO_RE = re.compile(
+    r"(?:faktura(?:\s+vat)?|invoice)\s*(?:(?:nr|no\.?|number)\s*[:#-]?\s*|[:#-]\s*)([A-Z0-9][A-Z0-9./_-]{2,})",
+    re.I,
+)
 NOTICE_RE = re.compile(r"(?:okres wypowiedzenia|notice period)\D{0,20}(\d+)\s*(dni|days|miesiąc|miesiące|months)", re.I)
 WARRANTY_RE = re.compile(r"(?:gwarancj\w*|warranty)\D{0,30}(\d+)\s*(miesięcy|miesiące|months|lat|years)", re.I)
 AUTO_RENEW_RE = re.compile(r"(?:automatyczn\w* przedłuż|automatic renewal|renews automatically)", re.I)
