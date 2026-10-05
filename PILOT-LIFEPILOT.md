@@ -33,7 +33,7 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 - [x] Wykryty termin trafia do „Co teraz?”.
 - [x] Eksport pojedynczego .ics.
 - [x] Rozróżnienie po terminie / dziś / pilne / wkrótce.
-- [x] Test dat granicznych priorytetu oraz eksportu .ics na dniach zmiany czasu w finalnym self-teście — Preview 5.0, finalny Windows Release run 37299036015 (#88).
+- [x] Test dat granicznych priorytetu oraz eksportu .ics na dniach zmiany czasu w finalnym self-teście — Preview 5.0, finalny Windows Release run 37304245485 (#90).
 - [x] Eksport .ics używa całodniowego `VALUE=DATE`, jawnego `DTEND` następnego dnia i nie zapisuje lokalnej ścieżki pliku.
 - [ ] Test rzeczywistych pism z różnymi sposobami zapisu terminu.
 
@@ -44,7 +44,7 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 - [x] Brak automatycznej wysyłki OCR do CzyToŚciema?.
 - [x] ProofPack powstaje lokalnie.
 - [x] Automatyczny privacy smoke finalnego builda: Decision Trail, ProofPack/CasePack i .ics bez ujawniania lokalnych ścieżek; metadane pakietów bez pełnego OCR.
-- [x] Pilot public-safe nie zapisuje nazwy pliku ani lokalnej ścieżki źródłowej; `pilot-private.json` nie powstaje bez jawnego opt-in — Windows Release #88.
+- [x] Pilot public-safe nie zapisuje nazwy pliku ani lokalnej ścieżki źródłowej; `pilot-private.json` nie powstaje bez jawnego opt-in — Windows Release #90.
 - [ ] Ręczny przegląd prywatności finalnego builda.
 
 ## E. Niezawodność
@@ -55,14 +55,16 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 - [x] LifePilot Pilot na gotowym, spakowanym EXE.
 - [x] Clean install.
 - [x] LifePilot Pilot po clean install.
-- [x] Upgrade z DocPilot v4.0.0 — finalny Preview 5.0 Windows Release run 37299036015 (#88).
+- [x] Upgrade z DocPilot v4.0.0 — finalny Preview 5.0 Windows Release run 37304245485 (#90).
 - [x] LifePilot Pilot po upgrade z v4.0.0.
 - [x] Uninstall bez utraty danych użytkownika.
 - [x] OCR smoke na obrazie i skanowanym PDF w pełnym Windows gate.
 - [x] Recovery smoke checkpoint → zmiana → restore w finalnym EXE, clean install i po upgrade — Preview 5.0.
-- [x] Artefakt `DocPilot-Windows` z instalatorem, Portable ZIP i SHA256SUMS został utworzony w runie #88.
+- [x] Artefakt `DocPilot-Windows` z instalatorem, Portable ZIP i SHA256SUMS został utworzony w runie #90.
 
 ## F. Pilot dokumentów
+
+Kontrolowany pakiet syntetyczny został wykonany na finalnej logice po poprawkach z PR #84 i #85: **10/10 dokumentów, 0 błędów analizy, 45/45 kontroli merytorycznych/privacy = PASS**. Pozostał wyłącznie ręczny przebieg UX/privacy na zainstalowanym Windows.
 
 Na zainstalowanym Windows uruchom z menu Start **LifePilot Pilot**, wybierz folder dokumentów i poczekaj na raport. Launcher korzysta z tego samego lokalnego silnika co `docpilot-pilot`.
 
@@ -99,6 +101,7 @@ Publiczna beta może być oznaczona dopiero wtedy, gdy:
 - [x] Słaby skan kierowany do ręcznej kontroli.
 - [x] Niejednoznaczny termin nie jest zgadywany.
 - [x] Brak prywatnych fixture'ów w publicznym repo.
-- [ ] Kontrolowany pilot na realnych, prywatnych lub zanonimizowanych dokumentach.
+- [x] Kontrolowany pakiet syntetyczny: 10/10 dokumentów, 0 błędów, 45/45 kontroli PASS.
+- [ ] Ręczny Windows UX/privacy pass na autoryzowanym urządzeniu.
 
 Szczegóły: [LIFEPILOT-ACCEPTANCE.md](LIFEPILOT-ACCEPTANCE.md).
