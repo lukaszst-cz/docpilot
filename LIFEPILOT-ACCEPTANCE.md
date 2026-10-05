@@ -62,17 +62,26 @@ Wtedy powstaje dodatkowy `pilot-private.json`. Może zawierać względne nazwy p
 
 Katalog `lifepilot-pilot-results/` jest ignorowany przez Git, ale to nie zastępuje ręcznej kontroli raportu przed jakąkolwiek publikacją.
 
-## Finalny automatyczny gate przed pilotem ręcznym
+## Finalny gate przed ręcznym Windows UX pass
 
-PR **#82 — LifePilot: one-click pilot launcher** został scalony do `main`.
+Finalny kandydat LifePilot Preview 5.0 jest na `main` `e20918743cc084bb04f5466cabb86c6f4141abb9` po poprawkach ujawnionych przez kontrolowany pilot:
+- PR **#84** — parser terminów/dat oraz confidence OCR;
+- PR **#85** — issuer, data dokumentu i metadane faktury.
 
-Windows Release **#88**, run `37299036015`, dla merge commitu `cdcd5ac3a1eb4e662b66cae193741d28afaac7b5` zakończył się sukcesem i potwierdził:
+Finalna automatyczna weryfikacja:
+- main Test **#245 / run 37304245537** — **SUCCESS**;
+- Windows Release **#90 / run 37304245485** — **SUCCESS**;
+- artifact `DocPilot-Windows`, id **11342808345**;
+- digest `sha256:a7b47c1fc5ead005d1cfd36410ccebd213fc80f6079e4ac6b7bf7e0c8c34594d`.
+
+Windows Release #90 potwierdził:
 - pilot na spakowanym EXE;
 - clean install + skrót **LifePilot Pilot** + pilot + uninstall;
 - zachowanie danych użytkownika po uninstall;
 - upgrade z v4.0.0 + skrót + pilot;
 - brak `pilot-private.json` bez jawnego opt-in;
-- brak nazwy źródłowego pliku i lokalnej ścieżki w publicznym raporcie;
-- checksumy i artefakt `DocPilot-Windows`.
+- checksumy i artefakty Windows.
 
-Od tego momentu jedynym blockerem akceptacyjnym pozostaje ręczny pilot na realnych lub zanonimizowanych dokumentach oraz ręczny przegląd UX i poprawności wyników.
+Kontrolowany pakiet syntetyczny finalnej logiki przeszedł **10/10 dokumentów, 0 błędów analizy i 45/45 kontroli merytorycznych/privacy**. Obejmował m.in. fakturę, termin względny pisma urzędowego, umowę, dokument szkolny, gwarancję, niejednoznaczny termin, słaby OCR PDF/PNG, korespondencję ubezpieczeniową i kosztorys z kwotą łączną.
+
+Jedynym pozostałym blockerem issue #62 jest **ręczny Windows UX/privacy pass na autoryzowanym urządzeniu**: menu Start → LifePilot Pilot → wybór folderu → wynik → korekta → Decision Trail → Case Readiness → ProofPack/CasePack. Prywatnych oryginałów nie należy publikować w repozytorium.
