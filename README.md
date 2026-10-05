@@ -13,7 +13,7 @@ Aktualny kod zawiera już warstwę **CoTeraz?**, priorytetyzowaną kolejkę dzia
 - [Checklista pilota LifePilot](PILOT-LIFEPILOT.md)
 - strona produktu w lokalnej aplikacji: `/lifepilot`
 
-LifePilot pozostaje warstwą preview. Stabilnym publicznym wydaniem Windows jest nadal DocPilot v4.0.0.
+LifePilot pozostaje warstwą preview. Stabilnym publicznym wydaniem Windows jest nadal DocPilot v4.0.0. Finalny kandydat LifePilot Preview 5.0 na `main` (`e2091874…`) ma zielone CI, Windows Release #90 oraz kontrolowany pakiet syntetyczny 10/10 dokumentów i 45/45 kontroli; przed publiczną betą/stable pozostaje ręczny Windows UX/privacy pass.
 
 
 [![Test](https://github.com/lukaszst-cz/docpilot/actions/workflows/test.yml/badge.svg)](https://github.com/lukaszst-cz/docpilot/actions/workflows/test.yml) [![Windows Release](https://github.com/lukaszst-cz/docpilot/actions/workflows/windows-release.yml/badge.svg)](https://github.com/lukaszst-cz/docpilot/actions/workflows/windows-release.yml)
@@ -95,7 +95,7 @@ Manifest nie zawiera pełnego tekstu OCR ani lokalnej ścieżki pliku. SHA-256 s
 
 Pełny opis produktu: po uruchomieniu DocPilot otwórz **O LifePilot** albo wejdź na `http://127.0.0.1:8765/lifepilot`. Dokumentacja koncepcji i granic znajduje się w [LIFEPILOT.md](LIFEPILOT.md).
 
-> Uwaga o wydaniu: publiczny instalator **DocPilot v4.0.0** pozostaje ostatnim stabilnym wydaniem Windows. Funkcje LifePilot są częścią kodu rozwijanego po v4.0.0 i powinny trafić do kolejnego publicznego builda dopiero po przejściu pełnego release pipeline.
+> Uwaga o wydaniu: publiczny instalator **DocPilot v4.0.0** pozostaje ostatnim stabilnym wydaniem Windows. LifePilot Preview 5.0 przeszedł pełny CI/Windows Release oraz kontrolowany syntetyczny pilot; publikację jako beta/stable blokuje już tylko ręczny Windows UX/privacy pass z issue #62.
 
 ## Co potrafi
 
@@ -207,9 +207,9 @@ Podstawowa zasada pozostaje bez zmian: najpierw analiza i podgląd, potem zatwie
 
 ## Status wydania
 
-Kod gałęzi `main` jest przygotowany jako **v4.0.0**. Publiczne pliki są publikowane z oznaczonego wydania, a linki w sekcji „Pobierz” zawsze prowadzą do najnowszego opublikowanego release.
+Publicznym stabilnym wydaniem pozostaje **DocPilot v4.0.0**. Gałąź `main` zawiera dodatkowo **LifePilot Preview 5.0** jako kandydata do kolejnej publicznej linii; nie jest jeszcze oznaczona jako stable.
 
-Wydanie Windows przechodzi automatyczne testy, kontrolę składni frontendu, smoke testy typowych dokumentów i codziennego workflow, budowę aplikacji i modułu powiadomień, OCR obrazu i skanowanego PDF-u, self-test gotowego EXE, czystą instalację i uninstall z zachowaniem danych, upgrade z v0.5.1 na istniejącej bazie SQLite, budowę instalatora i Portable ZIP oraz wygenerowanie sum SHA-256.
+Finalny Windows Release LifePilot Preview 5.0 to **#90 / run 37304245485** dla `main` `e20918743cc084bb04f5466cabb86c6f4141abb9`. Pipeline obejmuje pełne testy, kontrolę składni frontendu, build aplikacji i powiadomień, bundled OCR, self-test gotowego EXE, LifePilot Pilot, clean install/uninstall z zachowaniem danych, upgrade z publicznego **v4.0.0**, instalator, Portable ZIP, checksumy i artefakty. Kontrolowany syntetyczny pilot przeszedł **10/10 dokumentów, 0 błędów i 45/45 kontroli merytorycznych/privacy**.
 
 Checklista stabilności 1.0 pozostaje w [`RELEASE-CHECKLIST.md`](RELEASE-CHECKLIST.md), a kierunek dalszego rozwoju jest prowadzony w roadmapie repozytorium.
 
