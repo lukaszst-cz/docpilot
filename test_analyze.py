@@ -157,6 +157,7 @@ def test_multiple_unlabelled_dates_do_not_become_document_date():
         "Prosze przekazac podpisana zgode do 09.10.2026.\n"
         "Platnosc do 09.10.2026."
     )
+    assert meta.issuer == "Szkola Podstawowa Testowa"
     assert meta.document_date is None
     assert meta.deadline.isoformat() == "2026-10-09"
 
