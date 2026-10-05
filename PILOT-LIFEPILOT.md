@@ -33,7 +33,7 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 - [x] Wykryty termin trafia do „Co teraz?”.
 - [x] Eksport pojedynczego .ics.
 - [x] Rozróżnienie po terminie / dziś / pilne / wkrótce.
-- [x] Test dat granicznych priorytetu oraz eksportu .ics na dniach zmiany czasu w finalnym self-teście — Preview 5.0, Windows run 37224430228.
+- [x] Test dat granicznych priorytetu oraz eksportu .ics na dniach zmiany czasu w finalnym self-teście — Preview 5.0, finalny Windows Release run 37299036015 (#88).
 - [x] Eksport .ics używa całodniowego `VALUE=DATE`, jawnego `DTEND` następnego dnia i nie zapisuje lokalnej ścieżki pliku.
 - [ ] Test rzeczywistych pism z różnymi sposobami zapisu terminu.
 
@@ -44,6 +44,7 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 - [x] Brak automatycznej wysyłki OCR do CzyToŚciema?.
 - [x] ProofPack powstaje lokalnie.
 - [x] Automatyczny privacy smoke finalnego builda: Decision Trail, ProofPack/CasePack i .ics bez ujawniania lokalnych ścieżek; metadane pakietów bez pełnego OCR.
+- [x] Pilot public-safe nie zapisuje nazwy pliku ani lokalnej ścieżki źródłowej; `pilot-private.json` nie powstaje bez jawnego opt-in — Windows Release #88.
 - [ ] Ręczny przegląd prywatności finalnego builda.
 
 ## E. Niezawodność
@@ -51,17 +52,25 @@ Ta checklista określa minimalny poziom przed nazwaniem LifePilot używalną pub
 - [x] Pełne CI dla linii Preview 5.0.
 - [x] Windows build.
 - [x] Self-test EXE.
+- [x] LifePilot Pilot na gotowym, spakowanym EXE.
 - [x] Clean install.
-- [x] Upgrade z DocPilot v4.0.0 — Preview 4.9 Windows run 37209580044.
+- [x] LifePilot Pilot po clean install.
+- [x] Upgrade z DocPilot v4.0.0 — finalny Preview 5.0 Windows Release run 37299036015 (#88).
+- [x] LifePilot Pilot po upgrade z v4.0.0.
 - [x] Uninstall bez utraty danych użytkownika.
 - [x] OCR smoke na obrazie i skanowanym PDF w pełnym Windows gate.
 - [x] Recovery smoke checkpoint → zmiana → restore w finalnym EXE, clean install i po upgrade — Preview 5.0.
+- [x] Artefakt `DocPilot-Windows` z instalatorem, Portable ZIP i SHA256SUMS został utworzony w runie #88.
 
 ## F. Pilot dokumentów
 
-Na zainstalowanym Windows uruchom z menu Start **LifePilot Pilot**, wybierz folder dokumentów i poczekaj na raport. Launcher korzysta z tego samego lokalnego silnika co `docpilot-pilot`. Domyślnie tworzy tylko `pilot-public.json` i `pilot-report.md`; dokładny `pilot-private.json` wymaga jawnego `--include-private` w wersji CLI.
+Na zainstalowanym Windows uruchom z menu Start **LifePilot Pilot**, wybierz folder dokumentów i poczekaj na raport. Launcher korzysta z tego samego lokalnego silnika co `docpilot-pilot`.
 
+Domyślne wyniki są zapisywane lokalnie w `AppData\Local\DocPilot\PilotResults\...` i obejmują tylko:
+- `pilot-public.json`;
+- `pilot-report.md`.
 
+Dokładny `pilot-private.json` nie jest tworzony przez zwykły launcher. Wymaga jawnego `--include-private` w wersji CLI i nie powinien być publikowany.
 
 Przed szerszą publikacją sprawdzić minimum:
 - [ ] faktura;
