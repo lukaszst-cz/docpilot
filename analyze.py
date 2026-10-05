@@ -5,7 +5,6 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 
-from dateutil import parser as date_parser
 
 from .extract import extract_text
 from .intelligence import (
